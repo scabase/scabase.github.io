@@ -1,0 +1,29 @@
+# 多生态包清单（每行一个包，格式：ecosystem:package[@version]）
+# ecosystem 取值参见 OSV 生态列表：https://ossf.github.io/osv-schema/#affectedpackage-field
+# 省略 @version 时抓取该包的全部漏洞；指定版本时仅返回对该版本有影响的漏洞。
+#
+# ---- PyPI ----
+PyPI:django
+PyPI:requests@2.25.1
+PyPI:flask
+
+# ---- npm ----
+npm:lodash
+npm:express@4.17.1
+
+# ---- Go ----
+Go:github.com/gin-gonic/gin
+Go:golang.org/x/text
+
+# ---- crates.io / Rust ----
+crates.io:serde
+
+# ---- Maven ----
+Maven:org.apache.logging.log4j:log4j-core
+
+# ---- RubyGems ----
+RubyGems:rails
+
+# ---- Debian / Alpine ----
+Debian:openssl
+Alpine:curl

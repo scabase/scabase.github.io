@@ -1,0 +1,54 @@
+name: Update Vulnerability Data
+
+on:
+  schedule:
+    # 每天 02:00 UTC 自动更新
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      no_nvd:
+        description: "仅抓取 OSV，跳过 NVD"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-vuln
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch OSV / NVD data
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.no_nvd }}" = "true" ]; then
+            python scripts/fetch_osv_nvd.py --pkg-list data/pkg_list.txt --out data/vulns.json --no-nvd
+          else
+            python scripts/fetch_osv_nvd.py --pkg-list data/pkg_list.txt --out data/vulns.json
+          fi
+
+      - name: Commit and push changes
+        run: |
+          if [ -z "$(git status --porcelain data/vulns.json)" ]; then
+            echo "漏洞数据无变化，跳过提交"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/vulns.json
+          git commit -m "chore(data): update vulns.json [skip ci]"
+          git push
