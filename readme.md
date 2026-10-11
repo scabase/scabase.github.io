@@ -78,10 +78,10 @@ Primary vulnerability source
 Native support for Maven/NPM/PyPI/Go, no API key required, includes GHSA vulnerabilities without CVE
 NVD
 Supplementary enrichment
-NIST official CVE database, provides standard CVSS score and CWE classification, requires API key
+NIST official CVE database, provides standard CVSS score and CWE classification, API key recommended
 Notes
 1. OSV API has rate limits. Add sleep delay in loop when scanning large package lists.
-2. NVD API is optional; the system works with only OSV data if no key provided.
+2. NVD API is optional; without a key the fetcher still queries NVD but at a lower rate (configuring NVD_API_KEY is recommended).
 3. This project is for vulnerability information lookup only. It does not perform vulnerability exploitation or active scanning.
 4. Vulnerability data is for security reference only, and cannot be used as the sole basis for compliance audit.
 License

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ScaBase · 开源组件漏洞查询（Maven GAV / NPM / PyPI / Go）</title>
+  <meta name="description" content="ScaBase：基于 OSV + NVD 的开源组件漏洞查询平台，支持 Maven GAV、NPM、PyPI、Go，兼容 pkg_list.txt 清单格式。" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <h1><span class="logo">🛡️</span> ScaBase</h1>
+      <p class="tagline">
+        开源软件成分分析（SCA）漏洞查询 · 基于 <abbr title="Open Source Vulnerability Database">OSV</abbr> +
+        <abbr title="National Vulnerability Database">NVD</abbr> · 支持 Maven <strong>GAV</strong> / NPM / PyPI / Go
+      </p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel">
+      <label class="field-label" for="query">查询清单（每行一条，兼容 <code>pkg_list.txt</code> 格式）</label>
+      <textarea id="query" spellcheck="false" rows="7"
+        placeholder="maven|org.springframework.boot:spring-boot-starter-web|2.7.0&#10;npm|lodash|4.17.20&#10;pypi|requests|2.20.0&#10;go|github.com/gin-gonic/gin|1.6.0"></textarea>
+
+      <div class="controls">
+        <button id="run" class="primary" type="button">查询</button>
+        <button id="clear" class="ghost" type="button">清空</button>
+        <label class="chk" title="勾选后即使本地漏洞库已命中，也重新请求 OSV">
+          <input type="checkbox" id="forceLive" /> 强制实时 OSV 查询
+        </label>
+        <span id="dataStamp" class="stamp" aria-live="polite"></span>
+      </div>
+
+      <details class="help">
+        <summary>支持的输入格式</summary>
+        <div class="help-body">
+          <ul>
+            <li><b>pkg_list 格式（推荐）</b>：<code>ecosystem|package|version</code>，与
+              <code>data/pkg_list.txt</code> 一致。Maven 的 package 为 <code>groupId:artifactId</code>。
+              例：<code>maven|com.alibaba:fastjson|1.2.24</code>、<code>npm|lodash|4.17.20</code>、
+              <code>pypi|requests|2.20.0</code>、<code>go|github.com/gin-gonic/gin|1.6.0</code>。</li>
+            <li><b>GAV（Maven 坐标）</b>：<code>groupId:artifactId:version</code>，例
+              <code>org.springframework.boot:spring-boot-starter-web:2.7.0</code>；省略版本为
+              <code>groupId:artifactId</code>。</li>
+            <li><b>简写</b>：<code>ecosystem:package@version</code>，例 <code>PyPI:requests@2.20.0</code>。</li>
+            <li>以 <code>#</code> 开头的行视为注释，空行自动忽略。支持生态：
+              <code>maven / npm / pypi / go</code>（并自动映射为 OSV 生态名）。</li>
+          </ul>
+        </div>
+      </details>
+
+      <div class="examples">
+        <span class="examples-label">快速填入：</span>
+        <div id="exampleChips" class="chips"></div>
+      </div>
+    </section>
+
+    <section id="status" class="status" hidden></section>
+    <section id="results" class="results"></section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>数据来源：<a href="https://osv.dev" target="_blank" rel="noopener">OSV</a> ·
+        <a href="https://nvd.nist.gov" target="_blank" rel="noopener">NVD</a></span>
+      <span class="dot">·</span>
+      <span>由 <code>scabase-fetcher</code> 定时更新</span>
+      <span class="dot">·</span>
+      <span><a href="scabase-fetcher/data/pkg_list.txt" target="_blank" rel="noopener">包清单</a> ·
+        <a href="scabase-fetcher/data/vulns.json" target="_blank" rel="noopener">vulns.json</a></span>
+    </div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
