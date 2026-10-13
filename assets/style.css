@@ -130,6 +130,17 @@ button.ghost { background: transparent; }
 
 .stamp { margin-left: auto; font-size: 12.5px; color: var(--fg-muted); }
 
+.offline-tag {
+  font-size: 11.5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(210, 153, 34, 0.5);
+  color: var(--yellow);
+  background: rgba(210, 153, 34, 0.1);
+  white-space: nowrap;
+}
+.offline-tag[hidden] { display: none; }
+
 /* ---------------- help ---------------- */
 .help { margin-top: 14px; font-size: 13.5px; }
 .help > summary { cursor: pointer; color: var(--fg-muted); user-select: none; }
@@ -137,6 +148,8 @@ button.ghost { background: transparent; }
 .help-body ul { margin: 0; padding-left: 18px; }
 .help-body li { margin: 5px 0; }
 .help-body code { background: rgba(127, 127, 127, 0.16); padding: 1px 5px; border-radius: 4px; }
+.help-note { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--border); color: var(--fg-muted); }
+.help-note strong { color: var(--fg); }
 
 /* ---------------- examples ---------------- */
 .examples { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -175,6 +188,74 @@ button.ghost { background: transparent; }
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------------- toolbar ---------------- */
+.toolbar {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.tb-row { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+
+#filter {
+  flex: 1 1 260px;
+  min-width: 200px;
+  padding: 8px 12px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 13px;
+  outline: none;
+}
+#filter:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+select.tb {
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+select.tb:focus { border-color: var(--accent); }
+
+.tb-btn { padding: 8px 14px; font-size: 13px; }
+
+.viewswitch { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.viewswitch button {
+  border: 0;
+  border-radius: 0;
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 13.5px;
+}
+.viewswitch button + button { border-left: 1px solid var(--border); }
+.viewswitch button:hover { filter: none; color: var(--fg); background: var(--bg-soft); }
+.viewswitch button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.cve-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cve-stats[hidden] { display: none; }
+.stat {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+.stat b { color: var(--fg); font-weight: 700; }
+.stat-CRITICAL { color: var(--red); border-color: rgba(248, 81, 73, 0.45); background: rgba(248, 81, 73, 0.1); }
+.stat-HIGH { color: var(--orange); border-color: rgba(219, 109, 40, 0.45); background: rgba(219, 109, 40, 0.1); }
+.stat-MODERATE { color: var(--yellow); border-color: rgba(210, 153, 34, 0.45); background: rgba(210, 153, 34, 0.1); }
+.stat-LOW { color: var(--green); border-color: rgba(63, 185, 80, 0.45); background: rgba(63, 185, 80, 0.1); }
 
 /* ---------------- results ---------------- */
 .results { display: flex; flex-direction: column; gap: 16px; }
@@ -223,9 +304,66 @@ button.ghost { background: transparent; }
 .vuln:last-child { border-bottom: 0; }
 
 .vuln-top { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
-.vid { font-family: var(--mono); font-weight: 600; }
-.cve { font-family: var(--mono); font-size: 12.5px; color: var(--fg-muted); }
+.vid { font-family: var(--mono); font-weight: 600; font-size: 14px; }
+.cve-main {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  word-break: break-all;
+}
+.vid.no-cve { font-size: 13px; color: var(--fg-muted); }
+.cve-main.no-cve { color: var(--fg-muted); font-size: 13px; }
 .date { font-size: 12px; color: var(--fg-muted); margin-left: auto; }
+
+/* 其余 CVE 编号 */
+.cve-tag {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px dashed var(--border);
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+.cve-tag:hover { color: var(--accent); border-color: var(--accent); border-style: solid; text-decoration: none; }
+
+/* GHSA / 其他非 CVE 标识 */
+.altid {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--fg-muted);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.14);
+  white-space: nowrap;
+}
+a.altid:hover { color: var(--accent); text-decoration: none; }
+
+.vuln-meta {
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--fg-muted);
+  word-break: break-all;
+}
+
+/* 按 CVE 视图：受影响的组件 */
+.affected { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.aff {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  max-width: 100%;
+}
+.aff .name { word-break: break-all; }
+.aff .ver { color: var(--fg-muted); }
 
 .sev {
   font-size: 11px;

@@ -1,0 +1,13 @@
+.git
+.github
+.nojekyll
+CNAME
+.workbuddy
+readme.md
+readme_zh_cn.md
+scabase-fetcher/scripts
+scabase-fetcher/.gitignore
+**/__pycache__
+**/*.py[cod]
+**/.DS_Store
+docker-compose.yml

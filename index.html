@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ScaBase · 开源组件漏洞查询（Maven GAV / NPM / PyPI / Go）</title>
-  <meta name="description" content="ScaBase：基于 OSV + NVD 的开源组件漏洞查询平台，支持 Maven GAV、NPM、PyPI、Go，兼容 pkg_list.txt 清单格式。" />
+  <title>ScaBase · 开源组件漏洞查询 · 以 CVE 编号呈现（Maven GAV / NPM / PyPI / Go）</title>
+  <meta name="description" content="ScaBase：基于 OSV + NVD 的开源组件漏洞查询平台，支持 Maven GAV、NPM、PyPI、Go，兼容 pkg_list.txt 清单格式，结果以 CVE 编号为主标识聚合展示。" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="assets/style.css" />
+  <script src="assets/config.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -28,9 +29,10 @@
       <div class="controls">
         <button id="run" class="primary" type="button">查询</button>
         <button id="clear" class="ghost" type="button">清空</button>
-        <label class="chk" title="勾选后即使本地漏洞库已命中，也重新请求 OSV">
+        <label class="chk" id="forceLiveWrap" title="勾选后即使本地漏洞库已命中，也重新请求 OSV">
           <input type="checkbox" id="forceLive" /> 强制实时 OSV 查询
         </label>
+        <span id="offlineTag" class="offline-tag" hidden>离线模式 · 仅本地漏洞库</span>
         <span id="dataStamp" class="stamp" aria-live="polite"></span>
       </div>
 
@@ -46,9 +48,14 @@
               <code>org.springframework.boot:spring-boot-starter-web:2.7.0</code>；省略版本为
               <code>groupId:artifactId</code>。</li>
             <li><b>简写</b>：<code>ecosystem:package@version</code>，例 <code>PyPI:requests@2.20.0</code>。</li>
+            <li><b>CVE 编号</b>：直接输入 <code>CVE-2021-44228</code>，可反查本地漏洞库中受该 CVE 影响的组件。</li>
             <li>以 <code>#</code> 开头的行视为注释，空行自动忽略。支持生态：
               <code>maven / npm / pypi / go</code>（并自动映射为 OSV 生态名）。</li>
           </ul>
+          <p class="help-note">
+            结果默认以 <strong>CVE 编号</strong> 为主标识展示（GHSA 等作为次要别名），
+            一条记录关联多个 CVE 时会全部列出；可用工具栏按 CVE 过滤、切换「按 CVE」聚合视图。
+          </p>
         </div>
       </details>
 
@@ -59,6 +66,22 @@
     </section>
 
     <section id="status" class="status" hidden></section>
+
+    <section id="toolbar" class="toolbar" hidden>
+      <div class="tb-row">
+        <input id="filter" type="search" autocomplete="off"
+          placeholder="按 CVE 编号过滤，如 CVE-2021 或 CVE-2021-44228" />
+        <select id="sevFilter" class="tb" aria-label="严重度筛选"></select>
+        <select id="sortBy" class="tb" aria-label="排序方式"></select>
+        <div class="viewswitch" role="group" aria-label="视图切换">
+          <button type="button" class="vs active" data-view="pkg">按组件</button>
+          <button type="button" class="vs" data-view="cve">按 CVE</button>
+        </div>
+        <button id="copyCves" class="ghost tb-btn" type="button">复制 CVE 清单</button>
+      </div>
+      <div id="cveStats" class="cve-stats"></div>
+    </section>
+
     <section id="results" class="results"></section>
   </main>
 

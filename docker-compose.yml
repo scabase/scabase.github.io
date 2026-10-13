@@ -1,0 +1,33 @@
+# ScaBase · 内网一键部署
+#
+# 启动：docker compose up -d
+# 访问：http://<内网IP>:8080
+#
+# 离线模式（默认开启）：只查镜像内置的本地漏洞库，不请求 OSV，
+# 适合无外网的内网环境。如内网可访问 OSV，把 SCABASE_OFFLINE 改成 false。
+services:
+  scabase:
+    # 方式 A（默认）：用仓库源码本地构建，产物命名为 scabase:latest
+    build: .
+    image: scabase:latest
+    # 方式 B：使用 GitHub Actions 构建的成品镜像（注释掉 build，打开下一行）
+    # image: registry.cn-hangzhou.aliyuncs.com/roweb/scabase:latest
+    container_name: scabase
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # 离线模式：禁用实时 OSV 请求
+      SCABASE_OFFLINE: "true"
+      # 内网自建 OSV 代理时填写（需先关闭离线模式）
+      # SCABASE_OSV_API: "http://osv-proxy.internal/v1/query"
+      TZ: "Asia/Shanghai"
+    # 可选：用外部最新漏洞库覆盖镜像内置数据（把宿主机目录挂进去即可热更新）
+    # volumes:
+    #   - ./data:/usr/share/nginx/html/scabase-fetcher/data:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

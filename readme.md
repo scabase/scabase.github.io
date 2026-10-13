@@ -60,10 +60,59 @@ Add repository secret named NVD_API_KEY to improve NVD request rate limit.
 - Manual trigger: Actions → Update SCA Vulnerability Data → Run workflow
 After workflow completes, data/vulns.json will be updated.
 3. Deploy Web Frontend
-The static frontend in scabase-web can be deployed on:
-- GitHub Pages
-- Cloudflare Pages (recommended for global CDN)
-Website: https://scabase.roweb.cn
+This site is fully static and supports two deployment paths: **GitHub Pages (public)** and **Docker (intranet / offline)**.
+
+#### Option A: GitHub Pages
+1. Repo Settings → Pages → Build and deployment → Source = **GitHub Actions**.
+2. Every push to `main` triggers `.github/workflows/pages.yml`, which assembles `_site`
+   (index.html + assets + scabase-fetcher/data + CNAME) and publishes it.
+3. Custom domain: edit the `CNAME` file at repo root (currently `scabase.roweb.cn`) and point
+   a DNS CNAME record to `<org>.github.io`.
+4. Manual run: Actions → Deploy GitHub Pages → Run workflow.
+
+> `.nojekyll` is included so Jekyll does not skip underscore directories.
+
+#### Option B: Docker (intranet / offline)
+Image is based on `nginx:1.27-alpine` (`Dockerfile`); the CI workflow
+`.github/workflows/docker.yml` builds `linux/amd64,linux/arm64`, pushes to Alibaba Cloud
+Container Registry, and also publishes an offline-loadable image tar artifact.
+
+```bash
+# 1) Build locally and start
+docker compose up -d          # or: docker build -t scabase:latest .
+# visit http://<intranet-ip>:8080
+
+# 2) Use the CI-built image
+docker pull registry.cn-hangzhou.aliyuncs.com/roweb/scabase:latest
+docker run -d --name scabase -p 8080:8080 \
+  -e SCABASE_OFFLINE=true \
+  registry.cn-hangzhou.aliyuncs.com/roweb/scabase:latest
+
+# 3) Fully offline (no registry access): import the artifact tar
+docker load -i scabase-linux-amd64.tar     # arm64: scabase-linux-arm64.tar
+docker run -d --name scabase -p 8080:8080 -e SCABASE_OFFLINE=true scabase:latest
+```
+
+Runtime environment variables (written into `assets/config.js` at container start, no rebuild needed):
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SCABASE_OFFLINE` | `false` | When `true`, disables live OSV requests; only the bundled local DB is queried and an "offline" badge is shown |
+| `SCABASE_OSV_API` | `https://api.osv.dev/v1/query` | Point to a self-hosted OSV proxy (turn off offline mode first) |
+| `SCABASE_OSV_VULN_API` | `https://api.osv.dev/v1/vulns/` | OSV single-vuln endpoint |
+| `SCABASE_OSV_WEB` | `https://osv.dev/vulnerability/` | OSV detail page prefix |
+| `SCABASE_NVD_WEB` | `https://nvd.nist.gov/vuln/detail/` | NVD detail page prefix |
+
+Refresh the vulnerability DB without rebuilding the image:
+
+```bash
+docker run -d --name scabase -p 8080:8080 -e SCABASE_OFFLINE=true \
+  -v /opt/scabase/data:/usr/share/nginx/html/scabase-fetcher/data:ro \
+  scabase:latest
+```
+
+> The container listens on **8080** (unprivileged port, nginx runs as non-root);
+> `/healthz` is provided for health checks in both the image and compose file.
 Extended Features
 - 🔔 Vulnerability alert: Send DingTalk / WeCom notification when new CVE found
 - 📄 SBOM parser: Auto generate pkg_list from pom.xml / package.json / go.mod

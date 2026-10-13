@@ -16,6 +16,7 @@ ScaBase 是面向 DevSecOps、应用安全团队的开源SCA（软件成分分�
 - ✅ 数据源：OSV作为主数据源，NVD补充标准CVSS、CWE信息
 - ✅ 自动更新：GitHub Actions 定时任务自动拉取最新漏洞
 - ✅ 纯静态前端：无需后端服务，可部署于 GitHub Pages / Cloudflare Pages
+- ✅ 以 CVE 编号呈现：结果以 CVE 为主标识，支持按 CVE 聚合、过滤、排序与一键复制清单
 - ✅ 可选备份：通过 Cloudflare R2 将漏洞JSON同步备份至个人NAS
 
 > SCA（Software Composition Analysis，软件成分分析）：识别项目引入的第三方开源依赖组件，查询CVE风险信息，用于软件供应链安全检测。
@@ -33,6 +34,22 @@ scabase-fetcher/
 └── data/
 ├── pkg_list.txt                    # 待监控组件清单
 └── vulns.json                      # 自动生成漏洞数据库
+
+### 目录结构（站点根目录）
+```
+.
+├── index.html                      # 查询页面
+├── assets/                         # app.js / style.css / config.js（运行时配置）
+├── scabase-fetcher/data/           # vulns.json + pkg_list.txt
+├── Dockerfile                      # nginx:alpine 镜像
+├── docker/nginx-default.conf       # nginx 站点配置（监听 8080）
+├── docker/10-env-config.sh         # 容器启动时生成 assets/config.js
+├── docker-compose.yml              # 内网一键部署
+└── .github/workflows/
+    ├── pages.yml                   # GitHub Pages 发布
+    ├── docker.yml                  # 镜像构建与推送（含离线 tar 产物）
+    └── update-vuln.yml             # 漏洞库定时采集
+```
 ## 组件清单格式 `data/pkg_list.txt`
 格式：`ecosystem|package|version`
 ```txt
@@ -48,7 +65,7 @@ go|github.com/gin-gonic/gin|1.6.0
 2. 读取pkg_list.txt组件清单，调用 OSV API 查询每个包的漏洞。
 3. 对带有 CVE 编号的漏洞，调用 NVD API 补充 CVSS 评分、CWE 分类信息。
 4. 合并所有漏洞数据输出data/vulns.json，自动提交回代码仓库。
-5. 静态网页前端加载vulns.json，在浏览器提供漏洞检索。
+5. 静态网页前端加载vulns.json，在浏览器提供漏洞检索；结果以 CVE 编号为主标识展示，可切换「按组件 / 按 CVE」视图。
 6. 可选：上传vulns.json至 Cloudflare R2，NAS 定时拉取实现本地备份。
 部署指南
 1. 仓库基础配置
@@ -62,10 +79,59 @@ go|github.com/gin-gonic/gin|1.6.0
 - 手动触发：Actions → Update SCA Vulnerability Data → Run workflow
 工作流执行完毕后，data/vulns.json 文件会自动更新。
 3. 部署前端网站
-scabase-web 仓库中的静态前端可部署在：
-- GitHub Pages
-- Cloudflare Pages（推荐，自带全球 CDN 加速）
-网站地址：https://scabase.roweb.cn
+本站是纯静态站点，提供两种部署方式：**GitHub Pages（公网）** 与 **Docker（内网离线）**。
+
+#### 方式一：GitHub Pages（公网）
+1. 仓库 Settings → Pages → Build and deployment → Source 选择 **GitHub Actions**。
+2. 推送到 `main` 分支后，`.github/workflows/pages.yml` 自动执行：
+   组装 `_site`（index.html + assets + scabase-fetcher/data + CNAME）并发布。
+3. 绑定自定义域名：修改仓库根目录 `CNAME` 文件（当前为 `scabase.roweb.cn`），
+   并在 DNS 处添加 CNAME 记录指向 `<组织>.github.io`。
+4. 也可在 Actions → Deploy GitHub Pages → Run workflow 手动触发。
+
+> 注意：`.nojekyll` 已内置，避免 Jekyll 忽略下划线目录。
+
+#### 方式二：Docker（内网 / 离线）
+镜像基于 `nginx:1.27-alpine`，构建脚本见 `Dockerfile`，GitHub Actions 工作流见
+`.github/workflows/docker.yml`（默认构建 `linux/amd64,linux/arm64`，推送到阿里云镜像仓库，
+并额外产出可离线导入的 image tar）。
+
+```bash
+# 1）本地构建并启动（内网一键部署）
+docker compose up -d          # 或 docker build -t scabase:latest .
+# 访问 http://<内网IP>:8080
+
+# 2）用 Actions 构建的成品镜像
+docker pull registry.cn-hangzhou.aliyuncs.com/roweb/scabase:latest
+docker run -d --name scabase -p 8080:8080 \
+  -e SCABASE_OFFLINE=true \
+  registry.cn-hangzhou.aliyuncs.com/roweb/scabase:latest
+
+# 3）纯内网（连不上镜像仓库）：下载 Actions 产物中的 image tar 后导入
+docker load -i scabase-linux-amd64.tar     # arm64 用 scabase-linux-arm64.tar
+docker run -d --name scabase -p 8080:8080 -e SCABASE_OFFLINE=true scabase:latest
+```
+
+容器环境变量（在启动时写入 `assets/config.js`，无需重新构建镜像）：
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `SCABASE_OFFLINE` | `false` | `true` 时禁用实时 OSV 请求，仅查本地漏洞库，页面显示「离线模式」标记 |
+| `SCABASE_OSV_API` | `https://api.osv.dev/v1/query` | 内网自建 OSV 代理时填写（需先关闭离线模式） |
+| `SCABASE_OSV_VULN_API` | `https://api.osv.dev/v1/vulns/` | OSV 单漏洞查询地址 |
+| `SCABASE_OSV_WEB` | `https://osv.dev/vulnerability/` | OSV 详情页前缀 |
+| `SCABASE_NVD_WEB` | `https://nvd.nist.gov/vuln/detail/` | NVD 详情页前缀 |
+
+更新漏洞库而不重建镜像（把宿主机目录挂进容器即可）：
+
+```bash
+docker run -d --name scabase -p 8080:8080 -e SCABASE_OFFLINE=true \
+  -v /opt/scabase/data:/usr/share/nginx/html/scabase-fetcher/data:ro \
+  scabase:latest
+```
+
+> 容器监听 **8080**（非特权端口，nginx 以非 root 用户运行）；
+> `/healthz` 提供健康检查，镜像与 compose 均已内置 HEALTHCHECK。
 扩展能力
 - 🔔 漏洞告警：检测到新增 CVE 时推送钉钉 / 企业微信通知
 - 📄 SBOM 解析：从 pom.xml/package.json/go.mod 自动生成 pkg_list 清单

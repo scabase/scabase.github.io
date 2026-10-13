@@ -1,0 +1,171 @@
+name: Build Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      os_platform:
+        description: 'os platform.'
+        type: choice
+        required: true
+        default: 'linux/amd64,linux/arm64'
+        options:
+          - 'linux/amd64,linux/arm64'
+          - 'linux/amd64'
+          - 'linux/arm64'
+      push_image:
+        description: 'Push image to registry'
+        required: false
+        type: boolean
+        default: true
+  push:
+    branches: ["main"]
+    paths:
+      - "index.html"
+      - "assets/**"
+      - "scabase-fetcher/data/**"
+      - "Dockerfile"
+      - "docker/**"
+      - "docker-compose.yml"
+      - ".github/workflows/docker.yml"
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: roweb/scabase
+  # 默认同时构建 amd64 / arm64；workflow_dispatch 可单独指定
+  PLATFORMS: ${{ github.event.inputs.os_platform || 'linux/amd64,linux/arm64' }}
+  APP_VERSION: '1.0.0'
+  ALI_REGISTRY: ${{ vars.ALI_REGISTRY || 'registry.cn-hangzhou.aliyuncs.com' }}
+  ALIYUN_USER: ${{ secrets.ALIYUN_USER }}
+  ALIYUN_TOKEN: ${{ secrets.ALIYUN_TOKEN }}
+
+jobs:
+  docker:
+    name: Docker (${{ github.event.inputs.os_platform || 'linux/amd64,linux/arm64' }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get the time
+        run: |
+          echo "DATE_YYYYMMDD=$(date +%Y%m%d)" >> $GITHUB_ENV
+          echo "TIME_HHMMSS=$(date +%H%M%S)" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
+      - name: Check registry credentials
+        id: creds
+        run: |
+          if [ -n "${{ secrets.ALIYUN_USER }}" ] && [ -n "${{ secrets.ALIYUN_TOKEN }}" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::warning::未配置 ALIYUN_USER / ALIYUN_TOKEN，将只构建不推送"
+          fi
+
+      - name: Log in to Alibaba Cloud Container Registry
+        if: steps.creds.outputs.available == 'true' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ALI_REGISTRY }}
+          username: ${{ secrets.ALIYUN_USER }}
+          password: ${{ secrets.ALIYUN_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ALI_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push scabase (nginx:alpine)
+        id: build-and-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false # 关闭直接推送，由 outputs 里的 push 参数控制
+          platforms: ${{ env.PLATFORMS }}
+          manifest_type: docker
+          # type=image + oci-mediatypes=false，兼容老仓库/内网 registry
+          outputs: type=image,oci-mediatypes=false,push=${{ steps.creds.outputs.available == 'true' && github.event_name != 'pull_request' }}
+          provenance: false # 关闭溯源 attestation，消除 OCI 空层
+          sbom: false
+          build-args: |
+            VERSION=${{ env.APP_VERSION }}
+            BUILD_DATE=${{ env.BUILD_DATE }}
+          tags: |
+            ${{ env.ALI_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.ALI_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DATE_YYYYMMDD }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Image summary
+        run: |
+          echo "### Docker 镜像" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.ALI_REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.ALI_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DATE_YYYYMMDD }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- 平台：${{ env.PLATFORMS }}" >> $GITHUB_STEP_SUMMARY
+
+  # 纯内网环境往往连不上镜像仓库，这里额外产出可离线导入的 image tar
+  docker-offline-bundle:
+    name: Offline bundle (amd64 / arm64)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get the time
+        run: echo "DATE_YYYYMMDD=$(date +%Y%m%d)" >> $GITHUB_ENV
+
+      - name: Build linux/amd64 tar
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: false
+          provenance: false
+          sbom: false
+          outputs: type=docker,dest=./scabase-linux-amd64.tar
+          tags: scabase:latest
+
+      - name: Build linux/arm64 tar
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm64
+          push: false
+          provenance: false
+          sbom: false
+          outputs: type=docker,dest=./scabase-linux-arm64.tar
+          tags: scabase:latest
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scabase-image-${{ env.DATE_YYYYMMDD }}
+          path: |
+            scabase-linux-amd64.tar
+            scabase-linux-arm64.tar
+          retention-days: 14
