@@ -11,6 +11,9 @@ OSV_API="${SCABASE_OSV_API:-https://api.osv.dev/v1/query}"
 OSV_VULN_API="${SCABASE_OSV_VULN_API:-https://api.osv.dev/v1/vulns/}"
 OSV_WEB="${SCABASE_OSV_WEB:-https://osv.dev/vulnerability/}"
 NVD_WEB="${SCABASE_NVD_WEB:-https://nvd.nist.gov/vuln/detail/}"
+FACTS_DIR="${SCABASE_FACTS_DIR:-/scabase-fetcher/data/facts}"
+FRESHNESS_SLA="${SCABASE_FRESHNESS_SLA_DAYS:-14}"
+GROUP_ASSETS="${SCABASE_GROUP_ASSETS:-}"
 
 # 去掉可能破坏 JS 字面量的引号与反斜杠
 sanitize() { printf '%s' "$1" | tr -d "\"'\\"; }
@@ -20,6 +23,9 @@ OSV_API=$(sanitize "$OSV_API")
 OSV_VULN_API=$(sanitize "$OSV_VULN_API")
 OSV_WEB=$(sanitize "$OSV_WEB")
 NVD_WEB=$(sanitize "$NVD_WEB")
+FACTS_DIR=$(sanitize "$FACTS_DIR")
+FRESHNESS_SLA=$(sanitize "$FRESHNESS_SLA")
+GROUP_ASSETS=$(sanitize "$GROUP_ASSETS")
 
 mkdir -p "$CONF_DIR"
 cat > "$CONF_FILE" <<EOF
@@ -29,7 +35,10 @@ window.SCABASE_CONFIG = {
   osvApi: "$OSV_API",
   osvVulnApi: "$OSV_VULN_API",
   osvWeb: "$OSV_WEB",
-  nvdWeb: "$NVD_WEB"
+  nvdWeb: "$NVD_WEB",
+  factsDir: "$FACTS_DIR",
+  freshnessSlaDays: "$FRESHNESS_SLA",
+  groupAssets: "$GROUP_ASSETS"
 };
 EOF
 

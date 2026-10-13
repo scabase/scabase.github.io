@@ -1,0 +1,10 @@
+{
+  "freshness_sla_days": 14,
+  "freshness_grace_days": 3,
+  "license_profiles": {
+    "closed_source": {
+      "deny": ["strong-copyleft", "business-source"],
+      "warn": ["weak-copyleft", "unknown"]
+    }
+  }
+}

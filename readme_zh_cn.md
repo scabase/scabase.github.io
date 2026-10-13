@@ -147,6 +147,28 @@ OSV
 NVD
 信息补充增强
 NIST 官方 CVE 库，提供标准 CVSS 评分、CWE 分类，建议配置 API 密钥
+## 开源引入评估（SBOM 模式 · 离线摆渡）
+
+在漏洞查询之上，ScaBase 另提供一套**开源引入评估体系**：以 SBOM / PURL 为骨架，
+把互联网侧漏洞情报、组件活跃度、许可证合规与内网应用 GAV 资产关联整合到同一事实层，
+支持**引入前评估门禁**与**按应用群组的存量风险评估**。互联网与内网完全隔离时，
+通过带签名与增量链的数据包单向摆渡同步。
+
+```bash
+# 互联网侧：采集 → 事实层 → 构建签名数据包
+python -m oss_intake.cli bundle --facts scabase-fetcher/data/facts \
+  --dataset vulns --out bundles --mode snapshot
+
+# 内网侧：验签导入 → 引入前评估 / 群组评估
+python -m oss_intake.cli import --facts intranet-data/facts --bundle bundles/bundle-vulns-0001-*.tar.gz
+python -m oss_intake.cli gate --facts intranet-data/facts --purl pkg:maven/com.alibaba/fastjson@1.2.24 --tier core
+python -m oss_intake.cli assess --facts intranet-data/facts --assets examples/assets.json --base-dir .
+```
+
+- 规范与提案：`openspec/`（基线 `specs/`，变更 `changes/add-oss-intake-evaluation/`）
+- 设计与操作手册：[`docs/oss-intake.md`](docs/oss-intake.md)
+- 测试：`python -m unittest discover -s tests`
+
 注意事项
 1. OSV API 存在请求频率限制，大批量包扫描时建议在循环中增加休眠延时。
 2. NVD API 为可选配置；未配置密钥时仍会查询 NVD，但速率较低（建议配置 NVD_API_KEY 提升速率）。

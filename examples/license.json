@@ -1,0 +1,18 @@
+{
+  "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1": {
+    "spdx": "Apache-2.0",
+    "source": "registry"
+  },
+  "pkg:maven/com.alibaba/fastjson@1.2.24": {
+    "spdx": "Apache-2.0",
+    "source": "registry"
+  },
+  "pkg:maven/org.springframework/spring-core@5.3.20": {
+    "spdx": "Apache-2.0",
+    "source": "registry"
+  },
+  "pkg:maven/junit/junit@4.13.2": {
+    "spdx": "EPL-1.0",
+    "source": "registry"
+  }
+}

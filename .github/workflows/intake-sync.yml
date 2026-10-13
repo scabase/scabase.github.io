@@ -1,0 +1,88 @@
+name: intake-sync
+
+# 互联网侧：采集 → 写入事实层 → 构建并签名离线摆渡数据包
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "数据包模式"
+        required: true
+        default: "delta"
+        type: choice
+        options:
+          - delta
+          - snapshot
+
+permissions:
+  contents: read
+
+jobs:
+  build-bundles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 采集 KEV / EPSS
+        continue-on-error: true
+        run: python scabase-fetcher/scripts/fetch_kev_epss.py --facts scabase-fetcher/data/facts
+
+      - name: 采集组件活跃度
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scabase-fetcher/scripts/fetch_oss_health.py \
+            --pkg-list scabase-fetcher/data/pkg_list.txt \
+            --out scabase-fetcher/data/health.json
+
+      - name: 写入事实层
+        run: |
+          python scabase-fetcher/scripts/build_facts.py \
+            --facts scabase-fetcher/data/facts \
+            --vulns scabase-fetcher/data/vulns.json \
+            --health scabase-fetcher/data/health.json \
+            --license examples/license.json
+
+      - name: 测试门禁
+        run: python -m unittest discover -s tests
+
+      - name: 事实层非空校验
+        run: |
+          python - <<'PY'
+          import sys
+          from oss_intake import facts
+          store = facts.FactsStore("scabase-fetcher/data/facts")
+          count = sum(1 for _ in store.iter_dataset("vulns"))
+          print("vulns entries:", count)
+          sys.exit(0 if count else 1)
+          PY
+
+      - name: 构建并签名数据包
+        env:
+          SCABASE_SYNC_KEY: ${{ secrets.SCABASE_SYNC_KEY }}
+          MODE: ${{ github.event.inputs.mode || 'delta' }}
+        run: |
+          mkdir -p bundles
+          for dataset in vulns health license kev; do
+            python -m oss_intake.cli bundle \
+              --facts scabase-fetcher/data/facts \
+              --dataset "$dataset" \
+              --out bundles \
+              --mode "$MODE" || echo "跳过数据集 $dataset"
+          done
+
+      - name: 上传数据包产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: scabase-bundles
+          path: bundles/*.tar.gz
+          if-no-files-found: warn

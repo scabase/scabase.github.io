@@ -31,3 +31,29 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+
+  # 开源引入评估：定时导入摆渡数据包 + 生成应用群组评估报告
+  # 首次使用请先执行：mkdir -p intranet-data/{facts,ferry,reports}
+  oss-intake:
+    image: python:3.12-alpine
+    container_name: scabase-intake
+    restart: unless-stopped
+    working_dir: /work
+    volumes:
+      - .:/work:ro
+      - ./intranet-data/facts:/data/facts
+      - ./intranet-data/ferry:/data/ferry
+      - ./intranet-data/reports:/data/reports
+      - ./docker/intake-loop.sh:/usr/local/bin/intake-loop.sh:ro
+    environment:
+      # 与互联网侧签名密钥保持一致（由 secrets 注入，勿写明文到仓库）
+      SCABASE_SYNC_KEY: "${SCABASE_SYNC_KEY:-dev-key}"
+      SCABASE_FACTS_DIR: "/data/facts"
+      SCABASE_FERRY_DIR: "/data/ferry"
+      SCABASE_REPORT_DIR: "/data/reports"
+      # 内网应用群组资产（含各应用 SBOM 路径）
+      SCABASE_ASSETS: "/work/examples/assets.json"
+      SCABASE_BASE_DIR: "/work"
+      SCABASE_SYNC_INTERVAL: "3600"
+      TZ: "Asia/Shanghai"
+    entrypoint: ["/bin/sh", "/usr/local/bin/intake-loop.sh"]

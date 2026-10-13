@@ -1,0 +1,44 @@
+{
+  "groups": [
+    {
+      "name": "支付群组",
+      "profile": "closed_source",
+      "apps": [
+        {
+          "name": "pay-gateway",
+          "tier": "core",
+          "exposure": "internet",
+          "data_sensitivity": "high",
+          "sbom": "examples/sample-app.cdx.json"
+        },
+        {
+          "name": "pay-settle",
+          "tier": "important",
+          "exposure": "internal",
+          "data_sensitivity": "high",
+          "sbom": "examples/sample-app.cdx.json"
+        },
+        {
+          "name": "pay-query",
+          "tier": "normal",
+          "exposure": "internal",
+          "data_sensitivity": "mid",
+          "sbom": "examples/sample-app.cdx.json"
+        }
+      ]
+    },
+    {
+      "name": "风控群组",
+      "profile": "internal_service",
+      "apps": [
+        {
+          "name": "risk-engine",
+          "tier": "core",
+          "exposure": "internal",
+          "data_sensitivity": "high",
+          "sbom": "examples/sample-app.cdx.json"
+        }
+      ]
+    }
+  ]
+}

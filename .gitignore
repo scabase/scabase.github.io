@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# 生成物：事实层、摆渡包、评估报告、内网运行数据
+scabase-fetcher/data/facts/
+bundles/
+intranet-data/
+reports/

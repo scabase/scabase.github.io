@@ -128,6 +128,29 @@ Native support for Maven/NPM/PyPI/Go, no API key required, includes GHSA vulnera
 NVD
 Supplementary enrichment
 NIST official CVE database, provides standard CVSS score and CWE classification, API key recommended
+## Open-Source Intake Evaluation (SBOM · offline ferry)
+
+On top of vulnerability lookup, ScaBase ships an **open-source intake evaluation** system:
+it unifies internet-side vulnerability intel, component health, license compliance and
+intranet application GAV assets into one PURL-keyed fact layer, and supports a
+**pre-introduction gate** plus **per-app-group risk assessment**. Fully isolated intranets
+are served by signed, incrementally chained bundles ferried one way.
+
+```bash
+# Zone A: collect -> fact layer -> build signed bundle
+python -m oss_intake.cli bundle --facts scabase-fetcher/data/facts \
+  --dataset vulns --out bundles --mode snapshot
+
+# Zone B: verify + import -> intake gate / group assessment
+python -m oss_intake.cli import --facts intranet-data/facts --bundle bundles/bundle-vulns-0001-*.tar.gz
+python -m oss_intake.cli gate --facts intranet-data/facts --purl pkg:maven/com.alibaba/fastjson@1.2.24 --tier core
+python -m oss_intake.cli assess --facts intranet-data/facts --assets examples/assets.json --base-dir .
+```
+
+- Specs and change proposal: `openspec/`
+- Design and operations guide: [`docs/oss-intake.md`](docs/oss-intake.md)
+- Tests: `python -m unittest discover -s tests`
+
 Notes
 1. OSV API has rate limits. Add sleep delay in loop when scanning large package lists.
 2. NVD API is optional; without a key the fetcher still queries NVD but at a lower rate (configuring NVD_API_KEY is recommended).

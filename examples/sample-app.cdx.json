@@ -1,0 +1,52 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "bom-ref": "app-root",
+      "name": "pay-gateway",
+      "version": "1.0.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "c1",
+      "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1",
+      "name": "log4j-core",
+      "version": "2.14.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "c2",
+      "purl": "pkg:maven/com.alibaba/fastjson@1.2.24",
+      "name": "fastjson",
+      "version": "1.2.24"
+    },
+    {
+      "type": "library",
+      "bom-ref": "c3",
+      "purl": "pkg:maven/org.springframework/spring-core@5.3.20",
+      "name": "spring-core",
+      "version": "5.3.20"
+    },
+    {
+      "type": "library",
+      "bom-ref": "c4",
+      "purl": "pkg:maven/junit/junit@4.13.2",
+      "name": "junit",
+      "version": "4.13.2"
+    },
+    {
+      "type": "library",
+      "bom-ref": "c5",
+      "name": "mystery-lib"
+    }
+  ],
+  "dependencies": [
+    { "ref": "app-root", "dependsOn": ["c1", "c2", "c3"] },
+    { "ref": "c1", "dependsOn": ["c4"] }
+  ]
+}
