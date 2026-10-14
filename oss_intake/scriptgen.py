@@ -1,9 +1,9 @@
 """AI 智能体脚本生成：把基线项 / 漏洞描述转成平台可直接纳管的检查脚本。
 
 三类产出目标：
-- `sreops`    e运维巡检脚本（POSIX sh，单行 JSON 结果，无第三方依赖）
+- `sreops`   SRE 运维平台巡检脚本（POSIX sh，单行 JSON 结果，无第三方依赖）
 - `codescan` 代码扫描中心规则包（YAML 规则 + Python 检测脚本）
-- `python`  通用 Python 巡检脚本（标准库实现，支持 --json）
+- `python`   通用 Python 巡检脚本（标准库实现，支持 --json）
 
 生成链路：`模板引擎`（确定性、可离线）→ 可选 `LLM 增强`（配置 SCABASE_LLM_ENDPOINT 时）
 → `静态检查 lint` → 不通过则回落到模板结果 → 落盘并生成 manifest。
@@ -21,7 +21,7 @@ TARGETS = ("sreops", "codescan", "python")
 
 PLATFORM_RULES = {
     "sreops": (
-        "e运维巡检脚本规范：POSIX sh（#!/bin/sh）；脚本末尾以单行 JSON 输出巡检结果，"
+        "SRE 运维平台巡检脚本规范：POSIX sh（#!/bin/sh）；脚本末尾以单行 JSON 输出巡检结果，"
         "字段固定为 rule_id / status / severity / evidence / ts，status 取值 PASS|FAIL|UNKNOWN；"
         "无论 PASS 还是 FAIL，脚本退出码均为 0，仅执行失败时退出码非 0；"
         "禁止破坏性操作（rm -rf、kill、覆写配置文件）与管道执行远程脚本；"
@@ -54,7 +54,7 @@ def _sh_quote(text):
     return str(text).replace("\\", "\\\\").replace("\"", "\\\"")
 
 
-# ------------------------------------------------------------------ e运维脚本
+# ---------------------------------------------------------- SRE 运维平台脚本
 
 def _sh_header(item):
     lines = [

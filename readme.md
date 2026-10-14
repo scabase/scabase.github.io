@@ -161,12 +161,12 @@ python -m oss_intake.cli assess --facts intranet-data/facts --assets examples/as
   (bus factor, governance, backing, ecosystem position).
 - **Security baseline + AI script generation**: a built-in catalog of 32 baseline items
   covering standalone and library components; an AI agent generates baseline/vulnerability
-  check scripts matching the rules of the internal code-scanning center and e-ops platforms,
+  check scripts matching the rules of the internal code-scanning center and SRE-ops platforms,
   gated by a labeled-sample regression that enforces ≥90% accuracy.
 - **Vulnerability impact patrol**: `patrol` aggregates affected components, matched CVEs and
   baseline to-dos per application, emits tickets with severity/due dates and
   new/open/fixed deltas.
-- **Toolchain integration**: depinfo ledger import and (masked-by-default) result pushback,
+- **Toolchain integration**: DEPINFO ledger import and (masked-by-default) result pushback,
   plus CICD artifacts (SARIF / JUnit / MR comment) with four exit-code thresholds.
 
 ```bash
@@ -176,6 +176,16 @@ python -m oss_intake.cli patrol --facts intranet-data/facts --assets examples/as
 python -m oss_intake.cli genscript --component redis --target sreops --out-dir scripts/sreops
 python -m oss_intake.cli verify --cases examples/accuracy-cases.json --threshold 0.9
 ```
+
+### Community support & activity collection (CI)
+
+`.github/workflows/community-health.yml` runs daily and collects the signals that feed the
+community-support rating: commit/release cadence, contributors, PR merge cycle,
+`SECURITY.md`, CI presence, archived flag, stars, backing organization (GitHub API),
+downstream dependents (deps.dev) and monthly downloads (npm registry). It writes the
+`health` dataset into the fact layer and uploads a 0–100 / A–D summary report.
+Non-GitHub ecosystems need an explicit `owner/repo` mapping in
+`scabase-fetcher/data/repo-map.json`.
 
 Notes
 1. OSV API has rate limits. Add sleep delay in loop when scanning large package lists.

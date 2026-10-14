@@ -179,8 +179,10 @@ def main():
         stats["vulns"] = build_vulns(store, args.vulns)
     stats["health"] = build_health(store, args.health)
     stats["license"] = build_license(store, args.license)
-    for name in stats:
-        store.dataset_meta(name)["generated_at"] = stamp
+    # 只为本轮真正写入的数据集刷新水位，避免把未采集的数据集标记为「新鲜」
+    for name, count in stats.items():
+        if count:
+            store.dataset_meta(name)["generated_at"] = stamp
     store.save_meta()
     print(json.dumps({"facts": args.facts, "counts": stats, "generated_at": stamp},
                      ensure_ascii=False, indent=2))

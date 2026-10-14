@@ -6,7 +6,7 @@
   assess      应用群组存量风险评估
   patrol      漏洞影响范围与安全基线自动化巡检，输出工单与增量对比
   baseline    安全配置基线目录查询与现场执行
-  genscript   AI 智能体生成基线/漏洞检测脚本（e运维 / 代码扫描中心 / 通用）
+  genscript   AI 智能体生成基线/漏洞检测脚本（SRE 运维平台 / 代码扫描中心 / 通用）
   verify      生成脚本的准确率回归校验（目标准确率 ≥90%）
   depinfo        depinfo 台账导入与结论回传
   bundle      构建离线摆渡数据包（互联网侧）
@@ -321,9 +321,9 @@ def cmd_depinfo(args):
         payload = depinfo_mod.result_payload(items, mask=not args.no_mask,
                                           sync_token=args.sync_token)
         if args.push:
-            client = depinfo_mod.depinfoClient()
+            client = depinfo_mod.DepinfoClient()
             if not client.enabled():
-                print("depinfo 未配置（SCABASE_depinfo_URL 为空），已跳过推送", file=sys.stderr)
+                print("DEPINFO 未配置（SCABASE_DEPINFO_URL 为空），已跳过推送", file=sys.stderr)
             else:
                 client.push(payload)
                 payload["pushed"] = True
@@ -455,13 +455,13 @@ def build_parser():
     p.add_argument("--md")
     p.set_defaults(func=cmd_verify)
 
-    p = sub.add_parser("depinfo", help="depinfo 台账导入与结论回传")
-    p.add_argument("--import", dest="import_file", help="depinfo 组件台账导出文件")
+    p = sub.add_parser("depinfo", help="DEPINFO 台账导入与结论回传")
+    p.add_argument("--import", dest="import_file", help="DEPINFO 组件台账导出文件")
     p.add_argument("--results", help="评估/巡检结果 JSON，用于回传")
     p.add_argument("--out", help="输出路径")
     p.add_argument("--sync-token")
     p.add_argument("--no-mask", action="store_true", help="回传时保留应用维度信息")
-    p.add_argument("--push", action="store_true", help="推送至 depinfo（需配置 SCABASE_depinfo_URL）")
+    p.add_argument("--push", action="store_true", help="推送至 DEPINFO（需配置 SCABASE_DEPINFO_URL）")
     p.set_defaults(func=cmd_depinfo)
 
     p = sub.add_parser("assess", help="应用群组评估")

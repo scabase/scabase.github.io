@@ -76,7 +76,7 @@
 ## Phase 11 — 安全配置基线与 AI 脚本生成
 
 - [x] 11.1 实现 `baseline.py`：声明式基线目录（32 条内置）+ 外部目录合并 + 检查执行引擎（PASS/FAIL/UNKNOWN）
-- [x] 11.2 实现 `scriptgen.py`：e运维 sh 巡检脚本、代码扫描中心 YAML 规则 + Python 检测脚本、通用 Python 巡检脚本
+- [x] 11.2 实现 `scriptgen.py`：SRE 运维平台 sh 巡检脚本、代码扫描中心 YAML 规则 + Python 检测脚本、通用 Python 巡检脚本
 - [x] 11.3 实现 LLM 增强与安全回落（`SCABASE_LLM_ENDPOINT`），产物标记 `generated_by` 与 `review_required`
 - [x] 11.4 实现 `verify.py`：标注样本集回归校验，准确率门禁默认 90%，UNKNOWN 计入漏检
 - [x] 11.5 实现 `genscript` / `verify` / `baseline` CLI 与 `manifest.json` 产物
@@ -105,3 +105,14 @@
 - [ ] 14.2 用真实 `vulns.json` 跑通 `scan → inventory → patrol → genscript → verify` 全链路演示并归档报告
 - [ ] 14.3 在 CI 中接入 `verify` 准确率门禁（阈值 0.9）与 `genscript` manifest 校验
 - [ ] 14.4 按 `examples/baseline-catalog.json` 范式补充自有组件基线（MinIO、Consul、K8s、Harbor 等）
+
+## Phase 15 — 命名统一与社区采集 CI（2026-10-15）
+
+- [x] 15.1 SPMS 更名为 DEPINFO：模块 `integrations/depinfo.py`、CLI 子命令 `depinfo`、环境变量 `SCABASE_DEPINFO_URL` / `SCABASE_DEPINFO_TOKEN`、回传 schema `depinfo-result/v1`
+- [x] 15.2 eops 更名为 sreops：`scriptgen.TARGETS`、平台规范文案、目录注释与全部文档
+- [x] 15.3 新增 `.github/workflows/community-health.yml`：每日采集社区支持力度与活跃度信号（GitHub / deps.dev / npm registry），写入事实层并产出汇总报告
+- [x] 15.4 新增 `scabase-fetcher/scripts/community_report.py`：社区支持力度汇总（0-100 分 + A/B/C/D 等级分布 + 缺失信号统计）
+- [x] 15.5 新增 `scabase-fetcher/data/repo-map.json`：purl → owner/repo 显式映射（非 go 生态必须登记才能拿到 GitHub 治理信号）
+- [x] 15.6 修正 `build_facts.py`：只为本轮真正写入的数据集刷新水位，避免把未采集的数据集标记为新鲜
+- [x] 15.7 新增 `tests/test_community_collection.py`：覆盖组织背书分类、仓库推断、汇总渲染与缺失信号统计
+- [ ] 15.8 待执行验证：`python -m unittest discover -s tests`（本次会话无命令行工具，未实际运行）

@@ -15,7 +15,7 @@ from oss_intake import cli  # noqa: E402
 
 DEPS = os.path.join(ROOT, "examples", "deps")
 CASES = os.path.join(ROOT, "examples", "accuracy-cases.json")
-depinfo = os.path.join(ROOT, "examples", "depinfo-export.json")
+DEPINFO = os.path.join(ROOT, "examples", "depinfo-export.json")
 
 ASSETS = {
     "groups": [{
@@ -102,7 +102,7 @@ class CliExtendedTest(unittest.TestCase):
 
     def test_depinfo_import_and_export(self):
         assets_path = self._path("depinfo-assets.json")
-        self.assertEqual(cli.main(["depinfo", "--import", depinfo, "--out", assets_path]), 0)
+        self.assertEqual(cli.main(["depinfo", "--import", DEPINFO, "--out", assets_path]), 0)
         with open(assets_path, "r", encoding="utf-8") as handle:
             assets = json.load(handle)
         self.assertEqual(len(assets["groups"]), 2)

@@ -24,6 +24,8 @@
 - 未实现：前端评估台页面（intake.html），在 openspec change 的 tasks Phase 5。
 
 ## 落地增强（2026-10-15 新增，行业场景）
+- 命名约定：**DEPINFO**（依赖台账系统，原 SPMS）、**sreops**（SRE 运维平台，原 eops）。
+  环境变量 `SCABASE_DEPINFO_URL` / `SCABASE_DEPINFO_TOKEN`。
 - `depfile.py` 解析原生依赖文件（pom/gradle/npm×4/pypi×4/go/cargo/composer/gem），
   输出 PURL + `version_req` + `pinned`；npm scope 存为无 `@` 的 namespace（`pkg:npm/babel/core@x`）。
 - `community.py`：社区支持力度 A/B/C/D，缺失信号按未知即风险扣分，archived → D。
@@ -34,7 +36,10 @@
 - `patrol.py`：应用维度巡检 + 工单 + 增量（应用+PURL+CVE 三元组）+ 共性风险（≥2 应用）。
 - `integrations/depinfo.py`：台账导入三形态（purl/gav/eco+group+artifact+version），回传默认脱敏；
   `integrations/cicd.py`：SARIF 2.1.0 / JUnit / MR 评论 / 四档退出码。
-- 资产模型 app 支持 `gavs` / `purls`（depinfo 台账，无 SBOM 文件）。
+- 资产模型 app 支持 `gavs` / `purls`（DEPINFO 台账，无 SBOM 文件）。
+- 社区采集 CI：`.github/workflows/community-health.yml`（每日 03:17 UTC）；
+  依赖 `scabase-fetcher/data/repo-map.json` 做 purl→owner/repo 映射（非 go 生态必须登记）；
+  `community_report.py` 产出汇总；`build_facts.py` 只为 count>0 的数据集刷新水位。
 - 环境注意：某些会话没有 Bash 工具，无法执行测试；交付时要在 tasks.md 标注「待执行验证」。
 
 ## 技术约定

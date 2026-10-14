@@ -8,7 +8,7 @@ from fixtures import ROOT  # noqa: E402
 from oss_intake.integrations import cicd as cicd_mod  # noqa: E402
 from oss_intake.integrations import depinfo as depinfo_mod  # noqa: E402
 
-depinfo_EXPORT = os.path.join(ROOT, "examples", "depinfo-export.json")
+DEPINFO_EXPORT = os.path.join(ROOT, "examples", "depinfo-export.json")
 
 RESULTS = [
     {"purl": "pkg:maven/com.alibaba/fastjson@1.2.24", "conclusion": "Deny", "score": 82.5,
@@ -20,9 +20,9 @@ RESULTS = [
 ]
 
 
-class depinfoTest(unittest.TestCase):
+class DepinfoTest(unittest.TestCase):
     def test_export_converted_to_assets(self):
-        assets = depinfo_mod.sync_from_export(depinfo_EXPORT)
+        assets = depinfo_mod.sync_from_export(DEPINFO_EXPORT)
         groups = assets["groups"]
         self.assertEqual(len(groups), 2)
         names = [g["name"] for g in groups]
@@ -61,7 +61,7 @@ class depinfoTest(unittest.TestCase):
         self.assertEqual(payload["items"][0]["apps"], ["支付核心"])
 
     def test_client_disabled_without_endpoint(self):
-        client = depinfo_mod.depinfoClient(base_url="")
+        client = depinfo_mod.DepinfoClient(base_url="")
         self.assertFalse(client.enabled())
         with self.assertRaises(RuntimeError):
             client.push({})

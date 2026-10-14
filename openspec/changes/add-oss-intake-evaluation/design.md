@@ -266,8 +266,8 @@ baseline.py（声明式目录）
         │
         ├── scriptgen 模板引擎（确定性，离线可用）
         │     ├─ sreops    → POSIX sh 巡检脚本（单行 JSON 结果，退出码恒 0）
-        │     ├─ codescan → YAML 规则 + Python 检测脚本（输出 SARIF 2.1.0）
-        │     └─ python  → 通用巡检脚本（标准库，--json）
+        │     ├─ codescan  → YAML 规则 + Python 检测脚本（输出 SARIF 2.1.0）
+        │     └─ python    → 通用巡检脚本（标准库，--json）
         │
         ├── scriptgen LLM 增强（SCABASE_LLM_ENDPOINT，失败回落模板）
         │     └─ 产物标记 generated_by=llm / review_required=true
@@ -304,11 +304,11 @@ facts(vulns/health/license) + inventory(应用资产) + baseline(基线目录)
 
 | 对接面 | 方向 | 内容 | 约束 |
 | --- | --- | --- | --- |
-| depinfo | 入 | 组件台账导出文件 → 资产模型（支持 purl / gav / eco+group+artifact+version） | 幂等转换 |
-| depinfo | 出 | 评估结论回传（GAV、结论、评分、建议版本、CVE、复审到期日） | **默认脱敏**：不含应用名/群组名 |
+| DEPINFO | 入 | 组件台账导出文件 → 资产模型（支持 purl / gav / eco+group+artifact+version） | 幂等转换 |
+| DEPINFO | 出 | 评估结论回传（GAV、结论、评分、建议版本、CVE、复审到期日） | **默认脱敏**：不含应用名/群组名 |
 | CICD | 出 | SARIF 2.1.0 / JUnit XML / MR 评论 Markdown + 四档退出码 | Deny→error、Review→warning |
 | 代码扫描中心 | 出 | 基线规则包（YAML + 检测脚本） | 规则 id 前缀 `scabase-` |
-| e运维 | 出 | 巡检脚本（单行 JSON）+ 巡检工单 | 退出码恒 0，结果以 JSON 判定 |
+| SRE 运维平台 | 出 | 巡检脚本（单行 JSON）+ 巡检工单 | 退出码恒 0，结果以 JSON 判定 |
 
 未配置端点时所有对接降级为**文件交换**，绝不因缺少网络而阻塞内网流程。
 

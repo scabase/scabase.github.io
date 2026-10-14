@@ -6,7 +6,7 @@
 
 系统 SHALL 把基线项与漏洞描述自动转换为符合安全扫描平台规则的检查脚本，至少支持三类产出目标：
 
-- `sreops`：e运维巡检脚本（POSIX sh），末尾以单行 JSON 输出 `rule_id`/`status`/`severity`/`evidence`/`ts`，无论 PASS/FAIL 退出码均为 0；
+- `sreops`：SRE 运维平台巡检脚本（POSIX sh），末尾以单行 JSON 输出 `rule_id`/`status`/`severity`/`evidence`/`ts`，无论 PASS/FAIL 退出码均为 0；
 - `codescan`：代码扫描中心规则包（YAML 规则 + 同名 Python 检测脚本，输出 SARIF 2.1.0 片段）；
 - `python`：通用 Python 巡检脚本（仅标准库，支持 `--json`，只读检查）。
 
@@ -14,7 +14,7 @@
 - 生成产物 MUST 通过静态检查（shebang、STATUS 判定、JSON 输出、无破坏性指令、Python 语法可编译）方可落盘。
 - 生成产物 MUST 输出 `manifest.json`，记录每条规则的产出文件、sha256、生成方式（模板 / 大模型）与审核状态。
 
-#### Scenario: 生成 e运维巡检脚本
+#### Scenario: 生成 SRE 运维平台巡检脚本
 
 - GIVEN 基线项 `redis-requirepass`（检查 redis.conf 中 requirepass 必须有值）
 - WHEN 以 `sreops` 为目标生成脚本

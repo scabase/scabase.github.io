@@ -1,0 +1,11 @@
+{
+  "_comment": "purl → GitHub owner/repo 显式映射。github_slug() 只能从 go module 路径推断，其余生态必须在此登记，否则社区支持力度/活跃度信号只能依赖 deps.dev 与 registry。",
+  "pkg:maven/org.springframework.boot/spring-boot-starter-web@2.7.0": "spring-projects/spring-boot",
+  "pkg:maven/com.alibaba/fastjson@1.2.24": "alibaba/fastjson",
+  "pkg:maven/log4j/log4j@1.2.17": "apache/log4j",
+  "pkg:npm/lodash@4.17.20": "lodash/lodash",
+  "pkg:npm/axios@0.21.1": "axios/axios",
+  "pkg:pypi/requests@2.20.0": "psf/requests",
+  "pkg:pypi/flask@1.1.1": "pallets/flask",
+  "pkg:golang/github.com/gin-gonic/gin@1.6.0": "gin-gonic/gin"
+}

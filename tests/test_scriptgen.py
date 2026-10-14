@@ -79,7 +79,7 @@ class ScriptgenTest(unittest.TestCase):
     def test_prompt_contains_platform_rules(self):
         prompt = scriptgen.build_prompt(self.redis, "sreops",
                                         scriptgen.render(self.redis, "sreops")[0]["content"])
-        self.assertIn("e运维巡检脚本规范", prompt)
+        self.assertIn("SRE 运维平台巡检脚本规范", prompt)
         self.assertIn("redis-requirepass", prompt)
 
     def test_unsupported_target_raises(self):

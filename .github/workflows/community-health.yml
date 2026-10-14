@@ -1,0 +1,120 @@
+name: community-health
+
+# 互联网侧：采集开源组件社区支持力度与活跃度信号 → 写入事实层 → 生成汇总报告
+#
+# 采集信号（供 oss_intake.community 评分）：
+#   GitHub API   最近提交、近 12 月发布、贡献者、PR 合并周期、SECURITY.md、
+#                .github/workflows（CI）、archived、星标、背后组织（基金会/厂商/组织/个人）
+#   deps.dev     下游依赖项目数、最新发布时间
+#   npm registry 月下载量
+#
+# 任一来源失败只降级，不中断整批任务；未配置 GITHUB_TOKEN 时仍可跑（限流更严格）。
+on:
+  schedule:
+    # 每日 03:17（UTC）执行，与 intake-sync 的 6 小时节奏错开
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      pkg-list:
+        description: "组件清单路径（格式 ecosystem|package|version）"
+        required: false
+        default: "scabase-fetcher/data/pkg_list.txt"
+      repo-map:
+        description: "purl → owner/repo 映射文件"
+        required: false
+        default: "scabase-fetcher/data/repo-map.json"
+      out:
+        description: "健康度输出文件"
+        required: false
+        default: "scabase-fetcher/data/health.json"
+
+permissions:
+  contents: read
+
+jobs:
+  collect-health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 采集社区支持力度与活跃度信号
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_LIST: ${{ github.event.inputs.pkg-list || 'scabase-fetcher/data/pkg_list.txt' }}
+          REPO_MAP: ${{ github.event.inputs.repo-map || 'scabase-fetcher/data/repo-map.json' }}
+          OUT: ${{ github.event.inputs.out || 'scabase-fetcher/data/health.json' }}
+        run: |
+          set -- --pkg-list "$PKG_LIST" --out "$OUT"
+          if [ -f "$REPO_MAP" ]; then
+            set -- "$@" --repo-map "$REPO_MAP"
+          else
+            echo "未找到仓库映射 $REPO_MAP，仅使用 deps.dev 与 registry 信号"
+          fi
+          python scabase-fetcher/scripts/fetch_oss_health.py "$@"
+
+      - name: 校验采集结果非空
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+
+          path = "scabase-fetcher/data/health.json"
+          if not os.path.exists(path):
+              print("缺少 %s，采集步骤未产出结果" % path, file=sys.stderr)
+              sys.exit(1)
+          with open(path, "r", encoding="utf-8") as handle:
+              data = json.load(handle)
+          usable = sum(1 for v in data.values()
+                       if isinstance(v, dict) and not v.get("health_unknown"))
+          print("components:", len(data), "usable:", usable)
+          sys.exit(0 if data else 1)
+          PY
+
+      - name: 生成社区支持力度汇总报告
+        run: |
+          mkdir -p reports
+          python scabase-fetcher/scripts/community_report.py \
+            --health scabase-fetcher/data/health.json \
+            --md reports/community-support.md \
+            --json reports/community-support.json
+
+      - name: 写入事实层（health 数据集）
+        # 仅刷新 health 水位；--license 传空表示本轮不处理许可证，避免把未采集的数据集标记为新鲜
+        run: |
+          python scabase-fetcher/scripts/build_facts.py \
+            --facts scabase-fetcher/data/facts \
+            --health scabase-fetcher/data/health.json \
+            --license ""
+
+      - name: 测试门禁
+        run: python -m unittest discover -s tests
+
+      - name: 上传健康度与社区支持力度产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: scabase-community-health
+          path: |
+            scabase-fetcher/data/health.json
+            reports/community-support.md
+            reports/community-support.json
+          if-no-files-found: warn
+
+      - name: 汇总到 Step Summary
+        if: always()
+        run: |
+          if [ -f reports/community-support.md ]; then
+            {
+              echo "### 社区支持力度与活跃度采集"
+              echo
+              cat reports/community-support.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

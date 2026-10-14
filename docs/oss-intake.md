@@ -50,8 +50,11 @@ oss_intake/            评估引擎（零第三方依赖）
     cicd.py            SARIF / JUnit / MR 评论 / 退出码
 scabase-fetcher/scripts/
   build_facts.py       采集产物 → 事实层
-  fetch_oss_health.py  活跃度采集（deps.dev / GitHub / registry）
+  fetch_oss_health.py  社区支持力度与活跃度采集（deps.dev / GitHub / registry）
   fetch_kev_epss.py    KEV / EPSS 采集与富化
+  community_report.py  社区支持力度汇总报告（0-100 分 + A/B/C/D）
+.github/workflows/
+  community-health.yml 每日采集社区支持力度与活跃度信号
 examples/              示例 SBOM、资产、策略、许可证、依赖文件、基线与样本集
 tests/                 单测与端到端冒烟
 ```
@@ -224,7 +227,7 @@ python -m oss_intake.cli gate --facts intranet-data/facts \
 # 查看基线目录（可按组件过滤）
 python -m oss_intake.cli baseline --component redis --md reports/baseline.md
 
-# 生成 e运维巡检脚本 / 代码扫描中心规则包 / 通用 Python 巡检脚本
+# 生成 SRE 运维平台巡检脚本 / 代码扫描中心规则包 / 通用 Python 巡检脚本
 python -m oss_intake.cli genscript --component redis --target sreops --out-dir scripts/sreops
 python -m oss_intake.cli genscript --rule redis-requirepass fastjson-autotype \
   --target codescan --out-dir scripts/codescan
@@ -261,12 +264,12 @@ python -m oss_intake.cli patrol --facts intranet-data/facts --assets examples/as
 ## 14. 工具链对接
 
 ```bash
-# depinfo 台账导入 → 资产模型
+# DEPINFO 台账导入 → 资产模型
 python -m oss_intake.cli depinfo --import examples/depinfo-export.json --out reports/assets.json
 
 # 评估结论回传（默认脱敏：不含应用名/群组名）
 python -m oss_intake.cli depinfo --results reports/gate.json --out reports/depinfo-result.json
-# 已配置 SCABASE_depinfo_URL / SCABASE_depinfo_TOKEN 时可加 --push 直接推送
+# 已配置 SCABASE_DEPINFO_URL / SCABASE_DEPINFO_TOKEN 时可加 --push 直接推送
 
 # CICD 产物导出
 python -m oss_intake.cli gate --facts intranet-data/facts --sbom app.cdx.json \
@@ -279,3 +282,40 @@ python -m oss_intake.cli gate --facts intranet-data/facts --sbom app.cdx.json \
 | `--junit` | 流水线测试报告展示，命中阈值的组件计为 failure |
 | `--comment` | MR/PR 评论：结论分布 + 组件明细 + 门禁未通过提示 |
 | 退出码 | `never` / `deny` / `review` / `condition` 四档阈值 |
+
+## 15. 社区支持力度与活跃度采集（CI）
+
+由 `.github/workflows/community-health.yml` 每日执行（也可手动触发），产出健康度数据集与汇总报告：
+
+```bash
+# 本地等价操作
+export GITHUB_TOKEN='<可选，提高限流阈值>'
+python scabase-fetcher/scripts/fetch_oss_health.py \
+  --pkg-list scabase-fetcher/data/pkg_list.txt \
+  --repo-map scabase-fetcher/data/repo-map.json \
+  --out scabase-fetcher/data/health.json
+
+# 汇总为社区支持力度报告（0-100 分 + A/B/C/D 等级）
+python scabase-fetcher/scripts/community_report.py \
+  --health scabase-fetcher/data/health.json \
+  --md reports/community-support.md \
+  --json reports/community-support.json
+
+# 写入事实层 health 数据集，供摆渡到内网
+python scabase-fetcher/scripts/build_facts.py \
+  --facts scabase-fetcher/data/facts --health scabase-fetcher/data/health.json
+```
+
+采集的三类信号：
+
+| 来源 | 信号 |
+| --- | --- |
+| GitHub API | 最近提交、近 12 月发布、贡献者数、PR 合并周期、`SECURITY.md`、`.github/workflows`（CI）、archived、星标、背后组织（基金会/厂商/组织/个人） |
+| deps.dev | 下游依赖项目数、最新发布时间 |
+| npm registry | 月下载量 |
+
+- 组件清单格式 `ecosystem|package|version`，见 `scabase-fetcher/data/pkg_list.txt`。
+- `github_slug()` 只能从 go module 路径推断仓库，**其余生态必须在 `repo-map.json` 登记**，
+  否则社区治理类信号只能依赖 deps.dev 与 registry。
+- 任一来源失败只降级，不中断整批；未配置 `GITHUB_TOKEN` 时仍可运行（限流更严格）。
+- 产物（`health.json` + 社区支持力度报告）会上传为 workflow artifact，并写入 Step Summary。

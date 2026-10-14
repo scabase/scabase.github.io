@@ -1,12 +1,16 @@
-"""depinfo 系统对接：组件台账导入与评估结论回传。
+"""DEPINFO 系统对接：依赖台账导入与评估结论回传。
 
-导入侧支持三种组件描述（任一即可）：
-    {"purl": "pkg:maven/com.alibaba/fastjson@1.2.24"}
-    {"gav":  "com.alibaba:fastjson:1.2.24"}
-    {"eco": "maven", "group": "com.alibaba", "artifact": "fastjson", "version": "1.2.24"}
+DEPINFO 是行内开源组件依赖台账系统。本模块负责两侧互通：
 
-回传侧默认脱敏：只含组件维度结论，不含应用名、IP、域名等内网信息。
-零第三方依赖。
+- **导入侧**：读取 DEPINFO 导出的组件台账，自动转换为评估侧资产模型。
+  组件描述支持三种形态（任一即可）：
+      {"purl": "pkg:maven/com.alibaba/fastjson@1.2.24"}
+      {"gav":  "com.alibaba:fastjson:1.2.24"}
+      {"eco": "maven", "group": "com.alibaba", "artifact": "fastjson", "version": "1.2.24"}
+- **回传侧**：把评估与巡检结论回传 DEPINFO，形成流程联动。
+  回传默认脱敏：只含组件维度结论，不含应用名、群组名等内网拓扑信息。
+
+零第三方依赖（HTTP 走 urllib；未配置端点时自动降级为文件交换）。
 """
 import json
 import os
@@ -44,7 +48,7 @@ def normalize_component(entry):
 
 
 def assets_from_depinfo(export, defaults=None):
-    """把 depinfo 台账转成评估侧资产模型（group → app → purls/gavs）。"""
+    """把 DEPINFO 台账转成评估侧资产模型（群组 → 应用 → 组件 PURL/GAV 列表）。"""
     defaults = dict(DEFAULTS, **(defaults or {}))
     groups = {}
     for app in export.get("apps") or []:
@@ -82,12 +86,8 @@ def assets_from_depinfo(export, defaults=None):
     return {"groups": [groups[name] for name in sorted(groups)]}
 
 
-def _conclusion_of(result):
-    return result.get("conclusion")
-
-
 def result_payload(results, mask=True, sync_token=None, source="scabase-oss-intake"):
-    """把评估/巡检结论转成 depinfo 回传结构。"""
+    """把评估/巡检结论转成 DEPINFO 回传结构。"""
     items = []
     for result in results or []:
         purl_value = result.get("purl")
@@ -95,7 +95,7 @@ def result_payload(results, mask=True, sync_token=None, source="scabase-oss-inta
         item = {
             "gav": info.get("gav"),
             "purl": purl_value,
-            "conclusion": _conclusion_of(result),
+            "conclusion": result.get("conclusion"),
             "score": result.get("score"),
             "suggested_version": result.get("suggested_version"),
             "review_due": result.get("review_due"),
@@ -130,12 +130,12 @@ def write_payload(payload, path):
     return path
 
 
-class depinfoClient(object):
-    """depinfo HTTP 客户端；未配置 base_url 时整体禁用（离线内网场景）。"""
+class DepinfoClient(object):
+    """DEPINFO HTTP 客户端；未配置 base_url 时整体禁用（离线内网场景）。"""
 
     def __init__(self, base_url=None, token=None, timeout=15):
-        self.base_url = (base_url or os.getenv("SCABASE_depinfo_URL") or "").rstrip("/")
-        self.token = token or os.getenv("SCABASE_depinfo_TOKEN") or ""
+        self.base_url = (base_url or os.getenv("SCABASE_DEPINFO_URL") or "").rstrip("/")
+        self.token = token or os.getenv("SCABASE_DEPINFO_TOKEN") or ""
         self.timeout = timeout
 
     def enabled(self):
@@ -143,7 +143,7 @@ class depinfoClient(object):
 
     def _request(self, path, payload=None, method="POST"):
         if not self.enabled():
-            raise RuntimeError("depinfo 未配置，请在离线模式下使用文件交换")
+            raise RuntimeError("DEPINFO 未配置，请在离线模式下使用文件交换")
         data = json.dumps(payload or {}).encode("utf-8") if payload is not None else None
         headers = {"Content-Type": "application/json"}
         if self.token:
@@ -154,7 +154,7 @@ class depinfoClient(object):
             return json.loads(response.read().decode("utf-8"))
 
     def pull(self):
-        """拉取 depinfo 组件台账。"""
+        """拉取 DEPINFO 组件台账。"""
         return self._request("/api/v1/components", method="GET")
 
     def push(self, payload):
@@ -163,5 +163,5 @@ class depinfoClient(object):
 
 
 def sync_from_export(path, defaults=None):
-    """便捷入口：读取 depinfo 导出文件 → 资产模型。"""
+    """便捷入口：读取 DEPINFO 导出文件 → 资产模型。"""
     return assets_from_depinfo(load_export(path), defaults=defaults)
