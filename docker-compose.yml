@@ -51,9 +51,13 @@ services:
       SCABASE_FACTS_DIR: "/data/facts"
       SCABASE_FERRY_DIR: "/data/ferry"
       SCABASE_REPORT_DIR: "/data/reports"
-      # 内网应用群组资产（含各应用 SBOM 路径）
+      # 内网应用群组资产（SBOM 路径，或 depinfo 台账导出的 gavs/purls 列表）
       SCABASE_ASSETS: "/work/examples/assets.json"
       SCABASE_BASE_DIR: "/work"
+      # 自有安全配置基线目录（可选，未配置时使用内置 32 条）
+      # SCABASE_BASELINE: "/work/examples/baseline-catalog.json"
+      # 巡检状态文件：用于增量对比（新增 / 未修复 / 已闭环）
+      SCABASE_PATROL_STATE: "/data/patrol-state.json"
       SCABASE_SYNC_INTERVAL: "3600"
       TZ: "Asia/Shanghai"
     entrypoint: ["/bin/sh", "/usr/local/bin/intake-loop.sh"]

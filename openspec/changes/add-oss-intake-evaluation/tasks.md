@@ -58,3 +58,50 @@
 ## Phase 8 — 归档
 
 - [ ] 8.1 更新基线 specs，执行 `openspec archive` 合并 delta
+
+## Phase 9 — 引入阶段依赖关系自动化分析（落地）
+
+- [x] 9.1 实现多生态原生依赖文件解析：`pom.xml`/gradle、npm 系（package.json/lock/yarn/pnpm）、PyPI 系（requirements/Pipfile/poetry/pyproject）、go.mod/go.sum、Cargo、Composer、Gemfile
+- [x] 9.2 实现目录扫描与 PURL 去重聚合，跳过构建与依赖目录，单文件解析失败不中断扫描
+- [x] 9.3 实现 `scan` CLI：输出 JSON/Markdown，并可一键生成资产台账条目（purls/gavs）
+- [x] 9.4 单测：覆盖属性展开、依赖管理继承、锁定/未锁定、间接依赖、损坏文件容错
+
+## Phase 10 — 社区支持力度评价
+
+- [x] 10.1 实现 `community.py`：0-100 分 + A/B/C/D 等级 + 逐项扣分依据 + missing 清单
+- [x] 10.2 接入评分引擎：评分卡与 Markdown 报告输出等级与治理建议
+- [x] 10.3 策略支持 `community_deny_grades` 配置为硬阻断
+- [x] 10.4 健康度采集补充治理信号（安全响应策略 / CI / 背书组织 / 下游依赖数 / 下载量）
+
+## Phase 11 — 安全配置基线与 AI 脚本生成
+
+- [x] 11.1 实现 `baseline.py`：声明式基线目录（32 条内置）+ 外部目录合并 + 检查执行引擎（PASS/FAIL/UNKNOWN）
+- [x] 11.2 实现 `scriptgen.py`：e运维 sh 巡检脚本、代码扫描中心 YAML 规则 + Python 检测脚本、通用 Python 巡检脚本
+- [x] 11.3 实现 LLM 增强与安全回落（`SCABASE_LLM_ENDPOINT`），产物标记 `generated_by` 与 `review_required`
+- [x] 11.4 实现 `verify.py`：标注样本集回归校验，准确率门禁默认 90%，UNKNOWN 计入漏检
+- [x] 11.5 实现 `genscript` / `verify` / `baseline` CLI 与 `manifest.json` 产物
+- [x] 11.6 单测：算子判定、快照缺失、脚本 lint、准确率达标与漏报识别
+
+## Phase 12 — 漏洞影响范围自动化巡检
+
+- [x] 12.1 实现 `patrol.py`：按应用聚合受影响组件、CVE、基线待检项与风险分
+- [x] 12.2 实现结构化工单输出（严重级别、整改期限、建议版本、关联基线编号）
+- [x] 12.3 实现增量巡检对比（新增 / 未修复 / 已闭环）与状态持久化
+- [x] 12.4 实现跨应用共性风险识别（≥2 个应用共用）
+- [x] 12.5 实现 `patrol` CLI：JSON / Markdown / 工单文件 / 状态文件
+- [x] 12.6 单测：应用聚合、工单优先级、增量对比、共性风险
+
+## Phase 13 — 工具链对接
+
+- [x] 13.1 实现 `integrations/depinfo.py`：台账导入（purl/gav/eco 三形态）→ 资产模型；结论回传（默认脱敏）+ HTTP 推送
+- [x] 13.2 资产模型扩展：应用支持 `gavs` / `purls`，无需 SBOM 文件即可建 inventory
+- [x] 13.3 实现 `integrations/cicd.py`：SARIF 2.1.0、JUnit XML、MR/PR 评论 Markdown、四档退出码
+- [x] 13.4 实现 `depinfo` CLI 与 gate 的 `--sarif` / `--junit` / `--comment` 选项
+- [x] 13.5 单测：台账转换、脱敏回传、SARIF 结构、JUnit 失败计数、退出码语义
+
+## Phase 14 — 待执行（需在具备命令行的环境完成）
+
+- [ ] 14.1 运行全量单测：`python -m unittest discover -s tests`，确认新增用例与原有 51 条用例全绿
+- [ ] 14.2 用真实 `vulns.json` 跑通 `scan → inventory → patrol → genscript → verify` 全链路演示并归档报告
+- [ ] 14.3 在 CI 中接入 `verify` 准确率门禁（阈值 0.9）与 `genscript` manifest 校验
+- [ ] 14.4 按 `examples/baseline-catalog.json` 范式补充自有组件基线（MinIO、Consul、K8s、Harbor 等）

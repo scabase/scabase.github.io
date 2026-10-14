@@ -101,6 +101,8 @@ DEFAULT_POLICY = {
     "app_tier_scores": {"core": 8, "important": 5, "normal": 2},
     "exposure_scores": {"internet": 6, "internal": 3, "offline": 0},
     "data_sensitivity_scores": {"high": 6, "mid": 3, "low": 0},
+    # 社区支持力度低于该等级直接硬阻断（默认关闭，由策略开启）
+    "community_deny_grades": [],
 }
 
 CONCLUSIONS = ("Allow", "Allow-with-condition", "Review", "Deny", "Exception")

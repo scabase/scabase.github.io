@@ -4,6 +4,7 @@
 """
 import time
 
+from . import community as community_mod
 from . import policy as policy_mod
 from . import purl
 
@@ -327,6 +328,9 @@ def evaluate(component, policy=None, confidences=None, profile=None,
     elif is_warn:
         warnings.append("许可证类别 %s 需合规确认" % category)
 
+    # --- 社区支持力度（活跃度之上的可持续性评价，可解释但不单独占权重）
+    support = community_mod.evaluate(health, policy=policy)
+
     # --- 业务影响
     weight = weights.get("business", 20)
     raw, notes, missing = score_business(usage, weight, policy)
@@ -353,6 +357,13 @@ def evaluate(component, policy=None, confidences=None, profile=None,
             hard_blocks.append("CVSS %.1f ≥ 9.0 且无修复版本" % max_cvss)
     if health and (health.get("archived") or health.get("deprecated")):
         hard_blocks.append("组件已 archived/deprecated")
+    if support["grade"] in ("C", "D"):
+        warnings.append("社区支持力度 %s 级（%.0f/100）：%s" % (
+            support["grade"], support["score"], support["advice"]))
+    deny_grades = policy.get("community_deny_grades") or []
+    if support["grade"] in deny_grades:
+        hard_blocks.append("社区支持力度 %s 级低于准入要求 %s" % (
+            support["grade"], "/".join(deny_grades)))
 
     # --- 置信度降级
     stale = [name for name, value in confidences.items() if value < 0.5]
@@ -394,6 +405,7 @@ def evaluate(component, policy=None, confidences=None, profile=None,
         "hard_blocks": hard_blocks,
         "warnings": warnings,
         "dimensions": dimensions,
+        "community": support,
         "needs_review": needs_review,
         "missing_data": missing_data,
         "suggested_version": _suggested_version(vulns),

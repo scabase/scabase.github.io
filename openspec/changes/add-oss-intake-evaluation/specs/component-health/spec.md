@@ -46,3 +46,24 @@
 - WHEN 本轮采集触发
 - THEN 对全部组件重新采集健康度指标
 - AND 覆盖增量结果并更新水位
+
+### Requirement: 社区支持力度信号采集
+
+健康度采集 SHALL 额外产出社区支持力度评价所需的信号，支撑组件可持续维护能力评估。
+
+- 信号 MUST 包含：贡献者数量、PR 平均合并周期、是否提供安全响应策略（SECURITY.md）、是否配置 CI、背后组织（基金会/厂商）、下游依赖项目数与月下载量。
+- 信号缺失时 MUST 记录缺失项，MUST NOT 以默认值填充后按「有数据」处理。
+
+#### Scenario: 采集治理与工程化信号
+
+- GIVEN 某仓库提供 SECURITY.md 且配置了 CI
+- WHEN 执行健康度采集
+- THEN `has_security_policy` 与 `has_ci` 均为 true
+- AND 基金会/厂商背书被识别为 `org_backing`
+
+#### Scenario: 治理信号缺失
+
+- GIVEN 无法获取贡献者数量与安全响应策略
+- WHEN 执行健康度采集
+- THEN 对应字段缺失并被记录
+- AND 社区支持力度评价按「未知即风险」扣分

@@ -20,6 +20,14 @@ except ImportError:  # pragma: no cover
 
 GITHUB_API = "https://api.github.com/repos"
 DEPS_DEV = "https://api.deps.dev/v3alpha/systems"
+NPM_DOWNLOADS = "https://api.npmjs.org/downloads/point/last-month/"
+
+# 背后组织识别：基金会 / 厂商 / 一般组织 / 个人
+KNOWN_FOUNDATION_ORGS = {"apache", "cncf", "linuxfoundation", "eclipse", "mozilla",
+                         "python", "nodejs", "rust-lang", "openjsf"}
+KNOWN_VENDOR_ORGS = {"google", "alibaba", "tencent", "spring-projects", "elastic",
+                     "redhat", "microsoft", "amazon", "facebook", "meta", "vmware",
+                     "oracle", "ibm", "netflix", "apple"}
 
 ECO_TO_DEPS_SYSTEM = {
     "maven": "MAVEN",
@@ -86,6 +94,55 @@ def github_slug(purl, eco):
     return None
 
 
+def _head_status(url, token=None, timeout=20):
+    """只取 HTTP 状态码，用于判断文件/目录是否存在。"""
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = "Bearer %s" % token
+    try:
+        resp = requests.get(url, headers=headers, timeout=timeout)
+        return resp.status_code
+    except Exception:
+        return None
+
+
+def _org_backing(repo):
+    """识别背后组织：foundation / vendor / organization / personal。"""
+    owner = repo.get("owner") or {}
+    login = (owner.get("login") or "").lower()
+    if (owner.get("type") or "").lower() != "organization":
+        return "personal" if login else None
+    if login in KNOWN_FOUNDATION_ORGS:
+        return "foundation"
+    if login in KNOWN_VENDOR_ORGS:
+        return "vendor"
+    return "organization"
+
+
+def collect_pr_merge_days(slug, token, limit=30):
+    """近 limit 个已合并 PR 的平均合并周期（天）。"""
+    pulls = _get("%s/%s/pulls?state=closed&sort=updated&direction=desc&per_page=%d"
+                 % (GITHUB_API, slug, limit), token=token)
+    if not isinstance(pulls, list):
+        return None
+    gaps = []
+    for item in pulls:
+        created = item.get("created_at")
+        merged = item.get("merged_at") or item.get("closed_at")
+        if not created or not merged:
+            continue
+        gap = days_since(created) - days_since(merged)
+        if gap is not None and gap >= 0:
+            gaps.append(gap)
+    if not gaps:
+        return None
+    gaps.sort()
+    middle = len(gaps) // 2
+    if len(gaps) % 2:
+        return float(gaps[middle])
+    return round((gaps[middle - 1] + gaps[middle]) / 2.0, 1)
+
+
 def collect_from_github(slug, token, releases_limit=100):
     repo = _get("%s/%s" % (GITHUB_API, slug), token=token)
     if not repo:
@@ -97,7 +154,14 @@ def collect_from_github(slug, token, releases_limit=100):
         "open_issues": repo.get("open_issues_count"),
         "last_commit_days": days_since(repo.get("pushed_at")),
         "repo": slug,
+        "org_backing": _org_backing(repo),
     }
+    security = _head_status("%s/%s/contents/SECURITY.md" % (GITHUB_API, slug), token)
+    if security is not None:
+        health["has_security_policy"] = security == 200
+    workflows = _head_status("%s/%s/contents/.github/workflows" % (GITHUB_API, slug), token)
+    if workflows is not None:
+        health["has_ci"] = workflows == 200
     releases = _get("%s/%s/releases?per_page=%d" % (GITHUB_API, slug, releases_limit), token=token)
     if isinstance(releases, list):
         recent = 0
@@ -110,6 +174,10 @@ def collect_from_github(slug, token, releases_limit=100):
     contributors = _get("%s/%s/contributors?per_page=100&anon=false" % (GITHUB_API, slug), token=token)
     if isinstance(contributors, list):
         health["maintainers"] = min(len(contributors), 100)
+        health["contributors"] = min(len(contributors), 100)
+    merged_days = collect_pr_merge_days(slug, token)
+    if merged_days is not None:
+        health["pr_merge_days"] = merged_days
     return health
 
 
@@ -133,7 +201,26 @@ def collect_from_deps_dev(eco, purl):
     published = [v.get("publishedAt") for v in versions if v.get("publishedAt")]
     if published:
         info["latest_release_days"] = days_since(max(published))
+    dependents = payload.get("dependentsCount")
+    if dependents is None:
+        dependents = payload.get("dependents_count")
+    if dependents is not None:
+        info["dependent_projects"] = dependents
     return info
+
+
+def collect_from_npm(full_name):
+    """npm 月下载量（采用度信号）。"""
+    if requests is None or not full_name:
+        return None
+    try:
+        resp = requests.get(NPM_DOWNLOADS + full_name.replace("/", "%2F"), timeout=15)
+        if resp.status_code != 200:
+            return None
+        downloads = (resp.json() or {}).get("downloads")
+        return {"monthly_downloads": downloads} if downloads is not None else None
+    except Exception:
+        return None
 
 
 def merge_health(base, extra):
@@ -203,6 +290,11 @@ def main():
             if slug:
                 merge_health(health, collect_from_github(slug, os.getenv("GITHUB_TOKEN")))
             merge_health(health, collect_from_deps_dev(entry["eco"], entry["info"]) or {})
+            if entry["eco"] == "npm":
+                info = entry["info"] or {}
+                full_name = ("@%s/%s" % (info.get("namespace"), info.get("name"))
+                             if info.get("namespace") else info.get("name"))
+                merge_health(health, collect_from_npm(full_name) or {})
         if "last_commit_days" not in health and "latest_release_days" in health:
             health["last_commit_days"] = health["latest_release_days"]
         if not any(k in health for k in ("archived", "releases_12m", "maintainers", "last_commit_days")):

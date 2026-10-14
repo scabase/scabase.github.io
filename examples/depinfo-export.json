@@ -1,0 +1,47 @@
+{
+  "schema": "depinfo-component-export/v1",
+  "generated_at": "2026-10-15T00:00:00Z",
+  "source": "depinfo",
+  "apps": [
+    {
+      "app_id": "APP-1001",
+      "app_name": "支付核心",
+      "group": "支付群组",
+      "tier": "core",
+      "exposure": "internet",
+      "data_sensitivity": "high",
+      "owner": "张三",
+      "components": [
+        {"gav": "com.alibaba:fastjson:1.2.24"},
+        {"gav": "org.apache.logging.log4j:log4j-core:2.14.1"},
+        {"eco": "maven", "group": "org.springframework", "artifact": "spring-core", "version": "5.3.18"},
+        {"purl": "pkg:npm/axios@0.21.1"}
+      ]
+    },
+    {
+      "app_id": "APP-1002",
+      "app_name": "渠道前置",
+      "group": "支付群组",
+      "tier": "important",
+      "exposure": "internal",
+      "data_sensitivity": "mid",
+      "components": [
+        {"gav": "com.alibaba:fastjson:1.2.24"},
+        {"eco": "maven", "group": "com.fasterxml.jackson.core", "artifact": "jackson-databind", "version": "2.13.0"},
+        {"purl": "pkg:pypi/requests@2.31.0"}
+      ]
+    },
+    {
+      "app_id": "APP-2001",
+      "app_name": "数据中台",
+      "group": "数据群组",
+      "tier": "important",
+      "exposure": "internal",
+      "data_sensitivity": "high",
+      "components": [
+        {"eco": "maven", "group": "org.apache.struts", "artifact": "struts2-core", "version": "2.5.30"},
+        {"purl": "pkg:pypi/flask@2.0.0"}
+      ]
+    }
+  ]
+}

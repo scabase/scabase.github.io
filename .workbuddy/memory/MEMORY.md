@@ -20,8 +20,22 @@
   校验规则：每个 Requirement 至少一个 Scenario；MODIFIED 必须已存在于基线且需抄回原有 scenario。
 - 引擎 `oss_intake/`（Python 标准库，零第三方依赖）：PURL 主键事实层
   `facts/<dataset>/<eco>.json`；评分四维 V35/M25/L20/B20；同步 bundle 带签名与 seq 链。
-- CLI：`python -m oss_intake.cli {inventory|gate|assess|bundle|import|confidence}`。
+- CLI：`python -m oss_intake.cli {inventory|scan|gate|assess|patrol|baseline|genscript|verify|depinfo|bundle|import|confidence}`。
 - 未实现：前端评估台页面（intake.html），在 openspec change 的 tasks Phase 5。
+
+## 落地增强（2026-10-15 新增，行业场景）
+- `depfile.py` 解析原生依赖文件（pom/gradle/npm×4/pypi×4/go/cargo/composer/gem），
+  输出 PURL + `version_req` + `pinned`；npm scope 存为无 `@` 的 namespace（`pkg:npm/babel/core@x`）。
+- `community.py`：社区支持力度 A/B/C/D，缺失信号按未知即风险扣分，archived → D。
+- `baseline.py`：32 条声明式基线；配置项未声明时 set/eq/contains/regex 按空值判 FAIL，其余 UNKNOWN。
+- `scriptgen.py`：三目标脚本（sreops sh / codescan yaml+py / 通用 py），模板 + 可选 LLM
+  （`SCABASE_LLM_ENDPOINT`，失败回落模板）+ lint；FORBIDDEN 不能含 shutdown/reboot（会误伤描述文字）。
+- `verify.py`：准确率回归默认阈值 0.9，UNKNOWN 计入漏检；样本集 `examples/accuracy-cases.json`。
+- `patrol.py`：应用维度巡检 + 工单 + 增量（应用+PURL+CVE 三元组）+ 共性风险（≥2 应用）。
+- `integrations/depinfo.py`：台账导入三形态（purl/gav/eco+group+artifact+version），回传默认脱敏；
+  `integrations/cicd.py`：SARIF 2.1.0 / JUnit / MR 评论 / 四档退出码。
+- 资产模型 app 支持 `gavs` / `purls`（depinfo 台账，无 SBOM 文件）。
+- 环境注意：某些会话没有 Bash 工具，无法执行测试；交付时要在 tasks.md 标注「待执行验证」。
 
 ## 技术约定
 - 前端为 ES5 风格 IIFE（var / function），无构建步骤，不要引入需要编译的语法。

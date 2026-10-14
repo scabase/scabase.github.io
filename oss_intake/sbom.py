@@ -20,7 +20,7 @@ class Component(object):
     """摄入后的组件引用。"""
 
     def __init__(self, purl_value, eco=None, name=None, version=None,
-                 gav=None, direct=True, scope=None):
+                 gav=None, direct=True, scope=None, version_req=None, pinned=True):
         self.purl = purl_value
         self.eco = eco
         self.name = name
@@ -28,6 +28,8 @@ class Component(object):
         self.gav = gav
         self.direct = direct
         self.scope = scope
+        self.version_req = version_req
+        self.pinned = pinned
 
     def to_dict(self):
         return {
@@ -38,6 +40,8 @@ class Component(object):
             "gav": self.gav,
             "direct": self.direct,
             "scope": self.scope,
+            "version_req": self.version_req,
+            "pinned": self.pinned,
         }
 
 
@@ -62,6 +66,16 @@ def _from_parts(eco, name, version, namespace=None, direct=True, scope=None):
     if not purl_value:
         return None
     return _finish(purl_value, direct=direct, scope=scope)
+
+
+def build_component(eco, name, version, namespace=None, direct=True, scope=None,
+                    version_req=None, pinned=True):
+    """构造组件引用；version_req 保留原始版本约束，pinned 表示是否已锁定具体版本。"""
+    comp = _from_parts(eco, name, version, namespace, direct=direct, scope=scope)
+    if comp:
+        comp.version_req = version_req
+        comp.pinned = pinned
+    return comp
 
 
 # ---------------------------------------------------------------- CycloneDX

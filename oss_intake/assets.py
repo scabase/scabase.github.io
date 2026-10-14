@@ -49,6 +49,7 @@ def build_inventory(store, assets, base_dir="."):
                 "components": 0,
                 "unresolved": [],
             }
+            items = []
             if sbom_path:
                 full = sbom_path if os.path.isabs(sbom_path) else os.path.join(base_dir, sbom_path)
                 if os.path.exists(full):
@@ -57,28 +58,40 @@ def build_inventory(store, assets, base_dir="."):
                     entry["components"] = len(components)
                     entry["unresolved"] = result["unresolved"]
                     for comp in components:
-                        key = purl.key_of(comp["purl"]) or comp["purl"]
-                        record = collected.setdefault(key, {
-                            "purl": comp["purl"],
-                            "gav": comp["gav"],
-                            "groups": [],
-                            "apps": [],
-                            "tier": app.get("tier", "normal"),
-                            "exposure": app.get("exposure", "internal"),
-                            "data_sensitivity": app.get("data_sensitivity", "low"),
-                            "direct": bool(comp["direct"]),
-                        })
-                        if group_name and group_name not in record["groups"]:
-                            record["groups"].append(group_name)
-                        if app_name and app_name not in record["apps"]:
-                            record["apps"].append(app_name)
-                        record["tier"] = _max_by(record["tier"], app.get("tier"), TIER_RANK)
-                        record["exposure"] = _max_by(
-                            record["exposure"], app.get("exposure"), EXPOSURE_RANK)
-                        record["data_sensitivity"] = _max_by(
-                            record["data_sensitivity"], app.get("data_sensitivity"), SENSITIVITY_RANK)
-                        if comp["direct"]:
-                            record["direct"] = True
+                        items.append((comp["purl"], comp.get("gav"), bool(comp["direct"])))
+
+            # depinfo 台账形态：直接给出 GAV / PURL 列表，无 SBOM 文件
+            for raw in app.get("gavs") or []:
+                purl_value = purl.from_gav(raw)
+                if purl_value:
+                    items.append((purl_value, raw, True))
+            for raw in app.get("purls") or []:
+                items.append((raw, (purl.parse(raw) or {}).get("gav"), True))
+
+            entry["components"] = len(items)
+            for purl_value, gav, direct in items:
+                key = purl.key_of(purl_value) or purl_value
+                record = collected.setdefault(key, {
+                    "purl": purl_value,
+                    "gav": gav,
+                    "groups": [],
+                    "apps": [],
+                    "tier": app.get("tier", "normal"),
+                    "exposure": app.get("exposure", "internal"),
+                    "data_sensitivity": app.get("data_sensitivity", "low"),
+                    "direct": bool(direct),
+                })
+                if group_name and group_name not in record["groups"]:
+                    record["groups"].append(group_name)
+                if app_name and app_name not in record["apps"]:
+                    record["apps"].append(app_name)
+                record["tier"] = _max_by(record["tier"], app.get("tier"), TIER_RANK)
+                record["exposure"] = _max_by(
+                    record["exposure"], app.get("exposure"), EXPOSURE_RANK)
+                record["data_sensitivity"] = _max_by(
+                    record["data_sensitivity"], app.get("data_sensitivity"), SENSITIVITY_RANK)
+                if direct:
+                    record["direct"] = True
             summary.append(entry)
 
     for record in collected.values():

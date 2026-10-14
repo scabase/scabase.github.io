@@ -1,0 +1,7 @@
+# 数据服务依赖
+requests==2.31.0
+flask>=2.0.0
+pyyaml==5.4.1
+numpy~=1.21.0
+# 未锁定版本，应进入 unresolved
+attrs

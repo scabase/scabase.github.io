@@ -1,7 +1,7 @@
 #!/bin/sh
 # ScaBase · 内网定时导入与评估任务
 #
-# 扫描摆渡目录中的数据包 → 按 seq 顺序导入 → 生成群组评估报告。
+# 扫描摆渡目录中的数据包 → 按 seq 顺序导入 → 生成群组评估报告与漏洞影响巡检工单。
 # 处理成功的包会被移到 imported/，避免重复导入触发 seq 回退告警。
 set -eu
 
@@ -9,6 +9,8 @@ FACTS="${SCABASE_FACTS_DIR:-/data/facts}"
 FERRY="${SCABASE_FERRY_DIR:-/data/ferry}"
 REPORTS="${SCABASE_REPORT_DIR:-/data/reports}"
 ASSETS="${SCABASE_ASSETS:-}"
+BASELINE="${SCABASE_BASELINE:-}"
+STATE="${SCABASE_PATROL_STATE:-/data/patrol-state.json}"
 BASE_DIR="${SCABASE_BASE_DIR:-/work}"
 INTERVAL="${SCABASE_SYNC_INTERVAL:-3600}"
 
@@ -32,6 +34,15 @@ while true; do
       --assets "$ASSETS" \
       --base-dir "$BASE_DIR" \
       --md "$REPORTS/group-assessment.md" || echo "[intake] 评估失败"
+
+    echo "[intake] 执行漏洞影响与基线巡检"
+    set -- --facts "$FACTS" --assets "$ASSETS" --base-dir "$BASE_DIR" \
+           --state "$STATE" --json "$REPORTS/patrol.json" \
+           --tickets "$REPORTS/tickets.json" --md "$REPORTS/patrol.md"
+    if [ -n "$BASELINE" ] && [ -f "$BASELINE" ]; then
+      set -- "$@" --baseline "$BASELINE"
+    fi
+    python -m oss_intake.cli patrol "$@" || echo "[intake] 巡检失败"
   fi
 
   sleep "$INTERVAL"

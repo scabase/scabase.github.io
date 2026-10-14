@@ -1,0 +1,165 @@
+{
+  "schema": "scabase-accuracy-cases/v1",
+  "description": "基线/漏洞检测脚本准确率回归样本集。expected 为人工标注的合规结论：PASS=配置合规，FAIL=存在风险。UNKNOWN 视为未检出。",
+  "cases": [
+    {"case_id": "redis-requirepass-ok", "rule_id": "redis-requirepass", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/redis/redis.conf": {"requirepass": "Str0ng!Pass"}}}},
+    {"case_id": "redis-requirepass-bad", "rule_id": "redis-requirepass", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/redis/redis.conf": {"requirepass": ""}}}},
+
+    {"case_id": "redis-protected-ok", "rule_id": "redis-protected-mode", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/redis/redis.conf": {"protected-mode": "yes"}}}},
+    {"case_id": "redis-protected-bad", "rule_id": "redis-protected-mode", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/redis/redis.conf": {"protected-mode": "no"}}}},
+
+    {"case_id": "redis-bind-ok", "rule_id": "redis-bind", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/redis/redis.conf": {"bind": "10.20.0.11"}}}},
+    {"case_id": "redis-bind-bad", "rule_id": "redis-bind", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/redis/redis.conf": {"bind": "0.0.0.0"}}}},
+
+    {"case_id": "redis-rename-ok", "rule_id": "redis-rename-command", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/redis/redis.conf": {"rename-command": "FLUSHALL"}}}},
+    {"case_id": "redis-rename-bad", "rule_id": "redis-rename-command", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/redis/redis.conf": {"rename-command": ""}}}},
+
+    {"case_id": "nginx-tokens-ok", "rule_id": "nginx-server-tokens", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/nginx/nginx.conf": {"server_tokens": "off"}}}},
+    {"case_id": "nginx-tokens-bad", "rule_id": "nginx-server-tokens", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/nginx/nginx.conf": {"server_tokens": "on"}}}},
+
+    {"case_id": "nginx-tls-ok", "rule_id": "nginx-tls-protocol", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/nginx/nginx.conf": {"ssl_protocols": "TLSv1.2 TLSv1.3"}}}},
+    {"case_id": "nginx-tls-bad", "rule_id": "nginx-tls-protocol", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/nginx/nginx.conf": {"ssl_protocols": "TLSv1 TLSv1.2"}}}},
+
+    {"case_id": "nginx-autoindex-ok", "rule_id": "nginx-autoindex", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/nginx/nginx.conf": {"autoindex": "off"}}}},
+    {"case_id": "nginx-autoindex-bad", "rule_id": "nginx-autoindex", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/nginx/nginx.conf": {"autoindex": "on"}}}},
+
+    {"case_id": "tomcat-manager-ok", "rule_id": "tomcat-manager-auth", "expected": "PASS",
+     "snapshot": {"http": {"http://127.0.0.1:8080/manager/html": {"status": 401}}}},
+    {"case_id": "tomcat-manager-bad", "rule_id": "tomcat-manager-auth", "expected": "FAIL",
+     "snapshot": {"http": {"http://127.0.0.1:8080/manager/html": {"status": 200}}}},
+
+    {"case_id": "tomcat-shutdown-ok", "rule_id": "tomcat-shutdown-port", "expected": "PASS",
+     "snapshot": {"configs": {"/usr/local/tomcat/conf/server.xml": {"Server.port": "-1"}}}},
+    {"case_id": "tomcat-shutdown-bad", "rule_id": "tomcat-shutdown-port", "expected": "FAIL",
+     "snapshot": {"configs": {"/usr/local/tomcat/conf/server.xml": {"Server.port": "8005"}}}},
+
+    {"case_id": "tomcat-listing-ok", "rule_id": "tomcat-directory-listing", "expected": "PASS",
+     "snapshot": {"configs": {"/usr/local/tomcat/conf/web.xml": {"listings": "false"}}}},
+    {"case_id": "tomcat-listing-bad", "rule_id": "tomcat-directory-listing", "expected": "FAIL",
+     "snapshot": {"configs": {"/usr/local/tomcat/conf/web.xml": {"listings": "true"}}}},
+
+    {"case_id": "kafka-sasl-ok", "rule_id": "kafka-sasl", "expected": "PASS",
+     "snapshot": {"configs": {"/opt/kafka/config/server.properties": {"sasl.enabled.mechanisms": "SCRAM-SHA-512"}}}},
+    {"case_id": "kafka-sasl-bad", "rule_id": "kafka-sasl", "expected": "FAIL",
+     "snapshot": {"configs": {"/opt/kafka/config/server.properties": {"sasl.enabled.mechanisms": ""}}}},
+
+    {"case_id": "kafka-acl-ok", "rule_id": "kafka-authorizer", "expected": "PASS",
+     "snapshot": {"configs": {"/opt/kafka/config/server.properties": {"authorizer.class.name": "kafka.security.authorizer.AclAuthorizer"}}}},
+    {"case_id": "kafka-acl-bad", "rule_id": "kafka-authorizer", "expected": "FAIL",
+     "snapshot": {"configs": {"/opt/kafka/config/server.properties": {"authorizer.class.name": ""}}}},
+
+    {"case_id": "zk-auth-ok", "rule_id": "zookeeper-auth", "expected": "PASS",
+     "snapshot": {"cli": {"echo srvr | nc 127.0.0.1 2181": "Zookeeper version: 3.7.1"}}},
+    {"case_id": "zk-auth-bad", "rule_id": "zookeeper-auth", "expected": "FAIL",
+     "snapshot": {"cli": {"echo srvr | nc 127.0.0.1 2181": "srvr is not in whitelist"}}},
+
+    {"case_id": "zk-4lw-ok", "rule_id": "zookeeper-4lw", "expected": "PASS",
+     "snapshot": {"configs": {"/opt/zookeeper/conf/zoo.cfg": {"4lw.commands.whitelist": "srvr"}}}},
+    {"case_id": "zk-4lw-bad", "rule_id": "zookeeper-4lw", "expected": "FAIL",
+     "snapshot": {"configs": {"/opt/zookeeper/conf/zoo.cfg": {"4lw.commands.whitelist": ""}}}},
+
+    {"case_id": "es-security-ok", "rule_id": "es-security", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/elasticsearch/elasticsearch.yml": {"xpack.security.enabled": "true"}}}},
+    {"case_id": "es-security-bad", "rule_id": "es-security", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/elasticsearch/elasticsearch.yml": {"xpack.security.enabled": "false"}}}},
+
+    {"case_id": "es-network-ok", "rule_id": "es-network-host", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/elasticsearch/elasticsearch.yml": {"network.host": "10.20.0.31"}}}},
+    {"case_id": "es-network-bad", "rule_id": "es-network-host", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/elasticsearch/elasticsearch.yml": {"network.host": "0.0.0.0"}}}},
+
+    {"case_id": "nacos-auth-ok", "rule_id": "nacos-auth", "expected": "PASS",
+     "snapshot": {"configs": {"/opt/nacos/conf/application.properties": {"nacos.core.auth.enabled": "true"}}}},
+    {"case_id": "nacos-auth-bad", "rule_id": "nacos-auth", "expected": "FAIL",
+     "snapshot": {"configs": {"/opt/nacos/conf/application.properties": {"nacos.core.auth.enabled": "false"}}}},
+
+    {"case_id": "mysql-bind-ok", "rule_id": "mysql-bind-address", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/my.cnf": {"bind-address": "10.20.0.41"}}}},
+    {"case_id": "mysql-bind-bad", "rule_id": "mysql-bind-address", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/my.cnf": {"bind-address": "0.0.0.0"}}}},
+
+    {"case_id": "mysql-empty-ok", "rule_id": "mysql-empty-password", "expected": "PASS",
+     "snapshot": {"cli": {"mysql -N -e \"select count(*) from mysql.user where authentication_string=''\"": "0"}}},
+    {"case_id": "mysql-empty-bad", "rule_id": "mysql-empty-password", "expected": "FAIL",
+     "snapshot": {"cli": {"mysql -N -e \"select count(*) from mysql.user where authentication_string=''\"": "2"}}},
+
+    {"case_id": "rabbitmq-user-ok", "rule_id": "rabbitmq-default-user", "expected": "PASS",
+     "snapshot": {"cli": {"rabbitmqctl list_users": "app_user\t[management]"}}},
+    {"case_id": "rabbitmq-user-bad", "rule_id": "rabbitmq-default-user", "expected": "FAIL",
+     "snapshot": {"cli": {"rabbitmqctl list_users": "guest\t[administrator]"}}},
+
+    {"case_id": "mongo-auth-ok", "rule_id": "mongodb-auth", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/mongod.conf": {"security.authorization": "enabled"}}}},
+    {"case_id": "mongo-auth-bad", "rule_id": "mongodb-auth", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/mongod.conf": {"security.authorization": "disabled"}}}},
+
+    {"case_id": "mongo-bind-ok", "rule_id": "mongodb-bindip", "expected": "PASS",
+     "snapshot": {"configs": {"/etc/mongod.conf": {"net.bindIp": "127.0.0.1"}}}},
+    {"case_id": "mongo-bind-bad", "rule_id": "mongodb-bindip", "expected": "FAIL",
+     "snapshot": {"configs": {"/etc/mongod.conf": {"net.bindIp": "0.0.0.0"}}}},
+
+    {"case_id": "docker-socket-ok", "rule_id": "docker-daemon-socket", "expected": "PASS",
+     "snapshot": {"cli": {"ss -lntp | grep ':2375'": ""}}},
+    {"case_id": "docker-socket-bad", "rule_id": "docker-daemon-socket", "expected": "FAIL",
+     "snapshot": {"cli": {"ss -lntp | grep ':2375'": "LISTEN 0 128 *:2375"}}},
+
+    {"case_id": "jenkins-anon-ok", "rule_id": "jenkins-anonymous", "expected": "PASS",
+     "snapshot": {"configs": {"/var/lib/jenkins/config.xml": {"useSecurity": "true"}}}},
+    {"case_id": "jenkins-anon-bad", "rule_id": "jenkins-anonymous", "expected": "FAIL",
+     "snapshot": {"configs": {"/var/lib/jenkins/config.xml": {"useSecurity": "false"}}}},
+
+    {"case_id": "fastjson-ok", "rule_id": "fastjson-autotype", "expected": "PASS",
+     "snapshot": {"version": "1.2.83"}},
+    {"case_id": "fastjson-bad", "rule_id": "fastjson-autotype", "expected": "FAIL",
+     "snapshot": {"version": "1.2.24"}},
+
+    {"case_id": "log4j-ok", "rule_id": "log4j-jndilookup", "expected": "PASS",
+     "snapshot": {"version": "2.17.1"}},
+    {"case_id": "log4j-bad", "rule_id": "log4j-jndilookup", "expected": "FAIL",
+     "snapshot": {"version": "2.14.1"}},
+
+    {"case_id": "shiro-ok", "rule_id": "shiro-rememberme-key", "expected": "PASS",
+     "snapshot": {"configs": {"application.yml": {"shiro.cipher-key": "ZmFrZS1zZWNyZXQta2V5LTEyMzQ1Ng=="}}}},
+    {"case_id": "shiro-bad", "rule_id": "shiro-rememberme-key", "expected": "FAIL",
+     "snapshot": {"configs": {"application.yml": {"shiro.cipher-key": "kPH+bIxk5D2deZiIxcaaaA=="}}}},
+
+    {"case_id": "struts-ok", "rule_id": "struts-ognl", "expected": "PASS",
+     "snapshot": {"version": "6.4.0"}},
+    {"case_id": "struts-bad", "rule_id": "struts-ognl", "expected": "FAIL",
+     "snapshot": {"version": "2.5.30"}},
+
+    {"case_id": "actuator-ok", "rule_id": "springboot-actuator", "expected": "PASS",
+     "snapshot": {"configs": {"application.yml": {"management.endpoints.web.exposure.include": "health,info"}}}},
+    {"case_id": "actuator-bad", "rule_id": "springboot-actuator", "expected": "FAIL",
+     "snapshot": {"configs": {"application.yml": {"management.endpoints.web.exposure.include": "health,heapdump"}}}},
+
+    {"case_id": "actuator-auth-ok", "rule_id": "springboot-actuator-auth", "expected": "PASS",
+     "snapshot": {"http": {"http://127.0.0.1:8080/actuator/env": {"status": 401}}}},
+    {"case_id": "actuator-auth-bad", "rule_id": "springboot-actuator-auth", "expected": "FAIL",
+     "snapshot": {"http": {"http://127.0.0.1:8080/actuator/env": {"status": 200}}}},
+
+    {"case_id": "xstream-ok", "rule_id": "xstream-deserialize", "expected": "PASS",
+     "snapshot": {"version": "1.4.20"}},
+    {"case_id": "xstream-bad", "rule_id": "xstream-deserialize", "expected": "FAIL",
+     "snapshot": {"version": "1.4.19"}},
+
+    {"case_id": "jackson-ok", "rule_id": "jackson-polymorphic", "expected": "PASS",
+     "snapshot": {"version": "2.15.0"}},
+    {"case_id": "jackson-bad", "rule_id": "jackson-polymorphic", "expected": "FAIL",
+     "snapshot": {"version": "2.13.0"}}
+  ]
+}

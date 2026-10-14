@@ -1,0 +1,33 @@
+{
+  "schema": "scabaset-baseline-catalog/v1",
+  "description": "基线目录扩展示例：按 id 覆盖内置条目，或追加特有组件（此处追加 MinIO 与 Consul）。",
+  "items": [
+    {
+      "id": "minio-root-credential",
+      "component": "minio",
+      "deploy": "standalone",
+      "category": "访问控制",
+      "title": "MinIO 使用默认 root 凭据 minioadmin/minioadmin",
+      "severity": "critical",
+      "check": {"kind": "config", "path": "/etc/minio/minio.env",
+                "key": "MINIO_ROOT_PASSWORD",
+                "expect": {"op": "ne", "value": "minioadmin"}},
+      "remediation": "更换 MINIO_ROOT_USER / MINIO_ROOT_PASSWORD 并设置最小权限策略",
+      "references": ["CWE-521"],
+      "cwe": "CWE-521"
+    },
+    {
+      "id": "consul-acl",
+      "component": "consul",
+      "deploy": "standalone",
+      "category": "访问控制",
+      "title": "Consul 未启用 ACL",
+      "severity": "high",
+      "check": {"kind": "config", "path": "/etc/consul.d/consul.hcl",
+                "key": "acl.enabled", "expect": {"op": "eq", "value": "true"}},
+      "remediation": "启用 ACL 并下发最小权限 token",
+      "references": ["CWE-306"],
+      "cwe": "CWE-306"
+    }
+  ]
+}

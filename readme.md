@@ -151,6 +151,32 @@ python -m oss_intake.cli assess --facts intranet-data/facts --assets examples/as
 - Design and operations guide: [`docs/oss-intake.md`](docs/oss-intake.md)
 - Tests: `python -m unittest discover -s tests`
 
+### Bank-grade extensions
+
+- **Dependency analysis at intake**: `scan` parses native dependency files directly
+  (Maven `pom.xml`, npm `package.json`/`package-lock.json`/`yarn.lock`/`pnpm-lock.yaml`,
+  PyPI `requirements.txt`/`Pipfile.lock`/`poetry.lock`/`pyproject.toml`, `go.mod`, …)
+  and normalizes them to PURLs with direct/transitive classification — no SBOM needed.
+- **Community support rating**: 0–100 score plus A/B/C/D grade on top of activity metrics
+  (bus factor, governance, backing, ecosystem position).
+- **Security baseline + AI script generation**: a built-in catalog of 32 baseline items
+  covering standalone and library components; an AI agent generates baseline/vulnerability
+  check scripts matching the rules of the internal code-scanning center and e-ops platforms,
+  gated by a labeled-sample regression that enforces ≥90% accuracy.
+- **Vulnerability impact patrol**: `patrol` aggregates affected components, matched CVEs and
+  baseline to-dos per application, emits tickets with severity/due dates and
+  new/open/fixed deltas.
+- **Toolchain integration**: depinfo ledger import and (masked-by-default) result pushback,
+  plus CICD artifacts (SARIF / JUnit / MR comment) with four exit-code thresholds.
+
+```bash
+python -m oss_intake.cli scan   --path ./payment-core --app pay-core --tier core
+python -m oss_intake.cli patrol --facts intranet-data/facts --assets examples/assets.json \
+  --state intranet-data/patrol-state.json --tickets reports/tickets.json
+python -m oss_intake.cli genscript --component redis --target sreops --out-dir scripts/sreops
+python -m oss_intake.cli verify --cases examples/accuracy-cases.json --threshold 0.9
+```
+
 Notes
 1. OSV API has rate limits. Add sleep delay in loop when scanning large package lists.
 2. NVD API is optional; without a key the fetcher still queries NVD but at a lower rate (configuring NVD_API_KEY is recommended).

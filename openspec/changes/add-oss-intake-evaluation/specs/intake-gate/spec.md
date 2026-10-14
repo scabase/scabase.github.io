@@ -55,3 +55,25 @@
 - WHEN 当前日期已超过该到期日
 - THEN 该组件结论回落为 `Deny`
 - AND 报告中标记“例外已过期，需重新评估”
+
+### Requirement: 平台产物导出
+
+门禁 SHALL 支持直接导出代码扫描中心、CICD 平台与 MR/PR 可消费的产物，实现与工具链流程联动。
+
+- 门禁 MUST 支持导出 SARIF 2.1.0、JUnit XML 与 MR/PR 评论 Markdown。
+- 门禁 MUST 支持读取 depinfo 台账（GAV/PURL 列表）作为评估对象。
+- 门禁 MUST 支持将结论回传 depinfo（默认脱敏）。
+
+#### Scenario: 在 CICD 中导出报告
+
+- GIVEN 门禁评估了一份应用 SBOM
+- WHEN 指定 `--sarif`、`--junit` 与 `--comment` 输出路径
+- THEN 产出三种格式的产物
+- AND SARIF 中 `Deny` 映射为 error、`Review` 映射为 warning
+
+#### Scenario: 直接评估 depinfo 台账组件
+
+- GIVEN 提供 depinfo 台账导出文件中的 GAV 列表
+- WHEN 执行门禁
+- THEN 每个 GAV 被归一为 PURL 后逐一评估
+- AND 结论可回传 depinfo 且不含内网拓扑信息

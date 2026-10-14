@@ -165,6 +165,30 @@ python -m oss_intake.cli gate --facts intranet-data/facts --purl pkg:maven/com.a
 python -m oss_intake.cli assess --facts intranet-data/facts --assets examples/assets.json --base-dir .
 ```
 
+### 落地增强（行业开源治理）
+
+- **引入阶段依赖关系自动化分析**：`scan` 直接解析 Maven `pom.xml`、npm
+  `package.json`/`package-lock.json`/`yarn.lock`/`pnpm-lock.yaml`、PyPI
+  `requirements.txt`/`Pipfile.lock`/`poetry.lock`/`pyproject.toml`、`go.mod` 等原生依赖文件，
+  自动归一为 PURL 并区分直接/传递依赖，无需先产出 SBOM。
+- **社区支持力度评价**：在活跃度之上输出 0-100 分与 A/B/C/D 等级，
+  覆盖 bus factor、治理、背书与生态位，支撑“三年后还维护吗”的判断。
+- **安全配置基线 + AI 脚本生成**：内置 32 条覆盖独立部署型与依赖引入型组件的基线目录；
+  由 AI 智能体按代码扫描中心、e运维 平台规范自动生成基线检查与漏洞检测脚本，
+  并以标注样本集回归校验把「扫描准确率达 90%」落成 CI 门禁。
+- **漏洞影响范围巡检**：`patrol` 按应用聚合受影响组件、命中 CVE 与基线待检项，
+  输出工单（按 KEV/CVSS 定级与整改期限）与新增/未修复/已闭环增量。
+- **工具链联动**：depinfo 台账导入与结论回传（默认脱敏）、CICD 产物
+  （SARIF / JUnit / MR 评论）与四档退出码阈值。
+
+```bash
+python -m oss_intake.cli scan   --path ./payment-core --app 支付核心 --tier core
+python -m oss_intake.cli patrol --facts intranet-data/facts --assets examples/assets.json \
+  --state intranet-data/patrol-state.json --tickets reports/tickets.json
+python -m oss_intake.cli genscript --component redis --target sreops --out-dir scripts/sreops
+python -m oss_intake.cli verify --cases examples/accuracy-cases.json --threshold 0.9
+```
+
 - 规范与提案：`openspec/`（基线 `specs/`，变更 `changes/add-oss-intake-evaluation/`）
 - 设计与操作手册：[`docs/oss-intake.md`](docs/oss-intake.md)
 - 测试：`python -m unittest discover -s tests`

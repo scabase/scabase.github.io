@@ -18,8 +18,8 @@ def assess_group(store, group, policy, confidences, base_dir="."):
     results = []
     seen = set()
     for app in group.get("apps") or []:
-        sbom_path = app.get("sbom")
-        if not sbom_path:
+        # 支持三种资产形态：SBOM 文件 / GAV 列表（depinfo 台账）/ PURL 列表
+        if not app.get("sbom") and not app.get("gavs") and not app.get("purls"):
             continue
         # 由 build_inventory 写入的应用级上下文
         context = {

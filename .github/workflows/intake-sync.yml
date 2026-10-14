@@ -55,6 +55,30 @@ jobs:
       - name: 测试门禁
         run: python -m unittest discover -s tests
 
+      - name: 生成脚本准确率回归（阈值 90%，未达标阻断发布）
+        run: |
+          python -m oss_intake.cli verify \
+            --cases examples/accuracy-cases.json \
+            --threshold 0.9 \
+            --md reports/accuracy.md
+
+      - name: 基线脚本生成与静态检查
+        run: |
+          python -m oss_intake.cli genscript --target sreops --out-dir scripts/sreops
+          python -m oss_intake.cli genscript --target codescan --out-dir scripts/codescan
+          python -m oss_intake.cli genscript --target python --out-dir scripts/python
+
+      - name: 上传脚本产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: scabase-baseline-scripts
+          path: |
+            scripts/*/manifest.json
+            scripts/*/*.sh
+            scripts/*/*.py
+            scripts/*/*.yml
+          if-no-files-found: warn
+
       - name: 事实层非空校验
         run: |
           python - <<'PY'

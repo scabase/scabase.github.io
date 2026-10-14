@@ -219,3 +219,115 @@ group_score = 0.6 × max(component_score) + 0.4 × Σ(weight_app × avg_componen
 - 运行时依赖行为分析、二进制指纹比对。
 - 源代码溯源与代码克隆检测。
 - 自动修复/升级 PR（只给出建议版本，不自动改代码）。
+
+## 11. 落地增强设计（行业场景）
+
+### 11.1 原生依赖文件解析（引入阶段依赖关系自动化分析）
+
+```
+源码目录 ──discover()──▶ pom.xml / build.gradle / package.json / package-lock.json /
+                          yarn.lock / pnpm-lock.yaml / requirements.txt /
+                          Pipfile.lock / poetry.lock / pyproject.toml / go.mod / …
+   │
+   └── depfile.parse_file() ──▶ Component{purl, eco, name, version, gav,
+                                         direct, scope, version_req, pinned}
+                                  └── sbom.dedupe() ──▶ 统一组件清单
+```
+
+- 与 `sbom.py` 分工：`sbom.py` 消费**已生成**的物料清单，`depfile.py` 消费**开发态**依赖声明，
+  因此无需先由外部工具产出 SBOM 即可完成引入前分析。
+- `pinned` 标记版本可复现性：`requirements.txt` 写 `flask>=2.0.0` 时给出 `2.0.0` 并标记未锁定，
+  风险模型可据此判断「依赖解析结果是否可复现」。
+- 单文件解析失败进入「未解析清单」，不中断整目录扫描——CI 中一处坏文件不能让整条门禁失效。
+
+### 11.2 社区支持力度评价（社区活跃度之上的可持续性维度）
+
+```
+health 数据集 + registry 元数据 ──▶ community.evaluate()
+   ├─ 扣分：最近提交 / 发布节奏 / 维护者 bus factor / 贡献者 / issue 响应 / PR 周期 /
+   │        无安全响应策略 / 无 CI / 无背书组织
+   ├─ 加分：下游依赖项目数 / 月下载量 / Star
+   └─ 缺失信号 → 「未知即风险」扣分 + missing 清单
+        │
+        └─ 0-100 分 + A/B/C/D 等级 + 逐项依据
+              └─ 接入 gate 结论（C/D 给提示；策略配置 community_deny_grades 则硬阻断）
+```
+
+设计意图：**漏洞可以修，社区死了修不了**。活跃度（提交/发布）反映“现在是否活着”，
+社区支持力度（bus factor、治理、背书、生态位）回答“三年后还活着吗、我能不能自己修”。
+
+### 11.3 安全配置基线 + AI 智能体脚本生成
+
+```
+baseline.py（声明式目录）
+   ├─ standalone：Redis / Nginx / Tomcat / Kafka / ZooKeeper / Elasticsearch /
+   │              Nacos / MySQL / MongoDB / RabbitMQ / Docker / Jenkins
+   └─ embedded ：fastjson / log4j / Shiro / Struts / Spring Boot Actuator / XStream / Jackson
+        │
+        ├── scriptgen 模板引擎（确定性，离线可用）
+        │     ├─ sreops    → POSIX sh 巡检脚本（单行 JSON 结果，退出码恒 0）
+        │     ├─ codescan → YAML 规则 + Python 检测脚本（输出 SARIF 2.1.0）
+        │     └─ python  → 通用巡检脚本（标准库，--json）
+        │
+        ├── scriptgen LLM 增强（SCABASE_LLM_ENDPOINT，失败回落模板）
+        │     └─ 产物标记 generated_by=llm / review_required=true
+        │
+        └── lint 静态检查（shebang / STATUS / JSON 输出 / 无高危指令 / 语法可编译）
+              └── verify 准确率回归（标注样本集，阈值 90%，UNKNOWN 计入漏检）
+```
+
+**为什么用声明式基线而不是直接生成脚本**：基线项是「合规状态」的唯一真相源，
+脚本（sh / python / YAML 规则）只是它的三种投影。这样同一套判定语义既能被
+`baseline.run_check` 在样本集上量化校验（得到准确率），也能被生成脚本在真实环境执行，
+两者不会漂移。
+
+**AI 智能体的定位**：只做「脚本工程化」（平台规范适配、输出格式、可读性），
+不做判定决策；且必须经静态检查 + 回归校验 + 人工审核三重把关后才可上线。
+
+### 11.4 漏洞影响范围巡检
+
+```
+facts(vulns/health/license) + inventory(应用资产) + baseline(基线目录)
+        │
+        └── patrol()
+              ├─ 按应用聚合：受影响组件数 / KEV 数 / 风险分 / 基线待检项
+              ├─ 组件级 finding：CVE 明细 + 建议版本 + 结论（复用评分模型）
+              ├─ 工单：严重级别（KEV/CVSS）→ 整改期限（7/15/30/90 天）
+              ├─ 增量对比：新增 / 未修复 / 已闭环（三元组：应用 + 组件 + CVE）
+              └─ 共性风险：≥2 个应用共用的高危组件
+```
+
+与 `assess`（存量风险评估，面向治理视角）互补：`patrol` 是**日常巡检视角**，
+回答“现在谁被打中了、要不要开工单、和上次比多了什么”。
+
+### 11.5 工具链对接
+
+| 对接面 | 方向 | 内容 | 约束 |
+| --- | --- | --- | --- |
+| depinfo | 入 | 组件台账导出文件 → 资产模型（支持 purl / gav / eco+group+artifact+version） | 幂等转换 |
+| depinfo | 出 | 评估结论回传（GAV、结论、评分、建议版本、CVE、复审到期日） | **默认脱敏**：不含应用名/群组名 |
+| CICD | 出 | SARIF 2.1.0 / JUnit XML / MR 评论 Markdown + 四档退出码 | Deny→error、Review→warning |
+| 代码扫描中心 | 出 | 基线规则包（YAML + 检测脚本） | 规则 id 前缀 `scabase-` |
+| e运维 | 出 | 巡检脚本（单行 JSON）+ 巡检工单 | 退出码恒 0，结果以 JSON 判定 |
+
+未配置端点时所有对接降级为**文件交换**，绝不因缺少网络而阻塞内网流程。
+
+### 11.6 新增目录与模块
+
+```
+oss_intake/
+├── depfile.py                 # 原生依赖文件解析
+├── community.py               # 社区支持力度评价
+├── baseline.py                # 安全配置基线目录 + 检查执行引擎
+├── scriptgen.py               # 脚本生成（模板 + LLM 增强 + lint）
+├── verify.py                  # 准确率回归校验
+├── patrol.py                  # 漏洞影响巡检 / 工单 / 增量
+└── integrations/
+    ├── depinfo.py                # depinfo 台账导入与结论回传
+    └── cicd.py                # SARIF / JUnit / MR 评论 / 退出码
+examples/
+├── deps/                      # 多生态依赖文件样本
+├── baseline-catalog.json      # 基线扩展示例
+├── accuracy-cases.json        # 准确率回归样本集（64 例）
+└── depinfo-export.json           # depinfo 台账样本
+```
