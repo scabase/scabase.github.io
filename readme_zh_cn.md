@@ -45,10 +45,12 @@ scabase-fetcher/
 ├── docker/nginx-default.conf       # nginx 站点配置（监听 8080）
 ├── docker/10-env-config.sh         # 容器启动时生成 assets/config.js
 ├── docker-compose.yml              # 内网一键部署
-└── .github/workflows/
-    ├── pages.yml                   # GitHub Pages 发布
-    ├── docker.yml                  # 镜像构建与推送（含离线 tar 产物）
-    └── update-vuln.yml             # 漏洞库定时采集
+├── .github/workflows/
+│   ├── pages.yml                   # GitHub Pages 发布
+│   ├── docker.yml                  # 镜像构建与推送（含离线 tar 产物）
+│   ├── update-vuln.yml             # 漏洞库定时采集
+│   ├── community-health.yml        # 组件健康度与社区支持力度采集
+│   └── publish-packages.yml        # 发布到 GitHub Packages（npm / maven / docker）
 ```
 ## 组件清单格式 `data/pkg_list.txt`
 格式：`ecosystem|package|version`
@@ -188,6 +190,28 @@ python -m oss_intake.cli patrol --facts intranet-data/facts --assets examples/as
 python -m oss_intake.cli genscript --component redis --target sreops --out-dir scripts/sreops
 python -m oss_intake.cli verify --cases examples/accuracy-cases.json --threshold 0.9
 ```
+
+### 以包的形式分发数据（GitHub Packages）
+
+漏洞与健康度结果每天还会打包发布到 **GitHub Packages**，CI / Java / Node 进程可直接当依赖拉取，
+三通道复用同一个 `GITHUB_TOKEN`（只需 `packages: write`），公开仓库下免费：
+
+| 通道 | 坐标 |
+| --- | --- |
+| npm | `@scabase/data`（`https://npm.pkg.github.com`） |
+| maven | `cn.scabase:scabase-data`（`https://maven.pkg.github.com/scabase/scabase.github.io`） |
+| docker | `ghcr.io/scabase/scabase-data`（纯数据镜像，`docker run --rm <img> | tar -x`） |
+
+```bash
+python -m oss_intake.cli release --out build/scabase-data \  # 本地构建 staging
+  --vulns scabase-fetcher/data/vulns.json \
+  --health scabase-fetcher/data/health.json \
+  --community scabase-fetcher/data/community-support.json
+python -m oss_intake.cli verify-release --pkg build/scabase-data
+```
+
+同一版本号与文件指纹在三处完全一致，内容未变化时自动跳过发布；
+详细说明见 [`docs/github-packages.md`](docs/github-packages.md)。
 
 - 规范与提案：`openspec/`（基线 `specs/`，变更 `changes/add-oss-intake-evaluation/`）
 - 设计与操作手册：[`docs/oss-intake.md`](docs/oss-intake.md)

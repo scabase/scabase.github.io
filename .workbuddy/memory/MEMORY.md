@@ -42,6 +42,18 @@
   `community_report.py` 产出汇总；`build_facts.py` 只为 count>0 的数据集刷新水位。
 - 环境注意：某些会话没有 Bash 工具，无法执行测试；交付时要在 tasks.md 标注「待执行验证」。
 
+## 包注册表发布（2026-10-15 新增）
+- owner/org 是 **scabase**。漏洞与健康度结果每天 04:41 UTC 由
+  `.github/workflows/publish-packages.yml` 发布到 GitHub Packages 三通道：
+  `@scabase/data`（npm.pkg.github.com）、`cn.scabase:scabase-data`（maven.pkg.github.com/scabase/…）、
+  `ghcr.io/scabase/scabase-data`（纯数据镜像，`docker run --rm <img> | tar -x` 取出）。
+- 三通道共用同一份 staging（`oss_intake/release.py` 产出 `manifest.json` + `data/`）
+  与同一个 CalVer 版本号 `YYYYMMDD.HHMM00.0`，因此版本号与文件哈希必然一致。
+- `content_digest` 只由「路径 + sha256」算出，配合 Actions Cache 决定是否跳过发布。
+- CLI：`python -m oss_intake.cli release`（构建）/`verify-release`（校验落地包）。
+- 外发红线：事实层入包只取 `vulns/health/license/kev`，**inventory/outbox/state.json 禁止出包**。
+- npm publish 必须指定目录：`npm publish packages/npm`（仓库根没有 package.json）。
+
 ## 技术约定
 - 前端为 ES5 风格 IIFE（var / function），无构建步骤，不要引入需要编译的语法。
 - Python 侧：评估与同步路径保持零第三方依赖（内网可运行），仅采集器用 `requests`。

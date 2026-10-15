@@ -1,4 +1,4 @@
-"""GitHub Packages 发布包构建：把漏洞与健康度结果打包成可登记的发布产物。
+"""GitHub Packages 发布包构建：把漏洞与健康度结果打包成可发布的产物。
 
 统一的 staging 目录结构（npm / maven / docker 三通道共用同一份内容）：
 
@@ -111,7 +111,7 @@ def _summarize(kind, payload):
         return {"entries": len(payload), "vuln_count": vuln_count,
                 "cve_count": len(cves)}
     if kind == "health":
-        usable = sum(1 for item in payload.values()
+        usable = sum(1 for item in (payload or {}).values()
                      if isinstance(item, dict) and not item.get("health_unknown"))
         return {"entries": len(payload), "usable_entries": usable}
     if kind == "community":
@@ -265,7 +265,6 @@ def verify(root):
     files = manifest.get("files") or []
     for entry in files:
         target = os.path.join(root, entry.get("path") or "")
-        rel = os.path.relpath(target, root)
         if not os.path.exists(target):
             failures.append({"path": entry.get("path"), "reason": "missing"})
             continue

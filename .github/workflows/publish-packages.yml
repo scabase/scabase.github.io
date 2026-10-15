@@ -8,7 +8,7 @@ name: publish-packages
 # 三通道共用 GITHUB_TOKEN，只需要 `permissions: packages: write`，无额外 Secret。
 # 由同一份 staging 内容（manifest.json + data/）分发出去，保证三处版本号与哈希一致。
 #
-# HTTP 发布节奏：update-vuln(02:00) → community-health(03:17) → publish-packages(04:41)
+# 每日发布节奏：update-vuln(02:00) → community-health(03:17) → publish-packages(04:41)
 
 on:
   workflow_dispatch:
@@ -300,12 +300,12 @@ jobs:
         if: inputs.dry-run != true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm publish --access public
+        run: npm publish packages/npm --access public
 
       - name: 预演（只打包不发布）
         if: inputs.dry-run == true
         run: |
-          npm pack --pack-destination "$PAYLOAD_DIR"
+          npm pack packages/npm --pack-destination "$PAYLOAD_DIR"
           echo "dry-run：已生成 ${{ env.NPM_PACKAGE }}@${{ needs.prepare.outputs.version }} 本地包"
 
       - name: 作业摘要
@@ -348,7 +348,8 @@ jobs:
         with:
           distribution: "temurin"
           java-version: "17"
-          cache: "maven"
+          # 该构建零依赖，缓存收益不大；关闭以免多 pom 场景下的 cache 解析告警
+          cache: ""
           server-id: "github"
           server-username: "USERNAME"
           server-password: "GITHUB_TOKEN"

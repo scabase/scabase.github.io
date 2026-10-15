@@ -187,6 +187,30 @@ downstream dependents (deps.dev) and monthly downloads (npm registry). It writes
 Non-GitHub ecosystems need an explicit `owner/repo` mapping in
 `scabase-fetcher/data/repo-map.json`.
 
+### Distributing data as packages (GitHub Packages)
+
+The vulnerability and health results are also published daily to **GitHub Packages**, so CI,
+Java and Node processes can consume them like ordinary dependencies. All three channels reuse
+the built-in `GITHUB_TOKEN` (only `permissions: packages: write`, no extra secret) and are free
+for public packages:
+
+| Channel | Coordinates |
+| --- | --- |
+| npm | `@scabase/data` on `https://npm.pkg.github.com` |
+| maven | `cn.scabase:scabase-data` on `https://maven.pkg.github.com/scabase/scabase.github.io` |
+| docker | `ghcr.io/scabase/scabase-data` (data-only image: `docker run --rm <img> | tar -x`) |
+
+```bash
+python -m oss_intake.cli release --out build/scabase-data \  # build staging locally
+  --vulns scabase-fetcher/data/vulns.json \
+  --health scabase-fetcher/data/health.json \
+  --community scabase-fetcher/data/community-support.json
+python -m oss_intake.cli verify-release --pkg build/scabase-data
+```
+
+All three channels ship the same version and the same per-file sha256 manifest; publishing is
+skipped when the content digest is unchanged. Details: [`docs/github-packages.md`](docs/github-packages.md).
+
 ### This repository's own dependency surface
 
 The surface is deliberately minimal: `oss_intake/` (scoring, sync, script generation, patrol)
