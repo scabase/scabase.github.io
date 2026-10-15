@@ -12,6 +12,8 @@
   bundle      构建离线摆渡数据包（互联网侧）
   import      导入数据包（内网侧）
   confidence  查看事实层数据水位与置信度
+  release     构建 GitHub Packages 发布包（漏洞 + 健康度结果）
+  verify-release  校验已下载的发布包完整性
 """
 import argparse
 import json
@@ -26,6 +28,7 @@ from . import facts as facts_mod
 from . import patrol as patrol_mod
 from . import policy as policy_mod
 from . import purl
+from . import release as release_mod
 from . import report as report_mod
 from . import sbom as sbom_mod
 from . import scoring
@@ -390,6 +393,76 @@ def cmd_confidence(args):
     return 0
 
 
+def _release_sources(args):
+    return {
+        "vulns": args.vulns or "scabase-fetcher/data/vulns.json",
+        "health": args.health or "scabase-fetcher/data/health.json",
+        "community": args.community or "scabase-fetcher/data/community-support.json",
+    }
+
+
+def cmd_release(args):
+    sources = _release_sources(args)
+    try:
+        built = release_mod.build_release(
+            args.out,
+            vulns=sources["vulns"],
+            health=sources["health"],
+            community=sources["community"],
+            facts=args.facts,
+            datasets=args.dataset,
+            version=args.version,
+            key=args.key or os.getenv("SCABASE_SYNC_KEY"),
+        )
+    except release_mod.ReleaseError as exc:
+        print("发布包构建失败：%s" % exc, file=sys.stderr)
+        return 2
+    manifest = built["manifest"]
+    summary = {
+        "version": built["version"],
+        "out": built["out"],
+        "content_digest": built["content_digest"],
+        "file_count": manifest["file_count"],
+        "total_size": manifest["total_size"],
+        "datasets": {name: meta.get("entries")
+                     for name, meta in sorted((manifest.get("datasets") or {}).items())},
+        "facts": manifest.get("facts") or {},
+        "signed": bool(manifest.get("signature")),
+    }
+    if args.json:
+        _ensure_parent(args.json)
+        with open(args.json, "w", encoding="utf-8") as handle:
+            json.dump(summary, handle, ensure_ascii=False, indent=2, sort_keys=True)
+    print("发布包：%s（version=%s, files=%d, size=%d bytes, digest=%s）" % (
+        built["out"], built["version"], manifest["file_count"],
+        manifest["total_size"], built["content_digest"][:16]))
+    for name, meta in sorted((manifest.get("datasets") or {}).items()):
+        print("  - %s: entries=%s %s" % (
+            name, meta.get("entries"),
+            "cve=%s" % meta["cve_count"] if meta.get("cve_count") is not None else ""))
+    if not manifest.get("signature"):
+        print("  ! 未配置 SCABASE_SYNC_KEY / --key，manifest 未签名")
+    return 0
+
+
+def cmd_verify_release(args):
+    try:
+        result = release_mod.verify(args.pkg)
+    except release_mod.ReleaseError as exc:
+        print("校验失败：%s" % exc, file=sys.stderr)
+        return 2
+    if args.json:
+        _ensure_parent(args.json)
+        with open(args.json, "w", encoding="utf-8") as handle:
+            json.dump(result, handle, ensure_ascii=False, indent=2, sort_keys=True)
+    print("校验结果：%s（checked=%d, version=%s, datasets=%s）" % (
+        "OK" if result["ok"] else "FAILED", result["checked"],
+        result["version"], ",".join(result["datasets"])))
+    for item in result["failures"]:
+        print("  ! %s %s" % (item["path"], item["reason"]))
+    return 0 if result["ok"] else 1
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="oss-intake", description="开源引入评估工具")
     sub = parser.add_subparsers(dest="command")
@@ -507,6 +580,23 @@ def build_parser():
     p.add_argument("--facts", required=True)
     p.add_argument("--policy")
     p.set_defaults(func=cmd_confidence)
+
+    p = sub.add_parser("release", help="构建 GitHub Packages 发布包（漏洞 + 健康度）")
+    p.add_argument("--out", required=True, help="staging 输出目录")
+    p.add_argument("--vulns", help="scabase-fetcher/data/vulns.json")
+    p.add_argument("--health", help="scabase-fetcher/data/health.json")
+    p.add_argument("--community", help="scabase-fetcher/data/community-support.json")
+    p.add_argument("--facts", help="事实层目录（可选，随包附带快照）")
+    p.add_argument("--dataset", action="append", help="限定随包附带的事实层数据集")
+    p.add_argument("--version", help="版本号，缺省按 CalVer 生成")
+    p.add_argument("--key", help="manifest 签名密钥，缺省取 SCABASE_SYNC_KEY")
+    p.add_argument("--json", help="构建结果摘要输出路径")
+    p.set_defaults(func=cmd_release)
+
+    p = sub.add_parser("verify-release", help="校验已下载的发布包完整性")
+    p.add_argument("--pkg", required=True, help="发布包根目录（含 manifest.json）")
+    p.add_argument("--json", help="校验结果输出路径")
+    p.set_defaults(func=cmd_verify_release)
 
     return parser
 

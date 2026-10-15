@@ -1,0 +1,45 @@
+{
+  "name": "@scabase/data",
+  "version": "0.0.0-placeholder",
+  "description": "ScaBase 漏洞与健康度结果发布包（OSV + NVD 漏洞结果 + 组件活跃度 + 社区支持力度）",
+  "license": "MIT",
+  "keywords": [
+    "sca",
+    "sbom",
+    "vulnerability",
+    "cve",
+    "osv",
+    "nvd",
+    "scabase"
+  ],
+  "main": "index.js",
+  "types": "index.d.ts",
+  "bin": {
+    "scabase-data": "cli.js"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "cli.js",
+    "manifest.json",
+    "data/**"
+  ],
+  "engines": {
+    "node": ">=14"
+  },
+  "scripts": {
+    "verify": "node cli.js verify"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scabase/scabase.github.io.git",
+    "directory": "packages/npm"
+  },
+  "bugs": {
+    "url": "https://github.com/scabase/scabase.github.io/issues"
+  }
+}

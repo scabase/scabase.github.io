@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ScaBase 数据发布包模板：漏洞（vulns.json）+ 健康度（health.json / community-support.json）。
+
+  数据由流水线构建后落到 generated/scabase-data/，本 pom 把该目录原样挂到 jar 的
+  scabase-data/ 路径下：
+
+      scabase-data/manifest.json
+      scabase-data/data/vulns.json
+      scabase-data/data/health.json
+      scabase-data/data/community-support.json
+      scabase-data/data/facts/...
+
+  CI 用 `mvn deploy:deploy-file` 直接推送 jar（坐标与版本由流水线给出），
+  因此这里的 <version> 只是本地打包占位。
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>cn.scabase</groupId>
+  <artifactId>scabase-data</artifactId>
+  <version>0.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>ScaBase Data</name>
+  <description>漏洞与健康度结果发布包（OSV + NVD 漏洞结果、组件活跃度、社区支持力度）</description>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>11</maven.compiler.release>
+    <maven.javadoc.skip>true</maven.javadoc.skip>
+  </properties>
+
+  <build>
+    <finalName>scabase-data</finalName>
+    <resources>
+      <resource>
+        <directory>${project.basedir}/generated/scabase-data</directory>
+        <targetPath>scabase-data</targetPath>
+        <filtering>false</filtering>
+      </resource>
+      <resource>
+        <directory>${project.basedir}/src/main/resources</directory>
+        <filtering>false</filtering>
+      </resource>
+    </resources>
+  </build>
+</project>

@@ -11,3 +11,11 @@ bundles/
 intranet-data/
 reports/
 /scripts/
+
+# 发布包 staging 与 maven 资源注入目录（数据上架 GitHub Packages 的中间产物）
+/build/
+packages/maven/generated/
+packages/maven/target/
+packages/npm/data/
+packages/npm/manifest.json
+packages/npm/*.tgz

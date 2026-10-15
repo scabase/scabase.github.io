@@ -1,0 +1,26 @@
+# 纯数据镜像：把漏洞与健康度结果以 OCI 制品形式发布到 ghcr.io。
+#
+# 构建上下文必须是 release staging 目录（内含 manifest.json 与 data/）：
+#   context: <staging>/   file: docker/Dockerfile.data（会被 CI 复制到 staging 内）
+#
+# 用法：
+#   docker run --rm ghcr.io/scabase/scabase-data:latest | tar -x -C ./scabase-data
+#   docker run --rm --entrypoint ls ghcr.io/scabase/scabase-data:latest /data
+FROM alpine:3.20
+
+LABEL org.opencontainers.image.title="scabase-data" \
+      org.opencontainers.image.description="ScaBase 漏洞与健康度结果发布包" \
+      org.opencontainers.image.source="https://github.com/scabase/scabase.github.io" \
+      org.opencontainers.image.url="https://scabase.roweb.cn" \
+      org.opencontainers.image.licenses="MIT"
+
+RUN addgroup -S scabase && adduser -S scabase -G scabase
+
+COPY manifest.json /manifest.json
+COPY data/ /data/
+
+RUN chown -R scabase:scabase /data /manifest.json
+USER scabase
+
+# 默认把数据以 tar 流吐出（便携取出）；也可 mount 后直接读 /data
+ENTRYPOINT ["/bin/tar", "-cf", "-", "-C", "/", "manifest.json", "data"]

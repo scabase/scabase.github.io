@@ -1,0 +1,456 @@
+name: publish-packages
+
+# 把「漏洞结果 + 健康度结果」打包发布到 GitHub Packages：
+#   npm    https://npm.pkg.github.com                    → @scabase/data
+#   maven  https://maven.pkg.github.com/scabase/...      → cn.scabase:scabase-data
+#   docker ghcr.io                                       → ghcr.io/scabase/scabase-data
+#
+# 三通道共用 GITHUB_TOKEN，只需要 `permissions: packages: write`，无额外 Secret。
+# 由同一份 staging 内容（manifest.json + data/）分发出去，保证三处版本号与哈希一致。
+#
+# HTTP 发布节奏：update-vuln(02:00) → community-health(03:17) → publish-packages(04:41)
+
+on:
+  workflow_dispatch:
+    inputs:
+      channels:
+        description: "发布通道"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - npm
+          - maven
+          - docker
+      version:
+        description: "版本号（留空自动生成 CalVer：YYYYMMDD.HHMM00.0）"
+        required: false
+      collect-health:
+        description: "发布前重新采集健康度信号"
+        required: false
+        default: true
+        type: boolean
+      skip-unchanged:
+        description: "内容与上次发布一致时跳过发布"
+        required: false
+        default: true
+        type: boolean
+      dry-run:
+        description: "只构建不发布"
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      channels:
+        description: "发布通道：all / npm / maven / docker"
+        required: false
+        default: "all"
+        type: string
+      version:
+        description: "版本号（留空自动生成 CalVer）"
+        required: false
+        type: string
+      collect-health:
+        required: false
+        default: true
+        type: boolean
+      skip-unchanged:
+        required: false
+        default: true
+        type: boolean
+      dry-run:
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    # 每日 04:41（UTC），排在漏洞采集与健康度采集之后
+    - cron: "41 4 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-packages
+  cancel-in-progress: false
+
+env:
+  NPM_PACKAGE: "@scabase/data"
+  MAVEN_GROUP: "cn.scabase"
+  MAVEN_ARTIFACT: "scabase-data"
+  GHCR_IMAGE: "ghcr.io/${{ github.repository_owner }}/scabase-data"
+  PAYLOAD_DIR: "build/payload"
+  CONTEXT_DIR: "build/ctx"
+
+jobs:
+  prepare:
+    name: 构建发布内容
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      digest: ${{ steps.release.outputs.digest }}
+      size: ${{ steps.release.outputs.size }}
+      skipped: ${{ steps.gate.outputs.skipped }}
+      npm: ${{ steps.channels.outputs.npm }}
+      maven: ${{ steps.channels.outputs.maven }}
+      docker: ${{ steps.channels.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 采集社区支持力度与活跃度信号
+        if: inputs.collect-health != false
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -- --pkg-list scabase-fetcher/data/pkg_list.txt \
+                 --out scabase-fetcher/data/health.json
+          if [ -f scabase-fetcher/data/repo-map.json ]; then
+            set -- "$@" --repo-map scabase-fetcher/data/repo-map.json
+          fi
+          python scabase-fetcher/scripts/fetch_oss_health.py "$@"
+
+      - name: 生成社区支持力度汇总
+        if: inputs.collect-health != false && hashFiles('scabase-fetcher/data/health.json') != ''
+        continue-on-error: true
+        run: |
+          mkdir -p reports
+          python scabase-fetcher/scripts/community_report.py \
+            --health scabase-fetcher/data/health.json \
+            --md reports/community-support.md \
+            --json scabase-fetcher/data/community-support.json
+
+      - name: 写入事实层快照
+        continue-on-error: true
+        run: |
+          python scabase-fetcher/scripts/build_facts.py \
+            --facts scabase-fetcher/data/facts \
+            --vulns scabase-fetcher/data/vulns.json \
+            --health scabase-fetcher/data/health.json \
+            --license examples/license.json
+
+      - name: 计算版本号
+        id: version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(date -u +%Y%m%d.%H%M00.0)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: 构建发布包（漏洞 + 健康度）
+        id: release
+        env:
+          SCABASE_SYNC_KEY: ${{ secrets.SCABASE_SYNC_KEY }}
+        run: |
+          python -m oss_intake.cli release \
+            --out build/scabase-data \
+            --vulns scabase-fetcher/data/vulns.json \
+            --health scabase-fetcher/data/health.json \
+            --community scabase-fetcher/data/community-support.json \
+            --facts scabase-fetcher/data/facts \
+            --version "${{ steps.version.outputs.version }}" \
+            --json reports/release.json
+          python - <<'PY'
+          import json
+          import os
+
+          with open("reports/release.json", encoding="utf-8") as handle:
+              summary = json.load(handle)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write("version=%s\n" % summary["version"])
+              handle.write("digest=%s\n" % summary["content_digest"])
+              handle.write("files=%s\n" % summary["file_count"])
+              handle.write("size=%s\n" % summary["total_size"])
+          PY
+
+      - name: 体积门禁（单通道 ≤ 500MB）
+        run: |
+          SIZE="${{ steps.release.outputs.size }}"
+          LIMIT=524288000
+          echo "发布内容体积：$SIZE bytes"
+          if [ "$SIZE" -gt "$LIMIT" ]; then
+            echo "::error::发布内容超过 ${LIMIT} bytes，请先拆分数据集再发布"
+            exit 1
+          fi
+
+      - name: 比对上次发布内容
+        id: cache
+        if: inputs.skip-unchanged != false
+        uses: actions/cache@v4
+        with:
+          path: build/publish-state
+          key: scabase-release-${{ steps.release.outputs.digest }}
+
+      - name: 记录本次内容指纹
+        if: inputs.skip-unchanged != false
+        run: |
+          mkdir -p build/publish-state
+          echo "${{ steps.release.outputs.digest }}" > build/publish-state/digest
+
+      - name: 判断是否需要发布
+        id: gate
+        run: |
+          if [ "${{ steps.cache.outputs.cache-hit }}" = "true" ]; then
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            echo "内容与上次发布一致（digest=${{ steps.release.outputs.digest }}），跳过发布" \
+              >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "skipped=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 解析发布通道
+        id: channels
+        run: |
+          CHANNELS="${{ inputs.channels || 'all' }}"
+          case "$CHANNELS" in
+            all)     NPM=true;  MAVEN=true;  DOCKER=true  ;;
+            npm)     NPM=true;  MAVEN=false; DOCKER=false ;;
+            maven)   NPM=false; MAVEN=true;  DOCKER=false ;;
+            docker)  NPM=false; MAVEN=false; DOCKER=true  ;;
+            *) echo "::error::未知发布通道 $CHANNELS"; exit 1 ;;
+          esac
+          {
+            echo "npm=$NPM"
+            echo "maven=$MAVEN"
+            echo "docker=$DOCKER"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 打包 payload
+        if: steps.gate.outputs.skipped != 'true'
+        run: |
+          mkdir -p "$PAYLOAD_DIR"
+          tar -czf "$PAYLOAD_DIR/scabase-data-${{ steps.release.outputs.version }}.tar.gz" \
+            -C build/scabase-data .
+
+      - name: 上传 payload
+        if: steps.gate.outputs.skipped != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: scabase-data-${{ steps.release.outputs.version }}
+          path: ${{ env.PAYLOAD_DIR }}/scabase-data-${{ steps.release.outputs.version }}.tar.gz
+          if-no-files-found: error
+
+      - name: 构建摘要
+        if: always()
+        run: |
+          {
+            echo "### 发布内容"
+            echo
+            echo "- version：\`${{ steps.release.outputs.version }}\`"
+            echo "- content_digest：\`${{ steps.release.outputs.digest }}\`"
+            echo "- 文件数/体积：${{ steps.release.outputs.files }} / ${{ steps.release.outputs.size }} bytes"
+            echo "- 跳过：${{ steps.gate.outputs.skipped }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-npm:
+    name: npm
+    needs: prepare
+    if: needs.prepare.outputs.skipped != 'true' && needs.prepare.outputs.npm == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: scabase-data-${{ needs.prepare.outputs.version }}
+          path: ${{ env.PAYLOAD_DIR }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@scabase"
+
+      - name: 解包并写入版本号
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          tar -xzf "$PAYLOAD_DIR/scabase-data-$VERSION.tar.gz" -C packages/npm
+          python - <<'PY'
+          import json
+          import os
+
+          path = "packages/npm/package.json"
+          with open(path, encoding="utf-8") as handle:
+              package = json.load(handle)
+          package["version"] = os.environ["VERSION"]
+          with open(path, "w", encoding="utf-8") as handle:
+              json.dump(package, handle, ensure_ascii=False, indent=2)
+              handle.write("\n")
+          PY
+
+      - name: 发布前校验完整性
+        run: python -m oss_intake.cli verify-release --pkg packages/npm
+
+      - name: 发布到 npm.pkg.github.com
+        if: inputs.dry-run != true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish --access public
+
+      - name: 预演（只打包不发布）
+        if: inputs.dry-run == true
+        run: |
+          npm pack --pack-destination "$PAYLOAD_DIR"
+          echo "dry-run：已生成 ${{ env.NPM_PACKAGE }}@${{ needs.prepare.outputs.version }} 本地包"
+
+      - name: 作业摘要
+        if: always()
+        run: |
+          {
+            echo "### npm"
+            echo
+            echo "- \`${{ env.NPM_PACKAGE }}@${{ needs.prepare.outputs.version }}\`"
+            echo "- registry：\`https://npm.pkg.github.com\`"
+            echo "- dry-run：${{ inputs.dry-run == true }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-maven:
+    name: maven
+    needs: prepare
+    if: needs.prepare.outputs.skipped != 'true' && needs.prepare.outputs.maven == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: scabase-data-${{ needs.prepare.outputs.version }}
+          path: ${{ env.PAYLOAD_DIR }}
+
+      - name: 解包到 maven 资源目录
+        run: |
+          mkdir -p packages/maven/generated/scabase-data
+          tar -xzf "$PAYLOAD_DIR/scabase-data-$VERSION.tar.gz" \
+            -C packages/maven/generated/scabase-data
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+          cache: "maven"
+          server-id: "github"
+          server-username: "USERNAME"
+          server-password: "GITHUB_TOKEN"
+
+      - name: 发布前校验完整性
+        run: python -m oss_intake.cli verify-release --pkg packages/maven/generated/scabase-data
+
+      - name: 打包 jar
+        run: mvn -B -f packages/maven/pom.xml clean package
+
+      - name: 发布到 maven.pkg.github.com
+        if: inputs.dry-run != true
+        run: |
+          mvn -B -s "$HOME/.m2/settings.xml" \
+            org.apache.maven.plugins:maven-deploy-plugin:3.1.1:deploy-file \
+            -DgroupId="${{ env.MAVEN_GROUP }}" \
+            -DartifactId="${{ env.MAVEN_ARTIFACT }}" \
+            -Dversion="$VERSION" \
+            -Dpackaging=jar \
+            -Dfile=packages/maven/target/scabase-data.jar \
+            -DgeneratePom=true \
+            -DrepositoryId=github \
+            -Durl="https://maven.pkg.github.com/${{ github.repository }}"
+
+      - name: 预演（只打包不发布）
+        if: inputs.dry-run == true
+        run: |
+          unzip -l packages/maven/target/scabase-data.jar | head -30
+          echo "dry-run：已生成 ${{ env.MAVEN_GROUP }}:${{ env.MAVEN_ARTIFACT }}:$VERSION jar"
+
+      - name: 作业摘要
+        if: always()
+        run: |
+          {
+            echo "### maven"
+            echo
+            echo "- \`${{ env.MAVEN_GROUP }}:${{ env.MAVEN_ARTIFACT }}:${{ needs.prepare.outputs.version }}\`"
+            echo "- registry：\`https://maven.pkg.github.com/${{ github.repository }}\`"
+            echo "- dry-run：${{ inputs.dry-run == true }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-docker:
+    name: docker
+    needs: prepare
+    if: needs.prepare.outputs.skipped != 'true' && needs.prepare.outputs.docker == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: scabase-data-${{ needs.prepare.outputs.version }}
+          path: ${{ env.PAYLOAD_DIR }}
+
+      - name: 组装镜像构建上下文
+        run: |
+          mkdir -p "$CONTEXT_DIR"
+          tar -xzf "$PAYLOAD_DIR/scabase-data-${{ needs.prepare.outputs.version }}.tar.gz" -C "$CONTEXT_DIR"
+          python -m oss_intake.cli verify-release --pkg "$CONTEXT_DIR"
+          cp docker/Dockerfile.data "$CONTEXT_DIR/Dockerfile"
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: 登录 ghcr.io
+        if: inputs.dry-run != true
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 构建并推送数据镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.CONTEXT_DIR }}
+          file: ${{ env.CONTEXT_DIR }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ inputs.dry-run != true }}
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.GHCR_IMAGE }}:latest
+            ${{ env.GHCR_IMAGE }}:${{ needs.prepare.outputs.version }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            cn.scabase.content-digest=${{ needs.prepare.outputs.digest }}
+
+      - name: 作业摘要
+        if: always()
+        run: |
+          {
+            echo "### docker"
+            echo
+            echo "- \`${{ env.GHCR_IMAGE }}:${{ needs.prepare.outputs.version }}\`"
+            echo "- \`${{ env.GHCR_IMAGE }}:latest\`"
+            echo "- 取出数据：\`docker run --rm ${{ env.GHCR_IMAGE }}:latest | tar -x -C ./scabase-data\`"
+            echo "- dry-run：${{ inputs.dry-run == true }}"
+          } >> "$GITHUB_STEP_SUMMARY"

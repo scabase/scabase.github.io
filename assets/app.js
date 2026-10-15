@@ -1093,7 +1093,7 @@
   }
 
   /* --------------------------- 开源软件支持力度与活跃度 --------------------------- */
-  var healthState = { data: null, attempted: false, sort: "grade", grade: "ALL" };
+  var healthState = { data: null, attempted: false, sort: "grade", grade: "ALL", query: "" };
 
   function orgLabel(b) {
     if (!b) return "未知";
@@ -1151,20 +1151,43 @@
       });
   }
 
-  function renderHealthSummary(report) {
-    var box = $("healthSummary");
+  function kpiCard(grade, title, value, sub, pct) {
+    var card = el("div", "kpi kpi-" + grade);
+    var top = el("div", "kpi-top");
+    top.appendChild(el("span", "kpi-title", title));
+    top.appendChild(el("b", "kpi-value", value));
+    card.appendChild(top);
+    var bar = el("div", "kpi-bar");
+    var fill = el("i");
+    fill.style.width = (grade === "total" ? 100 : (pct || 0)) + "%";
+    bar.appendChild(fill);
+    card.appendChild(bar);
+    card.appendChild(el("div", "kpi-sub", sub));
+    return card;
+  }
+
+  function renderHealthKpis(report) {
+    var box = $("healthKpis");
+    if (!box) return;
     box.textContent = "";
     if (!report) return;
     var counts = report.grade_counts || {};
+    var comps = report.components || [];
+    var total = report.component_count != null ? report.component_count : comps.length;
     var order = ["A", "B", "C", "D"];
-    box.appendChild(el("span", "stat", "组件 " + (report.component_count != null ? report.component_count : 0)));
+    var names = { A: "强", B: "较强", C: "一般", D: "弱" };
+
+    box.appendChild(kpiCard("total", "组件总数", String(total), "纳入评估", 100));
     order.forEach(function (g) {
-      if (counts[g] != null) {
-        box.appendChild(el("span", "stat hs-grade-" + g, g + " 级 " + counts[g]));
-      }
+      var n = counts[g] || 0;
+      var pct = total ? Math.round(n * 100 / total) : 0;
+      box.appendChild(kpiCard(g, g + " 级 · " + names[g], String(n), n + " 个 · " + pct + "%", pct));
     });
+
     var stamp = $("healthStamp");
-    if (stamp) stamp.textContent = report.generated_at ? "更新于 " + fmtDate(report.generated_at) : "";
+    if (stamp) {
+      stamp.textContent = report.generated_at ? "更新于 " + fmtDate(report.generated_at) : "";
+    }
   }
 
   function renderHealthCard(c) {
@@ -1187,6 +1210,12 @@
         "⚠ 项目已归档 / 停止维护，社区支持基本中断，原则上不得引入。"));
     }
 
+    var scoreBar = el("div", "score-bar sb-" + c.grade);
+    var fill = el("i");
+    fill.style.width = Math.max(0, Math.min(100, c.score || 0)) + "%";
+    scoreBar.appendChild(fill);
+    body.appendChild(scoreBar);
+
     var grid = el("div", "signals");
     var rows = [
       ["最近提交", fmtDays(c.last_commit_days)],
@@ -1203,6 +1232,12 @@
     });
     body.appendChild(grid);
 
+    var missing = c.missing || [];
+    if (missing.length) {
+      body.appendChild(el("p", "health-missing",
+        "缺失 " + missing.length + " 项信号（" + missing.join("、") + "）——按「未知即风险」已计入扣分。"));
+    }
+
     if (c.advice) body.appendChild(el("p", "advice", c.advice));
     card.appendChild(body);
     return card;
@@ -1211,10 +1246,18 @@
   function renderHealth() {
     var report = healthState.data;
     if (!report) return;
-    renderHealthSummary(report);
+    renderHealthKpis(report);
     var list = (report.components || []).slice();
     if (healthState.grade !== "ALL") {
       list = list.filter(function (c) { return c.grade === healthState.grade; });
+    }
+    var q = String(healthState.query || "").trim().toLowerCase();
+    if (q) {
+      list = list.filter(function (c) {
+        var hay = (String(c.display || "") + " " + String(c.purl || "") + " " +
+          String(c.eco || "")).toLowerCase();
+        return hay.indexOf(q) !== -1;
+      });
     }
     list.sort(function (a, b) {
       if (healthState.sort === "score") return (b.score || 0) - (a.score || 0);
@@ -1228,7 +1271,10 @@
     var host = $("healthResults");
     host.textContent = "";
     if (!list.length) {
-      host.appendChild(el("div", "empty", "当前筛选条件下没有组件。"));
+      var all = (report.components || []).length;
+      host.appendChild(el("div", "empty", all
+        ? "当前筛选条件下没有组件（共 " + all + " 个），试试清空搜索或切回「全部等级」。"
+        : "报告中没有组件数据。"));
       return;
     }
     list.forEach(function (c) { host.appendChild(renderHealthCard(c)); });
@@ -1239,26 +1285,79 @@
     if (sortSel) sortSel.addEventListener("change", function () { healthState.sort = this.value; renderHealth(); });
     var gradeSel = $("healthGrade");
     if (gradeSel) gradeSel.addEventListener("change", function () { healthState.grade = this.value; renderHealth(); });
+    var search = $("healthSearch");
+    if (search) search.addEventListener("input", function () { healthState.query = this.value; renderHealth(); });
+    var refresh = $("healthRefresh");
+    if (refresh) refresh.addEventListener("click", function () {
+      // 允许重新拉取：数据文件可能在 CI 跑完后才出现
+      healthState.attempted = false;
+      healthState.data = null;
+      loadHealth();
+    });
+  }
+
+  var tabsBound = false;
+
+  function switchTab(name, opts) {
+    var tabs = document.querySelectorAll(".tab");
+    var found = false;
+    for (var i = 0; i < tabs.length; i++) {
+      var on = tabs[i].getAttribute("data-tab") === name;
+      if (on) found = true;
+      tabs[i].classList.toggle("active", on);
+      tabs[i].setAttribute("aria-selected", on ? "true" : "false");
+      tabs[i].tabIndex = on ? 0 : -1;
+    }
+    if (!found) return;
+
+    var panes = document.querySelectorAll(".pane");
+    for (var k = 0; k < panes.length; k++) {
+      panes[k].hidden = panes[k].id !== ("pane-" + name);
+    }
+
+    // 写入 hash，便于分享与刷新后保持当前 tab（首次静默恢复时不改写）
+    if (!(opts && opts.silent) && window.location.hash !== "#" + name) {
+      try { history.replaceState(null, "", "#" + name); } catch (e) { /* 忽略 */ }
+    }
+    if (name === "health") loadHealth();
   }
 
   function initTabs() {
-    var tabs = document.querySelectorAll(".tab");
-    for (var i = 0; i < tabs.length; i++) {
-      tabs[i].addEventListener("click", function () {
-        var name = this.getAttribute("data-tab");
-        var all = document.querySelectorAll(".tab");
-        for (var j = 0; j < all.length; j++) {
-          var on = all[j].getAttribute("data-tab") === name;
-          all[j].classList.toggle("active", on);
-          all[j].setAttribute("aria-selected", on ? "true" : "false");
+    if (tabsBound) return;
+    tabsBound = true;
+
+    // 事件委托而非逐个绑定：即使后续 DOM 变动或初始化中途出错，点击依然可用。
+    document.addEventListener("click", function (ev) {
+      var node = ev.target;
+      while (node && node !== document &&
+        !(node.classList && node.classList.contains("tab"))) {
+        node = node.parentNode;
+      }
+      if (!node || !node.classList || !node.classList.contains("tab")) return;
+      switchTab(node.getAttribute("data-tab"));
+    });
+
+    // 键盘可达性：焦点在 tab 上时左右方向键切换
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+      var active = document.querySelector(".tab.active");
+      if (!active || document.activeElement !== active) return;
+      var tabs = document.querySelectorAll(".tab");
+      for (var i = 0; i < tabs.length; i++) {
+        if (tabs[i] === active) {
+          var idx = ev.key === "ArrowRight" ? i + 1 : i - 1;
+          if (idx < 0) idx = tabs.length - 1;
+          if (idx >= tabs.length) idx = 0;
+          tabs[idx].focus();
+          switchTab(tabs[idx].getAttribute("data-tab"));
+          break;
         }
-        var panes = document.querySelectorAll(".pane");
-        for (var k = 0; k < panes.length; k++) {
-          panes[k].hidden = panes[k].id !== ("pane-" + name);
-        }
-        if (name === "health") loadHealth();
-      });
-    }
+      }
+    });
+
+    // 支持 #health 深链 / 刷新后保持当前 tab
+    var hash = String(window.location.hash || "").replace("#", "");
+    if (hash === "health" || hash === "vuln") switchTab(hash, { silent: true });
   }
 
   /* --------------------------- 初始化 --------------------------- */
@@ -1274,9 +1373,11 @@
   }
 
   function init() {
-    initToolbar();
-    initTabs();
-    initHealthControls();
+    // tab 切换是最基础的能力：最先挂载，并逐项做异常隔离，
+    // 避免后续任一初始化报错（如元素缺失）把整个交互打死。
+    try { initTabs(); } catch (e) {}
+    try { initToolbar(); } catch (e) {}
+    try { initHealthControls(); } catch (e) {}
 
     if (OFFLINE) {
       var wrap = $("forceLiveWrap");

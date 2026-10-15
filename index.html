@@ -22,11 +22,17 @@
 
 <main class="wrap">
   <nav class="tabs" role="tablist" aria-label="功能切换">
-    <button type="button" class="tab active" data-tab="vuln" role="tab" aria-selected="true">漏洞</button>
-    <button type="button" class="tab" data-tab="health" role="tab" aria-selected="false">开源软件支持力度和活跃度</button>
+    <button type="button" class="tab active" id="tab-vuln" data-tab="vuln" role="tab"
+      aria-controls="pane-vuln" aria-selected="true" tabindex="0">
+      <span class="tab-ico">🐞</span><span class="tab-text">漏洞查询</span>
+    </button>
+    <button type="button" class="tab" id="tab-health" data-tab="health" role="tab"
+      aria-controls="pane-health" aria-selected="false" tabindex="-1">
+      <span class="tab-ico">💚</span><span class="tab-text">支持力度与活跃度</span>
+    </button>
   </nav>
 
-  <div id="pane-vuln" class="pane">
+  <div id="pane-vuln" class="pane" role="tabpanel" aria-labelledby="tab-vuln">
   <section class="panel">
       <label class="field-label" for="query">查询清单（每行一条，兼容 <code>pkg_list.txt</code> 格式）</label>
       <textarea id="query" spellcheck="false" rows="7"
@@ -91,16 +97,21 @@
     <section id="results" class="results"></section>
   </div><!-- /pane-vuln -->
 
-  <div id="pane-health" class="pane" hidden>
+  <div id="pane-health" class="pane" role="tabpanel" aria-labelledby="tab-health" hidden>
     <section class="panel">
       <p class="field-label">开源软件支持力度与活跃度</p>
       <p class="health-intro">
-        本视图汇总各开源组件的<strong>社区支持力度与活跃度</strong>（维护健康度），
-        由 <code>community_report.py</code> 基于 GitHub / deps.dev / 各生态 registry 信号评分，
-        按 <strong>A/B/C/D</strong> 四级呈现。评分遵循「未知即风险」：缺失信号按保守扣分，
-        已归档 / 停止维护的项目直接判为 <span class="grade grade-D">D · 弱</span>。
+        汇总各开源组件的<strong>社区支持力度与活跃度</strong>（维护健康度）：由
+        <code>community_report.py</code> 基于 GitHub / deps.dev / 各生态 registry 信号评分，
+        按 <strong>A/B/C/D</strong> 四级呈现。评分遵循「未知即风险」——缺失信号按保守扣分，
+        已归档 / 停止维护直接判 <span class="grade grade-D">D · 弱</span>。
       </p>
-      <div class="controls">
+
+      <div id="healthKpis" class="kpis"></div>
+
+      <div class="controls health-controls">
+        <input id="healthSearch" type="search" autocomplete="off"
+          placeholder="按组件名过滤，如 lodash / fastjson" />
         <select id="healthSort" class="tb" aria-label="排序方式">
           <option value="grade">按等级（A→D）</option>
           <option value="score">按评分（高→低）</option>
@@ -113,9 +124,9 @@
           <option value="C">C 级</option>
           <option value="D">D 级</option>
         </select>
+        <button id="healthRefresh" class="ghost tb-btn" type="button">重新加载</button>
         <span id="healthStamp" class="stamp" aria-live="polite"></span>
       </div>
-      <div id="healthSummary" class="health-summary"></div>
     </section>
 
     <section id="healthStatus" class="status" hidden></section>
@@ -132,7 +143,8 @@
       <span>由 <code>scabase-fetcher</code> 定时更新</span>
       <span class="dot">·</span>
       <span><a href="scabase-fetcher/data/pkg_list.txt" target="_blank" rel="noopener">包清单</a> ·
-        <a href="scabase-fetcher/data/vulns.json" target="_blank" rel="noopener">vulns.json</a></span>
+        <a href="scabase-fetcher/data/vulns.json" target="_blank" rel="noopener">vulns.json</a> ·
+        <a href="scabase-fetcher/data/community-support.json" target="_blank" rel="noopener">community-support.json</a></span>
     </div>
   </footer>
 
