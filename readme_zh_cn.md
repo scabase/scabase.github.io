@@ -193,6 +193,20 @@ python -m oss_intake.cli verify --cases examples/accuracy-cases.json --threshold
 - 设计与操作手册：[`docs/oss-intake.md`](docs/oss-intake.md)
 - 测试：`python -m unittest discover -s tests`
 
+### 仓库自身的依赖面
+
+本仓库把依赖面压到最小：`oss_intake/` 评分、同步、脚本生成与巡检路径**纯 Python 标准库**
+（内网零依赖可直接运行），采集器只用 `requests`（`scabase-fetcher/requirements.txt`，固定 2.32.4），
+前端为无构建步骤的 ES5 IIFE。Dependabot 因此只需关注 `github-actions` 与 `pip` 两个生态。
+
+`examples/deps/` 下的教学样本统一带 `.sample` 后缀——样本里的 fastjson 1.2.24、log4j 2.14.1、
+axios 0.21.1 等版本是**故意挑选的漏洞版本**，用于演示 `scan` 与评估能力；
+加后缀是为了避免被 Dependabot / 依赖图当成真实清单而刷出假告警（曾因此出现 60 条）。
+`depfile.classify()` 会自动剥掉后缀识别。新增教学样本时请沿用这一约定。
+
+`.github/workflows/self-scan.yml` 会用本项目自己的门禁引擎扫描 `scabase-fetcher/requirements.txt`，
+命中 `Deny` 即阻断；事实层没覆盖到的自身依赖会以 warning 形式暴露工具盲区。
+
 注意事项
 1. OSV API 存在请求频率限制，大批量包扫描时建议在循环中增加休眠延时。
 2. NVD API 为可选配置；未配置密钥时仍会查询 NVD，但速率较低（建议配置 NVD_API_KEY 提升速率）。

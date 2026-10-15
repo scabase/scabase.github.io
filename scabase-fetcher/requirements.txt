@@ -1,0 +1,17 @@
+# ScaBase 采集器依赖
+#
+# 这是本仓库**唯一**的 Python 第三方运行时依赖：
+#   - scabase-fetcher/scripts/fetch_osv_nvd.py
+#   - scabase-fetcher/scripts/fetch_kev_epss.py
+#   - scabase-fetcher/scripts/fetch_oss_health.py
+#
+# oss_intake/（评分 / 同步 / 脚本生成 / 巡检）刻意保持纯标准库，
+# 以保证无公网出口的内网环境可以直接运行，无需安装任何第三方包。
+#
+# 由 Dependabot 管理版本（见 .github/dependabot.yml）；
+# 仓库自身的依赖面由 .github/workflows/self-scan.yml 用本项目的门禁引擎自查。
+#
+# 固定精确版本（而非范围）是有意的：门禁引擎需要确定性输入，
+# 范围约束会被解析为「未锁定」，评估结论随之偏保守。
+# 2.32.4 是 CVE-2024-47081（.netrc 凭据泄露）的修复版本。
+requests==2.32.4

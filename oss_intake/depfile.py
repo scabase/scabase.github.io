@@ -60,9 +60,23 @@ ECO_BY_FORMAT = {
 }
 
 
+# 教学样本后缀：让示例依赖文件不被 Dependabot / 依赖图当成真实清单解析，
+# 同时仍能被本模块的 classify() 识别（canonical_name 会剥掉后缀）。
+SAMPLE_SUFFIXES = (".sample", ".example", ".tmpl", ".fixture", ".tpl")
+
+
+def canonical_name(filename):
+    """剥掉教学样本后缀，还原真实清单文件名。"""
+    name = os.path.basename(filename or "").lower()
+    for suffix in SAMPLE_SUFFIXES:
+        if name.endswith(suffix):
+            return name[: -len(suffix)]
+    return name
+
+
 def classify(filename):
     """按文件名判定 (eco, format)；无法识别返回 None。"""
-    name = os.path.basename(filename).lower()
+    name = canonical_name(filename)
     if name in NAME_MAP:
         return NAME_MAP[name]
     if name.startswith("requirements") and name.endswith(".txt"):

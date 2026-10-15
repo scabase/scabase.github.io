@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ScaBase · 开源组件漏洞查询 · 以 CVE 编号呈现（Maven GAV / NPM / PyPI / Go）</title>
+  <title>ScaBase · 开源组件漏洞与社区支持查询（Maven GAV / NPM / PyPI / Go）</title>
   <meta name="description" content="ScaBase：基于 OSV + NVD 的开源组件漏洞查询平台，支持 Maven GAV、NPM、PyPI、Go，兼容 pkg_list.txt 清单格式，结果以 CVE 编号为主标识聚合展示。" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="assets/style.css" />
@@ -20,8 +20,14 @@
     </div>
   </header>
 
-  <main class="wrap">
-    <section class="panel">
+<main class="wrap">
+  <nav class="tabs" role="tablist" aria-label="功能切换">
+    <button type="button" class="tab active" data-tab="vuln" role="tab" aria-selected="true">漏洞</button>
+    <button type="button" class="tab" data-tab="health" role="tab" aria-selected="false">开源软件支持力度和活跃度</button>
+  </nav>
+
+  <div id="pane-vuln" class="pane">
+  <section class="panel">
       <label class="field-label" for="query">查询清单（每行一条，兼容 <code>pkg_list.txt</code> 格式）</label>
       <textarea id="query" spellcheck="false" rows="7"
         placeholder="maven|org.springframework.boot:spring-boot-starter-web|2.7.0&#10;npm|lodash|4.17.20&#10;pypi|requests|2.20.0&#10;go|github.com/gin-gonic/gin|1.6.0"></textarea>
@@ -83,6 +89,39 @@
     </section>
 
     <section id="results" class="results"></section>
+  </div><!-- /pane-vuln -->
+
+  <div id="pane-health" class="pane" hidden>
+    <section class="panel">
+      <p class="field-label">开源软件支持力度与活跃度</p>
+      <p class="health-intro">
+        本视图汇总各开源组件的<strong>社区支持力度与活跃度</strong>（维护健康度），
+        由 <code>community_report.py</code> 基于 GitHub / deps.dev / 各生态 registry 信号评分，
+        按 <strong>A/B/C/D</strong> 四级呈现。评分遵循「未知即风险」：缺失信号按保守扣分，
+        已归档 / 停止维护的项目直接判为 <span class="grade grade-D">D · 弱</span>。
+      </p>
+      <div class="controls">
+        <select id="healthSort" class="tb" aria-label="排序方式">
+          <option value="grade">按等级（A→D）</option>
+          <option value="score">按评分（高→低）</option>
+          <option value="name">按名称</option>
+        </select>
+        <select id="healthGrade" class="tb" aria-label="等级筛选">
+          <option value="ALL">全部等级</option>
+          <option value="A">A 级</option>
+          <option value="B">B 级</option>
+          <option value="C">C 级</option>
+          <option value="D">D 级</option>
+        </select>
+        <span id="healthStamp" class="stamp" aria-live="polite"></span>
+      </div>
+      <div id="healthSummary" class="health-summary"></div>
+    </section>
+
+    <section id="healthStatus" class="status" hidden></section>
+
+    <section id="healthResults" class="results"></section>
+  </div><!-- /pane-health -->
   </main>
 
   <footer class="site-footer">

@@ -135,5 +135,39 @@ class CliExtendedTest(unittest.TestCase):
             self.assertIn("门禁未通过", handle.read())
 
 
+    def test_gate_accepts_native_dependency_file(self):
+        # 原生依赖文件（.sample 后缀）应走 depfile 解析，而非 sbom.ingest
+        json_path = self._path("gate-native.json")
+        self.assertEqual(cli.main([
+            "gate", "--facts", self.facts,
+            "--sbom", os.path.join(DEPS, "pom.xml.sample"),
+            "--json", json_path, "--fail-on", "never"]), 0)
+        with open(json_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        purls = [item["purl"] for item in payload["results"]]
+        self.assertGreaterEqual(len(purls), 4)
+        self.assertIn("pkg:maven/com.alibaba/fastjson@1.2.24", purls)
+
+    def test_gate_refuses_unparseable_sbom(self):
+        # 解析不出任何组件时必须失败，MUST NOT 静默放行
+        path = self._path("empty.cdx.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write('{"bomFormat": "CycloneDX", "components": []}')
+        self.assertEqual(cli.main(["gate", "--facts", self.facts, "--sbom", path,
+                                   "--fail-on", "never"]), 2)
+
+    def test_gate_scans_own_requirements(self):
+        # 仓库自身的依赖面：scabase-fetcher/requirements.txt 里的 requests
+        json_path = self._path("gate-self.json")
+        self.assertEqual(cli.main([
+            "gate", "--facts", self.facts,
+            "--sbom", os.path.join(ROOT, "scabase-fetcher", "requirements.txt"),
+            "--json", json_path, "--fail-on", "never"]), 0)
+        with open(json_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        self.assertEqual([item["purl"] for item in payload["results"]],
+                         ["pkg:pypi/requests@2.32.4"])
+
+
 if __name__ == "__main__":
     unittest.main()

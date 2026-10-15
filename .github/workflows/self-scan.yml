@@ -1,0 +1,105 @@
+name: self-scan
+
+# 仓库自身依赖面自查（dogfooding）：
+#   用 oss_intake 的引入前门禁引擎扫描本仓库真实的第三方依赖
+#   （scabase-fetcher/requirements.txt 里的 requests），命中 Deny 即阻断。
+#
+# 背景：本仓库是 SCA 工具，自己的依赖面必须先干净。
+# examples/deps/ 下的漏洞版本教学样本统一带 .sample 后缀，不参与本扫描。
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scabase-fetcher/requirements.txt"
+      - "scabase-fetcher/data/pkg_list.txt"
+      - "oss_intake/**"
+      - ".github/workflows/self-scan.yml"
+  schedule:
+    # 每周一 05:00（UTC），与 dependabot 的更新节奏错开一天
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate-own-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: pip install requests
+
+      # facts/ 已 gitignore，CI 里用仓库内置的 vulns.json 现场构建（全程离线）
+      - name: 构建事实层
+        run: |
+          python scabase-fetcher/scripts/build_facts.py \
+            --facts scabase-fetcher/data/facts \
+            --vulns scabase-fetcher/data/vulns.json \
+            --license ""
+
+      - name: 用项目自带引擎扫描自身依赖
+        run: |
+          mkdir -p reports
+          python -m oss_intake.cli gate \
+            --facts scabase-fetcher/data/facts \
+            --sbom scabase-fetcher/requirements.txt \
+            --profile internal_service \
+            --fail-on deny \
+            --sarif reports/self-scan.sarif \
+            --junit reports/self-scan.xml \
+            --md reports/self-scan.md
+
+      - name: 依赖面覆盖度检查
+        # 事实层没覆盖到的自身依赖 = 工具盲区，必须显式暴露（但不阻断：
+        # 缺数据时引擎会给 Review 而非 Deny，报告里会写明）。
+        # 新增自身依赖后，等下一次每日采集把该版本写进 vulns.json，这里就会转绿。
+        run: |
+          python - <<'PY'
+          import sys
+
+          from oss_intake import facts
+          from oss_intake import purl
+
+          store = facts.FactsStore("scabase-fetcher/data/facts")
+          with open("scabase-fetcher/requirements.txt", "r", encoding="utf-8") as handle:
+              lines = [l.strip() for l in handle if l.strip() and not l.startswith("#")]
+          missing = []
+          for line in lines:
+              name, _, version = line.partition("==")
+              key = purl.build("pypi", name.strip(), version.strip())
+              if not store.get("vulns", key):
+                  missing.append(key)
+          if missing:
+              print("::warning::事实层未覆盖以下自身依赖，工具存在盲区：%s"
+                    % ", ".join(missing))
+          else:
+              print("自身依赖已全部被事实层覆盖")
+          PY
+
+      - name: 上传自查报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scabase-self-scan
+          path: |
+            reports/self-scan.md
+            reports/self-scan.sarif
+            reports/self-scan.xml
+          if-no-files-found: warn
+
+      - name: 汇总到 Step Summary
+        if: always()
+        run: |
+          if [ -f reports/self-scan.md ]; then
+            {
+              echo "### 仓库自身依赖面自查"
+              echo
+              cat reports/self-scan.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

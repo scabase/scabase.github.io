@@ -1,7 +1,4 @@
-# 数据服务依赖
-requests==2.31.0
-flask>=2.0.0
-pyyaml==5.4.1
-numpy~=1.21.0
-# 未锁定版本，应进入 unresolved
-attrs
+# 空壳清单：零依赖，仅供「仓库自身依赖面」保持干净。
+# 真正的教学样本在 requirements.txt.sample（带 .sample 后缀，Dependabot 不会解析）。
+# 本仓库唯一的 Python 第三方依赖是 scabase-fetcher/requirements.txt 里的 requests；
+# oss_intake/ 评分与同步路径刻意保持纯标准库（内网零依赖运行）。

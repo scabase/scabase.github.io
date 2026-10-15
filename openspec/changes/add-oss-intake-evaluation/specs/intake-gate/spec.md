@@ -30,6 +30,8 @@
 
 - 门禁 SHALL 在摘要中列出被阻断的组件及原因。
 - 门禁 MUST NOT 因事实层缺失而静默通过。
+- 门禁 SHALL 优先按原生依赖文件（pom.xml / package.json / requirements.txt / go.mod 等）解析
+  `--sbom` 入参，解析结果为空时 MUST 以非零退出码失败。
 
 #### Scenario: 高危组件阻断构建
 
@@ -44,6 +46,13 @@
 - WHEN 执行门禁
 - THEN 该组件标记为待人工复核
 - AND 门禁按配置决定是否失败，MUST NOT 直接输出“无风险”
+
+#### Scenario: 清单解析不出组件时失败
+
+- GIVEN 传入的 `--sbom` 是空组件清单，或格式无法被任何解析器识别
+- WHEN 执行门禁
+- THEN 退出码非 0 并提示未解析出任何组件
+- AND MUST NOT 以「0 个组件、全部通过」的形式放行
 
 ### Requirement: 例外与复审
 

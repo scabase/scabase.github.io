@@ -96,8 +96,21 @@ def cmd_gate(args):
                                         human_reviewed=args.human_reviewed))
         source = args.purl
     else:
-        ingested = sbom_mod.ingest(args.sbom)
-        components = sbom_mod.dedupe(ingested["components"])
+        # 原生依赖文件（pom.xml / package.json / requirements.txt / go.mod …）优先走 depfile，
+        # 它比 sbom.ingest 覆盖更全；SBOM（CycloneDX / SPDX / lock 产物）走 sbom。
+        native = depfile.parse_file(args.sbom)
+        if native is not None:
+            components = sbom_mod.dedupe(native["components"])
+            unresolved = native["unresolved"]
+        else:
+            ingested = sbom_mod.ingest(args.sbom)
+            components = sbom_mod.dedupe(ingested["components"])
+            unresolved = ingested["unresolved"]
+        if not components:
+            # 解析不出任何组件时必须显式失败，MUST NOT 静默放行
+            print("未能从 %s 解析出任何组件（未解析条目 %d 个），门禁中止" % (
+                args.sbom, len(unresolved)), file=sys.stderr)
+            return 2
         source = args.sbom
         for comp in components:
             component = store.component(comp["purl"])
@@ -108,8 +121,8 @@ def cmd_gate(args):
                                       confidences=confidences, profile=profile)
             result["direct"] = comp.get("direct")
             results.append(result)
-        if ingested["unresolved"]:
-            print("警告：%d 个条目无法解析为 PURL，需人工确认" % len(ingested["unresolved"]),
+        if unresolved:
+            print("警告：%d 个条目无法解析为 PURL，需人工确认" % len(unresolved),
                   file=sys.stderr)
 
     conf_report = store.confidence_report(

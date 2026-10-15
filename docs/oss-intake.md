@@ -55,9 +55,33 @@ scabase-fetcher/scripts/
   community_report.py  社区支持力度汇总报告（0-100 分 + A/B/C/D）
 .github/workflows/
   community-health.yml 每日采集社区支持力度与活跃度信号
-examples/              示例 SBOM、资产、策略、许可证、依赖文件、基线与样本集
+  self-scan.yml        仓库自身依赖面自查（用本项目门禁引擎扫 requirements.txt）
+examples/
+  deps/                原生依赖文件样本（*.sample 为教学样本，同名文件为零依赖空壳）
 tests/                 单测与端到端冒烟
 ```
+
+### 2.1 仓库自身的依赖面
+
+本仓库刻意把依赖面压到最小：
+
+| 范围 | 依赖 |
+| --- | --- |
+| `oss_intake/`（评分 / 同步 / 脚本生成 / 巡检） | **零第三方依赖**，纯 Python 标准库，保证无公网出口的内网可直接运行 |
+| `scabase-fetcher/`（采集器） | 仅 `requests`（见 `scabase-fetcher/requirements.txt`，固定 `2.32.4`） |
+| 前端 | 纯 ES5 IIFE，无构建步骤、无 npm 运行时依赖 |
+
+因此 Dependabot 只需关注 `github-actions` 与 `pip` 两个生态（见 `.github/dependabot.yml`）。
+
+`examples/deps/` 下的教学样本统一带 `.sample` 后缀（`pom.xml.sample`、`package.json.sample` …），
+`depfile.classify()` 会先经 `canonical_name()` 剥掉后缀再识别。
+**这样做是为了不让故意挑选的漏洞样本版本（fastjson 1.2.24、log4j 2.14.1、axios 0.21.1 …）
+被 Dependabot / 依赖图当成真实清单**——本仓库曾因此凭空多出 60 条安全告警。
+同名文件（`pom.xml` 等）是零依赖空壳，只为让仓库自身依赖面保持干净。
+
+`.github/workflows/self-scan.yml` 会在 push / 每周执行一次**自查**：
+用本项目自己的门禁引擎扫描 `scabase-fetcher/requirements.txt`，
+命中 `Deny` 即阻断；事实层没覆盖到的自身依赖会以 `::warning::` 显式暴露（工具盲区）。
 
 ## 3. 互联网侧（Zone A）
 
@@ -177,8 +201,10 @@ python -m oss_intake.cli assess --facts intranet-data/facts \
 python -m unittest discover -s tests
 ```
 
-覆盖范围：PURL 归一、SBOM 摄入、评分边界与硬阻断、置信度降级、
-签名/回滚/篡改/链断裂拒绝、原子导入、回执脱敏、群组聚合，以及一条端到端冒烟。
+覆盖范围：PURL 归一、SBOM 摄入、原生依赖文件解析（含 `.sample` 后缀识别与空壳清单断言）、
+评分边界与硬阻断、置信度降级、社区支持力度、基线算子、脚本 lint、准确率回归、
+签名/回滚/篡改/链断裂拒绝、原子导入、回执脱敏、群组聚合、巡检工单与增量、
+DEPINFO / CICD 对接，以及一条端到端冒烟。
 
 ---
 
@@ -202,6 +228,10 @@ python -m oss_intake.cli scan --path ./payment-core --app 支付核心 \
 
 输出区分直接/传递依赖，并保留 `version_req` 与 `pinned`（是否锁定具体版本）；
 `--app` 可直接生成含 `purls` / `gavs` 的资产台账条目。
+
+`gate --sbom` 同样接受原生依赖文件（优先走 `depfile`），因此可以直接对
+`pom.xml` / `package.json` / `requirements.txt` 做门禁；解析不出任何组件时会以退出码 2 失败，
+不会静默放行。教学样本带 `.sample` 后缀（见 2.1 节），`classify()` 会自动剥掉后缀识别。
 
 ## 11. 社区支持力度评价
 

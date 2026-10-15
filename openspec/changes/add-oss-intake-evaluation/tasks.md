@@ -116,3 +116,15 @@
 - [x] 15.6 修正 `build_facts.py`：只为本轮真正写入的数据集刷新水位，避免把未采集的数据集标记为新鲜
 - [x] 15.7 新增 `tests/test_community_collection.py`：覆盖组织背书分类、仓库推断、汇总渲染与缺失信号统计
 - [ ] 15.8 待执行验证：`python -m unittest discover -s tests`（本次会话无命令行工具，未实际运行）
+
+## Phase 16 — 仓库自身依赖面治理（2026-10-15）
+
+- [x] 16.1 定位 60 条 Dependabot 告警来源：全部来自 `examples/deps/` 教学样本（故意选的漏洞版本），仓库真实第三方依赖只有 `requests`
+- [x] 16.2 `depfile` 支持 `.sample` / `.example` / `.tmpl` / `.fixture` / `.tpl` 后缀（`canonical_name()` 剥离后识别），样本不再被 Dependabot / 依赖图解析
+- [x] 16.3 样本内容迁至 `examples/deps/*.sample`，同名清单替换为零依赖空壳，并补 `examples/deps/README.md` 说明两套文件的用途
+- [x] 16.4 新增 `scabase-fetcher/requirements.txt`（`requests==2.32.4`，CVE-2024-47081 修复版）并把 `pypi|requests|2.32.4` 加入 `pkg_list.txt`
+- [x] 16.5 新增 `.github/dependabot.yml`：仅管理 `github-actions` 与 `pip`（scabase-fetcher）两个生态
+- [x] 16.6 新增 `.github/workflows/self-scan.yml`：用本项目门禁引擎自查自身依赖，命中 Deny 阻断；事实层未覆盖的自身依赖以 `::warning::` 暴露盲区
+- [x] 16.7 修复 `gate --sbom` 对 `pom.xml` 等 XML 清单静默解析出 0 个组件而放行的问题：优先走 `depfile`，零组件时返回退出码 2
+- [x] 16.8 测试：`.sample` 后缀识别、空壳清单零依赖断言、目录跳过 node_modules/target、gate 原生文件与零组件拒绝、自身 requirements 门禁
+- [ ] 16.9 待执行验证：`python -m unittest discover -s tests`（本次会话无命令行工具，未实际运行）

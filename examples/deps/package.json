@@ -1,12 +1,8 @@
 {
-  "name": "channel-front",
-  "version": "2.1.0",
-  "dependencies": {
-    "axios": "0.21.1",
-    "lodash": "4.17.20",
-    "@babel/core": "^7.12.3"
-  },
-  "devDependencies": {
-    "eslint": "7.32.0"
-  }
+  "_comment": "空壳清单：零依赖，仅供「仓库自身依赖面」保持干净。真正的教学样本在 package.json.sample（带 .sample 后缀，Dependabot 不会解析）。本仓库没有任何 npm 运行时依赖。",
+  "name": "scabase-no-npm-deps",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {},
+  "devDependencies": {}
 }

@@ -187,6 +187,23 @@ downstream dependents (deps.dev) and monthly downloads (npm registry). It writes
 Non-GitHub ecosystems need an explicit `owner/repo` mapping in
 `scabase-fetcher/data/repo-map.json`.
 
+### This repository's own dependency surface
+
+The surface is deliberately minimal: `oss_intake/` (scoring, sync, script generation, patrol)
+is **pure Python standard library** so it runs dependency-free inside an isolated intranet;
+the collectors use only `requests` (pinned to 2.32.4 in `scabase-fetcher/requirements.txt`);
+the frontend is build-step-free ES5. Dependabot therefore only tracks `github-actions` and `pip`.
+
+Teaching samples under `examples/deps/` carry a `.sample` suffix — the versions
+(fastjson 1.2.24, log4j 2.14.1, axios 0.21.1, …) are **intentionally vulnerable** and exist to
+demonstrate `scan` and the evaluation engine. The suffix keeps Dependabot / the dependency
+graph from treating them as real manifests (without it the repo accumulated 60 bogus alerts).
+`depfile.classify()` strips the suffix automatically. Please keep this convention for new samples.
+
+`.github/workflows/self-scan.yml` runs this project's own gate against
+`scabase-fetcher/requirements.txt` and blocks on `Deny`; own dependencies not yet covered by the
+fact layer are surfaced as warnings.
+
 Notes
 1. OSV API has rate limits. Add sleep delay in loop when scanning large package lists.
 2. NVD API is optional; without a key the fetcher still queries NVD but at a lower rate (configuring NVD_API_KEY is recommended).

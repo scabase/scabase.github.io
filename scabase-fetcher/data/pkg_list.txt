@@ -11,3 +11,5 @@ pypi|requests|2.20.0
 pypi|flask|1.1.1
 # go
 go|github.com/gin-gonic/gin|1.6.0
+# 仓库自身依赖（self-scan 自查用）：requests 是 scabase-fetcher 唯一第三方运行时依赖
+pypi|requests|2.32.4

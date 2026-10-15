@@ -1,54 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  空壳清单：零依赖，仅供「仓库自身依赖面」保持干净。
+  真正的教学样本在 pom.xml.sample（带 .sample 后缀，Dependabot 不会解析）。
+  本仓库没有任何 Maven 运行时依赖，因此这里不声明任何 <dependency>。
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.example.bank</groupId>
-    <artifactId>payment-core</artifactId>
-    <version>1.4.2</version>
+    <groupId>com.example</groupId>
+    <artifactId>scabase-no-maven-deps</artifactId>
+    <version>0.0.0</version>
+    <packaging>pom</packaging>
 
-    <properties>
-        <fastjson.version>1.2.24</fastjson.version>
-        <log4j.version>2.14.1</log4j.version>
-        <spring.version>5.3.18</spring.version>
-    </properties>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>2.13.0</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
-    <dependencies>
-        <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>fastjson</artifactId>
-            <version>${fastjson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-            <version>${log4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-core</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <dependencies/>
 </project>

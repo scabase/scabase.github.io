@@ -26,6 +26,7 @@
   var OFFLINE = flag(CONFIG.offline);          // 内网离线：禁用一切外部请求
   var VULNS_URL = "scabase-fetcher/data/vulns.json";
   var PKG_LIST_URL = "scabase-fetcher/data/pkg_list.txt";
+  var HEALTH_URL = CONFIG.healthUrl || "reports/community-support.json";
   var OSV_API = CONFIG.osvApi || "https://api.osv.dev/v1/query";
   var OSV_VULN = CONFIG.osvWeb || "https://osv.dev/vulnerability/";
   var OSV_VULN_API = CONFIG.osvVulnApi || "https://api.osv.dev/v1/vulns/";
@@ -1089,6 +1090,175 @@
       });
   }
 
+  /* --------------------------- 开源软件支持力度与活跃度 --------------------------- */
+  var healthState = { data: null, attempted: false, sort: "grade", grade: "ALL" };
+
+  function orgLabel(b) {
+    if (!b) return "未知";
+    var t = String(b).toLowerCase();
+    if (t === "foundation") return "基金会";
+    if (t === "vendor") return "厂商";
+    if (t === "organization") return "组织";
+    if (t === "personal") return "个人";
+    return String(b);
+  }
+
+  function fmtDays(d) {
+    if (d == null) return "未知";
+    var n = Math.round(d);
+    if (n < 1) return "今日";
+    if (n < 30) return n + " 天前";
+    if (n < 365) return Math.round(n / 30) + " 个月前";
+    return (n / 365).toFixed(1) + " 年前";
+  }
+
+  function fmtCount(n) {
+    if (n == null) return "未知";
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+    if (n >= 1000) return (n / 1000).toFixed(1) + "k";
+    return String(n);
+  }
+
+  function gradeClass(g) { return "grade grade-" + g; }
+
+  function healthStatus(text, isErr, spinner) {
+    var node = $("healthStatus");
+    if (!text) { node.hidden = true; node.textContent = ""; return; }
+    node.hidden = false;
+    node.className = "status" + (isErr ? " err" : "");
+    node.textContent = "";
+    if (spinner) node.appendChild(el("span", "spin"));
+    node.appendChild(el("span", null, text));
+  }
+
+  function loadHealth() {
+    if (healthState.attempted) return;
+    healthState.attempted = true;
+    healthStatus("加载社区支持力度与活跃度数据…", false, true);
+    fetch(HEALTH_URL, { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (json) {
+        healthState.data = json;
+        healthStatus("");
+        renderHealth();
+      })
+      .catch(function () {
+        healthStatus("未能加载社区健康报告（" + HEALTH_URL + "）。请先由 community-health.yml 工作流或 " +
+          "python scabase-fetcher/scripts/community_report.py 生成该文件后再查看。", true, false);
+        $("healthResults").textContent = "";
+      });
+  }
+
+  function renderHealthSummary(report) {
+    var box = $("healthSummary");
+    box.textContent = "";
+    if (!report) return;
+    var counts = report.grade_counts || {};
+    var order = ["A", "B", "C", "D"];
+    box.appendChild(el("span", "stat", "组件 " + (report.component_count != null ? report.component_count : 0)));
+    order.forEach(function (g) {
+      if (counts[g] != null) {
+        box.appendChild(el("span", "stat hs-grade-" + g, g + " 级 " + counts[g]));
+      }
+    });
+    var stamp = $("healthStamp");
+    if (stamp) stamp.textContent = report.generated_at ? "更新于 " + fmtDate(report.generated_at) : "";
+  }
+
+  function renderHealthCard(c) {
+    var card = el("article", "card health-card");
+    var head = el("div", "card-head");
+    var pkg = el("div", "pkg");
+    pkg.appendChild(el("span", "eco", c.eco || "—"));
+    pkg.appendChild(el("span", "name", c.display || c.purl || "—"));
+    head.appendChild(pkg);
+
+    var badges = el("div", "badges");
+    badges.appendChild(el("span", gradeClass(c.grade), c.grade + " · " + (c.level || "")));
+    badges.appendChild(el("span", "count", (c.score != null ? c.score.toFixed(1) : "—") + " 分"));
+    head.appendChild(badges);
+    card.appendChild(head);
+
+    var body = el("div", "health-body");
+    if (c.archived) {
+      body.appendChild(el("div", "health-alert",
+        "⚠ 项目已归档 / 停止维护，社区支持基本中断，原则上不得引入。"));
+    }
+
+    var grid = el("div", "signals");
+    var rows = [
+      ["最近提交", fmtDays(c.last_commit_days)],
+      ["近12月发布", c.releases_12m == null ? "未知" : (c.releases_12m + " 次")],
+      ["维护者", c.maintainers == null ? "未知" : (c.maintainers + " 人")],
+      ["背后组织", orgLabel(c.org_backing)],
+      ["月下载量", fmtCount(c.monthly_downloads)]
+    ];
+    rows.forEach(function (kv) {
+      var sig = el("div", "signal");
+      sig.appendChild(el("span", "k", kv[0]));
+      sig.appendChild(el("span", "v", kv[1]));
+      grid.appendChild(sig);
+    });
+    body.appendChild(grid);
+
+    if (c.advice) body.appendChild(el("p", "advice", c.advice));
+    card.appendChild(body);
+    return card;
+  }
+
+  function renderHealth() {
+    var report = healthState.data;
+    if (!report) return;
+    renderHealthSummary(report);
+    var list = (report.components || []).slice();
+    if (healthState.grade !== "ALL") {
+      list = list.filter(function (c) { return c.grade === healthState.grade; });
+    }
+    list.sort(function (a, b) {
+      if (healthState.sort === "score") return (b.score || 0) - (a.score || 0);
+      if (healthState.sort === "name") return String(a.display).localeCompare(String(b.display));
+      var rank = { A: 0, B: 1, C: 2, D: 3 };
+      var ra = rank[a.grade] != null ? rank[a.grade] : 9;
+      var rb = rank[b.grade] != null ? rank[b.grade] : 9;
+      if (ra !== rb) return ra - rb;
+      return (b.score || 0) - (a.score || 0);
+    });
+    var host = $("healthResults");
+    host.textContent = "";
+    if (!list.length) {
+      host.appendChild(el("div", "empty", "当前筛选条件下没有组件。"));
+      return;
+    }
+    list.forEach(function (c) { host.appendChild(renderHealthCard(c)); });
+  }
+
+  function initHealthControls() {
+    var sortSel = $("healthSort");
+    if (sortSel) sortSel.addEventListener("change", function () { healthState.sort = this.value; renderHealth(); });
+    var gradeSel = $("healthGrade");
+    if (gradeSel) gradeSel.addEventListener("change", function () { healthState.grade = this.value; renderHealth(); });
+  }
+
+  function initTabs() {
+    var tabs = document.querySelectorAll(".tab");
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].addEventListener("click", function () {
+        var name = this.getAttribute("data-tab");
+        var all = document.querySelectorAll(".tab");
+        for (var j = 0; j < all.length; j++) {
+          var on = all[j].getAttribute("data-tab") === name;
+          all[j].classList.toggle("active", on);
+          all[j].setAttribute("aria-selected", on ? "true" : "false");
+        }
+        var panes = document.querySelectorAll(".pane");
+        for (var k = 0; k < panes.length; k++) {
+          panes[k].hidden = panes[k].id !== ("pane-" + name);
+        }
+        if (name === "health") loadHealth();
+      });
+    }
+  }
+
   /* --------------------------- 初始化 --------------------------- */
   function loadLocal() {
     return fetch(VULNS_URL, { cache: "no-store" })
@@ -1103,6 +1273,8 @@
 
   function init() {
     initToolbar();
+    initTabs();
+    initHealthControls();
 
     if (OFFLINE) {
       var wrap = $("forceLiveWrap");

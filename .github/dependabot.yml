@@ -1,0 +1,30 @@
+version: 2
+updates:
+  # GitHub Actions 版本跟踪（checkout / setup-python / upload-artifact 等）
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # 采集器唯一第三方依赖：requests
+  - package-ecosystem: pip
+    directory: "/scabase-fetcher"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+# 说明：examples/deps/ 下的教学样本统一带 .sample 后缀（见该目录 README.md），
+# 因此不会被 Dependabot / 依赖图解析——样本里的 fastjson 1.2.24、log4j 2.14.1、
+# axios 0.21.1 等版本是故意挑选的漏洞版本，用于演示 scan 与评估能力，
+# 不应在仓库自身的安全告警里出现。
