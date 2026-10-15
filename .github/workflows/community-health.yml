@@ -29,7 +29,9 @@ on:
         default: "scabase-fetcher/data/health.json"
 
 permissions:
-  contents: read
+  # 生成的报告需要提交回仓库（reports/ 为 gitignore 产物，不入库），
+  # 由 pages.yml 随 GitHub Pages 一并发布，前端健康度 tab 才能读到数据。
+  contents: write
 
 jobs:
   collect-health:
@@ -80,12 +82,14 @@ jobs:
           PY
 
       - name: 生成社区支持力度汇总报告
+        # JSON 报告提交到受版本管理的 data 目录（前端 HEALTH_URL 读取），
+        # Markdown 仍留在 reports/ 仅用于 Step Summary 与 artifact。
         run: |
           mkdir -p reports
           python scabase-fetcher/scripts/community_report.py \
             --health scabase-fetcher/data/health.json \
             --md reports/community-support.md \
-            --json reports/community-support.json
+            --json scabase-fetcher/data/community-support.json
 
       - name: 写入事实层（health 数据集）
         # 仅刷新 health 水位；--license 传空表示本轮不处理许可证，避免把未采集的数据集标记为新鲜
@@ -104,8 +108,8 @@ jobs:
           name: scabase-community-health
           path: |
             scabase-fetcher/data/health.json
+            scabase-fetcher/data/community-support.json
             reports/community-support.md
-            reports/community-support.json
           if-no-files-found: warn
 
       - name: 汇总到 Step Summary
@@ -118,3 +122,17 @@ jobs:
               cat reports/community-support.md
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: 提交报告（发布到 GitHub Pages）
+        # JSON 报告随仓库发布，pages.yml 把它复制进 _site，健康度 tab 才有数据；
+        # data/** 变更会自动触发 pages.yml 重新部署。
+        run: |
+          if [ -z "$(git status --porcelain scabase-fetcher/data/community-support.json)" ]; then
+            echo "报告无变化，跳过提交"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add scabase-fetcher/data/community-support.json
+          git commit -m "chore(data): update community-support.json"
+          git push

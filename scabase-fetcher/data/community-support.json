@@ -1,0 +1,208 @@
+{
+  "generated_at": "2026-10-15T14:55:15Z",
+  "component_count": 9,
+  "grade_counts": {
+    "A": 6,
+    "D": 2,
+    "B": 1
+  },
+  "missing_signal_counts": {
+    "issue_response_hours": 9,
+    "dependent_projects": 9,
+    "monthly_downloads": 7,
+    "releases_12m": 1,
+    "maintainers": 1,
+    "contributors": 1,
+    "pr_merge_days": 1,
+    "has_security_policy": 1,
+    "has_ci": 1,
+    "org_backing": 1
+  },
+  "components": [
+    {
+      "purl": "pkg:npm/axios@0.21.1",
+      "display": "axios@0.21.1",
+      "eco": "npm",
+      "score": 98.0,
+      "grade": "A",
+      "level": "强",
+      "archived": false,
+      "last_commit_days": 1.0,
+      "releases_12m": 24.0,
+      "maintainers": 100.0,
+      "org_backing": "organization",
+      "monthly_downloads": 531376524.0,
+      "missing": [
+        "issue_response_hours",
+        "dependent_projects"
+      ],
+      "advice": "社区活跃、维护者充足，可正常引入并纳入常规版本跟踪。"
+    },
+    {
+      "purl": "pkg:npm/lodash@4.17.20",
+      "display": "lodash@4.17.20",
+      "eco": "npm",
+      "score": 96.0,
+      "grade": "A",
+      "level": "强",
+      "archived": false,
+      "last_commit_days": 13.0,
+      "releases_12m": 2.0,
+      "maintainers": 100.0,
+      "org_backing": "organization",
+      "monthly_downloads": 765891530.0,
+      "missing": [
+        "issue_response_hours",
+        "dependent_projects"
+      ],
+      "advice": "社区活跃、维护者充足，可正常引入并纳入常规版本跟踪。"
+    },
+    {
+      "purl": "pkg:maven/org.springframework.boot/spring-boot-starter-web@2.7.0",
+      "display": "org.springframework.boot:spring-boot-starter-web:2.7.0",
+      "eco": "maven",
+      "score": 93.0,
+      "grade": "A",
+      "level": "强",
+      "archived": false,
+      "last_commit_days": 0.0,
+      "releases_12m": 33.0,
+      "maintainers": 100.0,
+      "org_backing": "vendor",
+      "monthly_downloads": null,
+      "missing": [
+        "issue_response_hours",
+        "dependent_projects",
+        "monthly_downloads"
+      ],
+      "advice": "社区活跃、维护者充足，可正常引入并纳入常规版本跟踪。"
+    },
+    {
+      "purl": "pkg:pypi/requests@2.20.0",
+      "display": "requests@2.20.0",
+      "eco": "pypi",
+      "score": 93.0,
+      "grade": "A",
+      "level": "强",
+      "archived": false,
+      "last_commit_days": 17.0,
+      "releases_12m": 5.0,
+      "maintainers": 100.0,
+      "org_backing": "organization",
+      "monthly_downloads": null,
+      "missing": [
+        "issue_response_hours",
+        "dependent_projects",
+        "monthly_downloads"
+      ],
+      "advice": "社区活跃、维护者充足，可正常引入并纳入常规版本跟踪。"
+    },
+    {
+      "purl": "pkg:golang/github.com/gin-gonic/gin@1.6.0",
+      "display": "github.com/gin-gonic/gin@1.6.0",
+      "eco": "go",
+      "score": 87.0,
+      "grade": "A",
+      "level": "强",
+      "archived": false,
+      "last_commit_days": 5.0,
+      "releases_12m": 1.0,
+      "maintainers": 100.0,
+      "org_backing": "organization",
+      "monthly_downloads": null,
+      "missing": [
+        "issue_response_hours",
+        "dependent_projects",
+        "monthly_downloads"
+      ],
+      "advice": "社区活跃、维护者充足，可正常引入并纳入常规版本跟踪。"
+    },
+    {
+      "purl": "pkg:pypi/flask@1.1.1",
+      "display": "flask@1.1.1",
+      "eco": "pypi",
+      "score": 87.0,
+      "grade": "A",
+      "level": "强",
+      "archived": false,
+      "last_commit_days": 8.0,
+      "releases_12m": 1.0,
+      "maintainers": 100.0,
+      "org_backing": "organization",
+      "monthly_downloads": null,
+      "missing": [
+        "issue_response_hours",
+        "dependent_projects",
+        "monthly_downloads"
+      ],
+      "advice": "社区活跃、维护者充足，可正常引入并纳入常规版本跟踪。"
+    },
+    {
+      "purl": "pkg:pypi/requests@2.32.4",
+      "display": "requests@2.32.4",
+      "eco": "pypi",
+      "score": 61.0,
+      "grade": "B",
+      "level": "较强",
+      "archived": false,
+      "last_commit_days": 154.0,
+      "releases_12m": null,
+      "maintainers": null,
+      "org_backing": null,
+      "monthly_downloads": null,
+      "missing": [
+        "releases_12m",
+        "maintainers",
+        "contributors",
+        "issue_response_hours",
+        "pr_merge_days",
+        "has_security_policy",
+        "has_ci",
+        "org_backing",
+        "dependent_projects",
+        "monthly_downloads"
+      ],
+      "advice": "社区状况良好，建议锁定版本并关注季度发布节奏。"
+    },
+    {
+      "purl": "pkg:maven/com.alibaba/fastjson@1.2.24",
+      "display": "com.alibaba:fastjson:1.2.24",
+      "eco": "maven",
+      "score": 0.0,
+      "grade": "D",
+      "level": "弱",
+      "archived": true,
+      "last_commit_days": 78.0,
+      "releases_12m": 1.0,
+      "maintainers": 100.0,
+      "org_backing": "vendor",
+      "monthly_downloads": null,
+      "missing": [
+        "issue_response_hours",
+        "dependent_projects",
+        "monthly_downloads"
+      ],
+      "advice": "社区支撑不足或已停止维护，原则上不得引入；存量须制定替换或自维护方案。"
+    },
+    {
+      "purl": "pkg:maven/log4j/log4j@1.2.17",
+      "display": "log4j:log4j:1.2.17",
+      "eco": "maven",
+      "score": 0.0,
+      "grade": "D",
+      "level": "弱",
+      "archived": true,
+      "last_commit_days": 1381.0,
+      "releases_12m": 0.0,
+      "maintainers": 8.0,
+      "org_backing": "foundation",
+      "monthly_downloads": null,
+      "missing": [
+        "issue_response_hours",
+        "dependent_projects",
+        "monthly_downloads"
+      ],
+      "advice": "社区支撑不足或已停止维护，原则上不得引入；存量须制定替换或自维护方案。"
+    }
+  ]
+}

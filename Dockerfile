@@ -36,6 +36,12 @@ COPY index.html /usr/share/nginx/html/index.html
 COPY assets/ /usr/share/nginx/html/assets/
 COPY scabase-fetcher/data/ /usr/share/nginx/html/scabase-fetcher/data/
 
+# 给静态资源 URL 附加内容版本号（与 pages.yml 一致）。
+# nginx 对 /assets/ 缓存 1 小时（max-age=3600），而 index.html 为 no-cache：
+# 只更新 HTML 会拿到「新页面 + 旧脚本」，表现为 tab 切换等交互点了没反应。
+RUN V="$(cat /usr/share/nginx/html/assets/app.js /usr/share/nginx/html/assets/style.css /usr/share/nginx/html/assets/config.js | sha256sum | cut -c1-10)" && \
+    sed -i -E 's#(assets/(app\.js|style\.css|config\.js))#\1?v='"${V}"'#g' /usr/share/nginx/html/index.html
+
 # 漏洞库目录可在运行时挂载外部数据覆盖，无需重建镜像：
 #   -v ./data:/usr/share/nginx/html/scabase-fetcher/data:ro
 

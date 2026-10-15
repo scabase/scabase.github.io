@@ -326,10 +326,12 @@ python scabase-fetcher/scripts/fetch_oss_health.py \
   --out scabase-fetcher/data/health.json
 
 # 汇总为社区支持力度报告（0-100 分 + A/B/C/D 等级）
+# JSON 落在 data/ 下随站点发布（网页「开源软件支持力度和活跃度」tab 读取该文件），
+# Markdown 仅用于归档 / Step Summary
 python scabase-fetcher/scripts/community_report.py \
   --health scabase-fetcher/data/health.json \
   --md reports/community-support.md \
-  --json reports/community-support.json
+  --json scabase-fetcher/data/community-support.json
 
 # 写入事实层 health 数据集，供摆渡到内网
 python scabase-fetcher/scripts/build_facts.py \

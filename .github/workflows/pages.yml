@@ -34,6 +34,14 @@ jobs:
           cp CNAME _site/ 2>/dev/null || true
           cp scabase-fetcher/data/vulns.json _site/scabase-fetcher/data/ 2>/dev/null || true
           cp scabase-fetcher/data/pkg_list.txt _site/scabase-fetcher/data/ 2>/dev/null || true
+          cp scabase-fetcher/data/community-support.json _site/scabase-fetcher/data/ 2>/dev/null || true
+          # 给静态资源 URL 附加内容版本号。
+          # GitHub Pages 对 .js/.css 缓存 4 小时（max-age=14400），而 index.html 只缓存
+          # 10 分钟（max-age=600）。两者缓存周期不一致时，部署后浏览器会拿到「新页面 +
+          # 旧脚本」，表现为 tab 切换等交互点了没反应。按资源内容哈希加版本号后，
+          # HTML 一更新就会拉取匹配的脚本/样式。
+          ASSET_VERSION="$(cat assets/app.js assets/style.css assets/config.js | sha256sum | cut -c1-10)"
+          sed -i -E 's#(assets/(app\.js|style\.css|config\.js))#\1?v='"${ASSET_VERSION}"'#g' _site/index.html
           touch _site/.nojekyll
 
       - name: Configure Pages

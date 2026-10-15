@@ -26,7 +26,9 @@
   var OFFLINE = flag(CONFIG.offline);          // 内网离线：禁用一切外部请求
   var VULNS_URL = "scabase-fetcher/data/vulns.json";
   var PKG_LIST_URL = "scabase-fetcher/data/pkg_list.txt";
-  var HEALTH_URL = CONFIG.healthUrl || "reports/community-support.json";
+  /* 报告由 community-health.yml 生成并提交到受版本管理的 data 目录，
+   * pages.yml / Dockerfile 再随站点一同发布（reports/ 为 gitignore 产物，不入库）。 */
+  var HEALTH_URL = CONFIG.healthUrl || "scabase-fetcher/data/community-support.json";
   var OSV_API = CONFIG.osvApi || "https://api.osv.dev/v1/query";
   var OSV_VULN = CONFIG.osvWeb || "https://osv.dev/vulnerability/";
   var OSV_VULN_API = CONFIG.osvVulnApi || "https://api.osv.dev/v1/vulns/";
