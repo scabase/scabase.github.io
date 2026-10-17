@@ -369,6 +369,10 @@ python scabase-fetcher/scripts/build_facts.py \
 - 任一来源失败只降级，不中断整批；未配置 `GITHUB_TOKEN` 时仍可运行（限流更严格）。
 - 产物（`health.json` + 社区支持力度报告）会上传为 workflow artifact，并写入 Step Summary；
   报告的「数据来源覆盖」章节统计每个来源实际覆盖的组件数。
+- **人工核对**：`community_report.py` 为每个组件生成 `repo` / `deps_dev` / `registry`
+  三个链接字段（GitHub 仓库、deps.dev 包页面、生态注册表页面）。前端健康度卡片的
+  「数据来源」徽章据此渲染为可点击链接（无链接信息时降级为纯文本徽章），
+  Markdown 报告的「数据来源」列同样带链接，点击即可跳转原始出处核对。
 
 ## 16. 常用依赖 Top 清单（站点示例）
 

@@ -44,6 +44,9 @@
   npm registry（下载量 + packument 兜底 maintainers，>4MB 放弃）/ PyPI JSON（版本级接口
   12KB 推断仓库）/ repo-map。每组件记 `sources` 归因，报告有 source_counts 与
   「数据来源覆盖」章节，前端卡片渲染来源徽章。
+- 来源徽章可点击（2026-10-17）：community_report 行带 `repo`/`deps_dev`/`registry`
+  链接字段，前端徽章渲染为 <a target=_blank rel=noopener>，缺字段降级 span；
+  community-support.json 由 CI 每日 commit 回 data/，字段随下次采集生效。
 - 坑：deps.dev 包名必须按生态拼（MAVEN `g:a`、NPM `@s/n`，再 `quote(safe="")`），
   用 `/` 连接会对 Maven 与 npm scope 包静默 404；UTC 时间戳解析用 calendar.timegm
   （mktime 受本机时区影响）。

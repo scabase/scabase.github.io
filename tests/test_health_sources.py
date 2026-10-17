@@ -10,6 +10,7 @@
   - collect_from_pypi：版本级接口优先、404 回退整包
   - collect_from_npm_meta：Content-Length 超限放弃
   - community_report：sources 透传与 source_counts 汇总
+  - community_report：来源链接构造（deps_dev_url / registry_url）与报告行字段
 """
 import json
 import os
@@ -279,6 +280,97 @@ class ReportSourcesTest(unittest.TestCase):
         md = community_report.render_markdown(report)
         self.assertIn("数据来源覆盖", md)
         self.assertIn("deps.dev", md)
+
+
+class SourceLinksTest(unittest.TestCase):
+    """来源徽章 / 报告行的可点击链接（供人工核对）。"""
+
+    def test_deps_dev_url_per_ecosystem(self):
+        self.assertEqual(
+            community_report.deps_dev_url(
+                {"eco": "maven", "namespace": "com.alibaba", "name": "fastjson"}),
+            "https://deps.dev/maven/com.alibaba:fastjson")
+        # npm scope：purl 命名空间无 @，deps.dev 需要补回
+        self.assertEqual(
+            community_report.deps_dev_url({"eco": "npm", "namespace": "babel", "name": "core"}),
+            "https://deps.dev/npm/@babel/core")
+        self.assertEqual(
+            community_report.deps_dev_url({"eco": "npm", "namespace": None, "name": "lodash"}),
+            "https://deps.dev/npm/lodash")
+        self.assertEqual(
+            community_report.deps_dev_url({"eco": "pypi", "namespace": None, "name": "requests"}),
+            "https://deps.dev/pypi/requests")
+        self.assertEqual(
+            community_report.deps_dev_url(
+                {"eco": "go", "namespace": "github.com/gin-gonic", "name": "gin"}),
+            "https://deps.dev/go/github.com/gin-gonic/gin")
+        self.assertIsNone(community_report.deps_dev_url({"eco": "cargo", "name": "serde"}))
+        self.assertIsNone(community_report.deps_dev_url({"eco": "maven", "name": None}))
+
+    def test_registry_url_per_ecosystem(self):
+        self.assertEqual(
+            community_report.registry_url({"eco": "npm", "namespace": "babel", "name": "core"}),
+            "https://www.npmjs.com/package/@babel/core")
+        self.assertEqual(
+            community_report.registry_url({"eco": "npm", "namespace": None, "name": "lodash"}),
+            "https://www.npmjs.com/package/lodash")
+        self.assertEqual(
+            community_report.registry_url({"eco": "pypi", "namespace": None, "name": "requests"}),
+            "https://pypi.org/project/requests/")
+        self.assertEqual(
+            community_report.registry_url(
+                {"eco": "maven", "namespace": "com.alibaba", "name": "fastjson"}),
+            "https://central.sonatype.com/artifact/com.alibaba/fastjson")
+        self.assertEqual(
+            community_report.registry_url(
+                {"eco": "go", "namespace": "golang.org/x", "name": "net"}),
+            "https://pkg.go.dev/golang.org/x/net")
+        self.assertIsNone(community_report.registry_url({"eco": "maven", "namespace": None,
+                                                         "name": "x"}))
+        self.assertIsNone(community_report.registry_url({"eco": "pypi", "name": None}))
+
+    def test_report_rows_carry_links(self):
+        health = {
+            "pkg:pypi/requests@2.31.0": {"repo": "psf/requests",
+                                         "sources": ["pypi", "github", "deps.dev"]},
+            "pkg:maven/com.alibaba/fastjson@1.2.24": {"sources": ["deps.dev"]},
+            "pkg:go/github.com/gin-gonic/gin@1.6.0": {"sources": ["github", "repo-map"]},
+            "pkg:npm/babel/core@7.0.0": {"sources": ["npm-registry"]},
+        }
+        report = community_report.build_report(health)
+        by_purl = {row["purl"]: row for row in report["components"]}
+        py = by_purl["pkg:pypi/requests@2.31.0"]
+        self.assertEqual(py["repo"], "psf/requests")
+        self.assertEqual(py["deps_dev"], "https://deps.dev/pypi/requests")
+        self.assertEqual(py["registry"], "https://pypi.org/project/requests/")
+        mvn = by_purl["pkg:maven/com.alibaba/fastjson@1.2.24"]
+        self.assertEqual(mvn["deps_dev"], "https://deps.dev/maven/com.alibaba:fastjson")
+        self.assertEqual(mvn["registry"],
+                         "https://central.sonatype.com/artifact/com.alibaba/fastjson")
+        self.assertIsNone(mvn["repo"])
+        go = by_purl["pkg:go/github.com/gin-gonic/gin@1.6.0"]
+        self.assertEqual(go["deps_dev"], "https://deps.dev/go/github.com/gin-gonic/gin")
+        self.assertEqual(go["registry"], "https://pkg.go.dev/github.com/gin-gonic/gin")
+        # 项目内 purl 约定：npm scope 存为无 @ 的 namespace
+        npm_row = by_purl["pkg:npm/babel/core@7.0.0"]
+        self.assertEqual(npm_row["deps_dev"], "https://deps.dev/npm/@babel/core")
+        self.assertEqual(npm_row["registry"], "https://www.npmjs.com/package/@babel/core")
+        # 容错：purl 里 scope 带 @ 时也不应拼出 @@
+        at_form = community_report.deps_dev_url({"eco": "npm", "namespace": "@babel",
+                                                 "name": "core"})
+        self.assertEqual(at_form, "https://deps.dev/npm/@babel/core")
+
+    def test_markdown_contains_clickable_source_links(self):
+        health = {
+            "pkg:pypi/requests@2.31.0": {"repo": "psf/requests",
+                                         "sources": ["pypi", "github"]},
+        }
+        report = community_report.build_report(health)
+        md = community_report.render_markdown(report)
+        self.assertIn("数据来源（可点击核对）", md)
+        self.assertIn("[GitHub](https://github.com/psf/requests)", md)
+        self.assertIn("[deps.dev](https://deps.dev/pypi/requests)", md)
+        self.assertIn("[PyPI](https://pypi.org/project/requests/)", md)
 
 
 if __name__ == "__main__":

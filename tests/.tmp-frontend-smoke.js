@@ -21,8 +21,16 @@ const health = JSON.parse(
 const popular = JSON.parse(
   fs.readFileSync(path.join(ROOT, "scabase-fetcher", "data", "popular-packages.json"), "utf8"));
 
-/* 为所有 fixture 组件注入 sources，验证健康度卡片的「数据来源」徽章渲染 */
-(health.components || []).forEach(function (c) { c.sources = ["github", "deps.dev"]; });
+/* 为 fixture 组件注入 sources 与链接字段，验证「数据来源」徽章渲染为可点击链接；
+   刻意让 fastjson 不带 repo，验证无链接信息时降级为纯文本徽章 */
+(health.components || []).forEach(function (c) {
+  c.sources = ["github", "deps.dev", "npm-registry", "pypi"];
+  c.deps_dev = "https://deps.dev/" + c.eco + "/demo-pkg";
+  c.registry = "https://example.invalid/registry/" + c.eco;
+  if (String(c.purl).indexOf("fastjson") === -1) {
+    c.repo = "demo-org/demo-repo";
+  }
+});
 
 const failures = [];
 function check(name, cond, extra) {
@@ -155,10 +163,31 @@ setTimeout(() => {
 
     const cards = $("healthResults").querySelectorAll(".health-card");
     check("结果区渲染 6 张卡（4 命中 + 2 未收录）", cards.length === 6, cards.length);
-    const srcBadges = $("healthResults").querySelectorAll(".health-sources .src");
+    const srcBadges = Array.from(
+      $("healthResults").querySelectorAll(".health-sources .src"));
     check("健康度卡片渲染数据来源徽章", srcBadges.length >= 2, srcBadges.length);
     check("来源徽章含 deps.dev",
-      Array.from(srcBadges).some((b) => b.textContent === "deps.dev"));
+      srcBadges.some((b) => b.textContent === "deps.dev"));
+    const srcLinks = srcBadges.filter((b) => b.tagName === "A");
+    check("有链接字段的来源徽章渲染为可点击链接", srcLinks.length >= 8, srcLinks.length);
+    check("GitHub 徽章指向仓库主页",
+      srcLinks.some((b) => b.getAttribute("href") === "https://github.com/demo-org/demo-repo"));
+    check("deps.dev 徽章指向包页面",
+      srcLinks.some((b) => /^https:\/\/deps\.dev\//.test(b.getAttribute("href") || "")));
+    check("注册表徽章指向生态站点",
+      srcLinks.some((b) => /^https:\/\/example\.invalid\/registry\//.test(b.getAttribute("href") || "")));
+    check("来源链接均在新窗口打开且带 noopener",
+      srcLinks.length > 0 &&
+      srcLinks.every((b) => b.target === "_blank" && b.rel === "noopener"));
+    const fastjsonCard = Array.from(cards).find((card) =>
+      String((card.querySelector(".pkg .name") || {}).textContent).indexOf("fastjson") !== -1);
+    check("查询结果含 fastjson 卡片", !!fastjsonCard);
+    if (fastjsonCard) {
+      const ghBadge = Array.from(fastjsonCard.querySelectorAll(".health-sources .src"))
+        .find((b) => b.textContent === "GitHub");
+      check("无仓库信息时 GitHub 徽章降级为纯文本",
+        !!ghBadge && ghBadge.tagName === "SPAN");
+    }
     const missed = $("healthResults").querySelectorAll(".health-miss");
     check("未收录卡片单独渲染", missed.length === 2, missed.length);
 

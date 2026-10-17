@@ -40,9 +40,11 @@
   `{ generated_at, component_count, grade_counts, missing_signal_counts, source_counts, components: [...] }`。
   component 为 `{ purl, display, eco, score, grade(A/B/C/D), level, archived,
   last_commit_days, releases_12m, maintainers, contributors, org_backing,
-  monthly_downloads, sources, missing, advice }`，其中 `sources` 列出该组件信号的实际
-  来源（github / deps.dev / npm-registry / pypi / repo-map），`source_counts` 为各来源的
-  组件覆盖数。评分遵循「未知即风险」，archived 直接判 D。
+  monthly_downloads, sources, repo, deps_dev, registry, missing, advice }`，
+  其中 `sources` 列出该组件信号的实际来源（github / deps.dev / npm-registry /
+  pypi / repo-map），`source_counts` 为各来源的组件覆盖数；`repo` / `deps_dev` /
+  `registry` 为可点击核对的出处链接（GitHub 仓库、deps.dev 包页面、生态注册表页面）。
+  评分遵循「未知即风险」，archived 直接判 D。
 
 - [常用依赖采集清单 pkg_list_popular.txt](https://scabase.roweb.cn/scabase-fetcher/data/pkg_list_popular.txt):
   每行 `ecosystem|package|version`，四生态各前 100 条共约 400 行，`#` 为注释。

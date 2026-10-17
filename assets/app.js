@@ -1325,6 +1325,16 @@
     "repo-map": "repo-map"
   };
 
+  /* 来源徽章跳转链接：让人工能点击核对该信号来自哪个出处 */
+  function sourceHref(src, c) {
+    if (src === "github" || src === "repo-map") {
+      return c.repo ? "https://github.com/" + c.repo : null;
+    }
+    if (src === "deps.dev") return c.deps_dev || null;
+    if (src === "npm-registry" || src === "pypi") return c.registry || null;
+    return null;
+  }
+
   /* pkg: eco/namespace/name@version -> { type, ns, name, version } */
   function parseHealthPurl(value) {
     var body = String(value || "").replace(/^pkg:/i, "");
@@ -1697,7 +1707,17 @@
       var srcBox = el("div", "health-sources");
       srcBox.appendChild(el("span", "health-sources-label", "数据来源"));
       sources.forEach(function (src) {
-        srcBox.appendChild(el("span", "src", SOURCE_LABELS[src] || src));
+        var href = sourceHref(src, c);
+        if (href) {
+          var link = el("a", "src src-link", SOURCE_LABELS[src] || src);
+          link.href = href;
+          link.target = "_blank";
+          link.rel = "noopener";
+          link.title = "点击跳转原始出处，人工核对数据";
+          srcBox.appendChild(link);
+        } else {
+          srcBox.appendChild(el("span", "src", SOURCE_LABELS[src] || src));
+        }
       });
       body.appendChild(srcBox);
     }

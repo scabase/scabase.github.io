@@ -33,6 +33,64 @@ SOURCE_LABELS = {
     "repo-map": "repo-map 显式映射",
 }
 
+# deps.dev 包页面（package 级）与各生态注册表页面，供人工点击核对数据来源
+DEPS_DEV_SYSTEM = {"maven": "maven", "npm": "npm", "pypi": "pypi", "go": "go"}
+REGISTRY_LABELS = {"npm": "npmjs.com", "pypi": "PyPI",
+                   "maven": "Maven Central", "go": "pkg.go.dev"}
+
+
+def deps_dev_url(info):
+    """deps.dev 包页面 URL（package 级，不带版本）。"""
+    eco = info.get("eco")
+    name = info.get("name")
+    if eco not in DEPS_DEV_SYSTEM or not name:
+        return None
+    # 兼容两种 purl 形态：scope 带 @（pkg:npm/@babel/core）与不带 @（pkg:npm/babel/core）
+    namespace = (info.get("namespace") or "").lstrip("@")
+    if eco == "maven":
+        package = "%s:%s" % (namespace, name) if namespace else name
+    elif eco == "npm" and namespace:
+        # purl 约定把 npm scope 存为无 @ 的 namespace，deps.dev 需要补回 @
+        package = "@%s/%s" % (namespace, name)
+    elif namespace:
+        package = "%s/%s" % (namespace, name)
+    else:
+        package = name
+    return "https://deps.dev/%s/%s" % (DEPS_DEV_SYSTEM[eco], package)
+
+
+def registry_url(info):
+    """各生态注册表 / 文档站页面 URL，便于人工核对该组件的发布与下载数据。"""
+    eco = info.get("eco")
+    name = info.get("name")
+    if not name:
+        return None
+    namespace = (info.get("namespace") or "").lstrip("@")
+    if eco == "npm":
+        package = "@%s/%s" % (namespace, name) if namespace else name
+        return "https://www.npmjs.com/package/%s" % package
+    if eco == "pypi":
+        return "https://pypi.org/project/%s/" % name
+    if eco == "maven" and namespace:
+        return "https://central.sonatype.com/artifact/%s/%s" % (namespace, name)
+    if eco == "go":
+        package = "%s/%s" % (namespace, name) if namespace else name
+        return "https://pkg.go.dev/%s" % package
+    return None
+
+
+def source_links_cell(row):
+    """Markdown 表格里的「数据来源」单元格：可点击跳转原始出处。"""
+    parts = []
+    if row.get("repo"):
+        parts.append("[GitHub](https://github.com/%s)" % row["repo"])
+    if row.get("deps_dev"):
+        parts.append("[deps.dev](%s)" % row["deps_dev"])
+    if row.get("registry"):
+        parts.append("[%s](%s)" % (REGISTRY_LABELS.get(row["eco"], "注册表"),
+                                   row["registry"]))
+    return "<br>".join(parts) if parts else "—"
+
 
 def build_report(health):
     rows = []
@@ -64,6 +122,9 @@ def build_report(health):
             "org_backing": (result.get("signals") or {}).get("org_backing"),
             "monthly_downloads": (result.get("signals") or {}).get("monthly_downloads"),
             "sources": sources,
+            "repo": payload.get("repo"),
+            "deps_dev": deps_dev_url(info),
+            "registry": registry_url(info),
             "missing": result.get("missing") or [],
             "advice": result.get("advice"),
         })
@@ -89,16 +150,17 @@ def render_markdown(report):
         lines.append("- 等级分布：%s" % distribution)
     lines.append("")
 
-    lines.append("| 组件 | 生态 | 评分 | 等级 | 最近提交(天) | 近12月发布 | 维护者 | 背后组织 | 月下载量 |")
-    lines.append("|---|---|---|---|---|---|---|---|---|")
+    lines.append("| 组件 | 生态 | 评分 | 等级 | 最近提交(天) | 近12月发布 | 维护者 | 背后组织 | 月下载量 | 数据来源（可点击核对） |")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|")
     for row in report["components"]:
-        lines.append("| %s | %s | %.1f | %s | %s | %s | %s | %s | %s |" % (
+        lines.append("| %s | %s | %.1f | %s | %s | %s | %s | %s | %s | %s |" % (
             row["display"], row["eco"], row["score"], row["grade"],
             row["last_commit_days"] if row["last_commit_days"] is not None else "—",
             row["releases_12m"] if row["releases_12m"] is not None else "—",
             row["maintainers"] if row["maintainers"] is not None else "—",
             row["org_backing"] or "—",
-            row["monthly_downloads"] if row["monthly_downloads"] is not None else "—"))
+            row["monthly_downloads"] if row["monthly_downloads"] is not None else "—",
+            source_links_cell(row)))
     lines.append("")
 
     if report["missing_signal_counts"]:
