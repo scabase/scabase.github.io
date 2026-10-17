@@ -77,7 +77,10 @@ main { padding: 24px 0 40px; }
   margin-bottom: 8px;
 }
 
-textarea#query {
+.field-label-gap { margin-top: 18px; }
+
+textarea#query,
+textarea#healthQuery {
   width: 100%;
   resize: vertical;
   min-height: 150px;
@@ -92,10 +95,12 @@ textarea#query {
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-textarea#query:focus {
+textarea#query:focus,
+textarea#healthQuery:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+textarea#healthQuery { min-height: 110px; }
 
 .controls {
   display: flex;
@@ -166,6 +171,108 @@ button.ghost { background: transparent; }
   cursor: pointer;
 }
 .chip:hover { color: var(--fg); border-color: var(--accent); background: var(--accent-soft); }
+/* Top 清单按钮：一次性填入 10 / 50 / 100 行 */
+.chip-list { border-style: dashed; font-weight: 600; }
+.examples + .examples { margin-top: -2px; }
+
+/* ---------------- 常用依赖 Top 清单 ---------------- */
+.popular-panel {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+}
+.popular-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+.popular-summary::-webkit-details-marker { display: none; }
+.popular-title { font-size: 13.5px; font-weight: 700; }
+.popular-hint { font-size: 12.5px; color: var(--fg-muted); }
+.popular-body { padding: 0 14px 14px; }
+.pop-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.pop-tab {
+  font-size: 12.5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.pop-tab:hover { color: var(--fg); border-color: var(--accent); }
+.pop-tab.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.pop-toolbar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.pop-toolbar input[type="search"] {
+  flex: 1 1 220px;
+  min-width: 180px;
+  padding: 7px 10px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+}
+.pop-toolbar input[type="search"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.pop-basis { margin: 8px 0 6px; font-size: 12px; color: var(--fg-muted); }
+.pop-list {
+  max-height: 430px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.pop-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.pop-row:last-child { border-bottom: none; }
+.pop-row:hover { background: var(--accent-soft); }
+.pop-rank {
+  flex: 0 0 44px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg-muted);
+  text-align: right;
+  padding-top: 2px;
+}
+.pop-main { flex: 1; min-width: 0; }
+.pop-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.pop-pkg { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+.pop-ver { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+.pop-desc { font-size: 12.5px; color: var(--fg-muted); margin-top: 2px; }
+.pop-meta { font-size: 11.5px; color: var(--fg-muted); margin-top: 2px; }
+.pop-add {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.pop-add:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.pop-more { margin-top: 10px; text-align: center; }
 
 /* ---------------- status ---------------- */
 .status {
@@ -526,6 +633,19 @@ a.altid:hover { color: var(--accent); text-decoration: none; }
 .sb-D i { background: var(--red); }
 
 .health-missing { margin: 10px 0 0; font-size: 12px; color: var(--fg-muted); }
+
+/* 查询模式：说明本次命中采用的版本 */
+.health-querynote {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  background: var(--bg-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+}
+.health-miss { border-style: dashed; }
+.grade-na { border-color: var(--border); color: var(--fg-muted); background: rgba(127, 127, 127, 0.1); }
 
 .health-body { padding: 12px 16px 14px; }
 .health-alert {

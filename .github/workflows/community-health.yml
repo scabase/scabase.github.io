@@ -19,14 +19,14 @@ on:
         description: "组件清单路径（格式 ecosystem|package|version）"
         required: false
         default: "scabase-fetcher/data/pkg_list.txt"
+      popular-pkg-list:
+        description: "常用依赖清单（四生态各 Top 100），留空则跳过"
+        required: false
+        default: "scabase-fetcher/data/pkg_list_popular.txt"
       repo-map:
         description: "purl → owner/repo 映射文件"
         required: false
         default: "scabase-fetcher/data/repo-map.json"
-      out:
-        description: "健康度输出文件"
-        required: false
-        default: "scabase-fetcher/data/health.json"
 
 permissions:
   # 生成的报告需要提交回仓库（reports/ 为 gitignore 产物，不入库），
@@ -36,6 +36,8 @@ permissions:
 jobs:
   collect-health:
     runs-on: ubuntu-latest
+    env:
+      POPULAR_LIST: ${{ github.event.inputs.popular-pkg-list || 'scabase-fetcher/data/pkg_list_popular.txt' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,13 +48,20 @@ jobs:
       - name: 安装依赖
         run: pip install requests
 
+      - name: 生成常用依赖清单（四生态 Top 1000 取前 100）
+        # 复用仓库内已校准的 popular-packages.json（离线转换），不在此处联网刷新版本
+        run: |
+          python scabase-fetcher/scripts/gen_popular_packages.py \
+            --json scabase-fetcher/data/popular-packages.json \
+            --txt "$POPULAR_LIST"
+
       - name: 采集社区支持力度与活跃度信号
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_LIST: ${{ github.event.inputs.pkg-list || 'scabase-fetcher/data/pkg_list.txt' }}
           REPO_MAP: ${{ github.event.inputs.repo-map || 'scabase-fetcher/data/repo-map.json' }}
-          OUT: ${{ github.event.inputs.out || 'scabase-fetcher/data/health.json' }}
+          OUT: scabase-fetcher/data/health-base.json
         run: |
           set -- --pkg-list "$PKG_LIST" --out "$OUT"
           if [ -f "$REPO_MAP" ]; then
@@ -61,6 +70,50 @@ jobs:
             echo "未找到仓库映射 $REPO_MAP，仅使用 deps.dev 与 registry 信号"
           fi
           python scabase-fetcher/scripts/fetch_oss_health.py "$@"
+
+      - name: 采集常用依赖（四生态 Top 100）健康度信号
+        # 站点「常用依赖 Top 清单」示例需要在健康度 tab 可查，故一并采集
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_MAP: ${{ github.event.inputs.repo-map || 'scabase-fetcher/data/repo-map.json' }}
+          OUT: scabase-fetcher/data/health-popular.json
+        run: |
+          if [ ! -f "$POPULAR_LIST" ]; then
+            echo "未找到常用依赖清单 $POPULAR_LIST，跳过该批采集"
+            echo '{}' > "$OUT"
+            exit 0
+          fi
+          set -- --pkg-list "$POPULAR_LIST" --out "$OUT"
+          if [ -f "$REPO_MAP" ]; then
+            set -- "$@" --repo-map "$REPO_MAP"
+          fi
+          python scabase-fetcher/scripts/fetch_oss_health.py "$@"
+
+      - name: 合并健康度结果
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          base_path = "scabase-fetcher/data/health-base.json"
+          popular_path = "scabase-fetcher/data/health-popular.json"
+          out_path = "scabase-fetcher/data/health.json"
+
+          merged = {}
+          for path in (base_path, popular_path):
+              if not os.path.exists(path):
+                  print("跳过不存在的 %s" % path)
+                  continue
+              with open(path, "r", encoding="utf-8") as handle:
+                  payload = json.load(handle)
+              for key, value in payload.items():
+                  # 基础清单优先：命中同一 purl 时保留先到的更详细记录
+                  merged.setdefault(key, value)
+          with open(out_path, "w", encoding="utf-8") as handle:
+              json.dump(merged, handle, ensure_ascii=False, indent=2)
+          print("merged components: %d" % len(merged))
+          PY
 
       - name: 校验采集结果非空
         run: |

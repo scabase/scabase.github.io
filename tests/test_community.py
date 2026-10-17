@@ -25,7 +25,7 @@ class CommunityTest(unittest.TestCase):
         result = community.evaluate({"archived": True, "last_commit_days": 5})
         self.assertEqual(result["grade"], "D")
         self.assertLessEqual(result["score"], 10)
-        self.assertIn("archived", result["factors"][0]["factor"])
+        self.assertIn("归档", result["factors"][0]["factor"])
 
     def test_unknown_signals_are_conservative(self):
         result = community.evaluate({}, {})

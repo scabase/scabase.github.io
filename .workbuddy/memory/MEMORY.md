@@ -54,9 +54,27 @@
 - 外发红线：事实层入包只取 `vulns/health/license/kev`，**inventory/outbox/state.json 禁止出包**。
 - npm publish 必须指定目录：`npm publish packages/npm`（仓库根没有 package.json）。
 
+## 常用依赖 Top 清单（2026-10-17 扩展为四生态 Top 1000）
+- `scabase-fetcher/scripts/gen_popular_packages.py`（~2150 行）生成四生态各 1000 条：
+  npm（registry 搜索 392 关键词采样，近一周下载量排序）、pypi（top-pypi-packages
+  近 30 天下载榜）、maven（人工种子 + deps.dev 依赖图展开，按公开依赖项目数排序）、
+  go（人工核心模块 + GitHub Star 仓库经 deps.dev GetProjectPackageVersions 映射）。
+- 产物：`popular-packages.json`（前端 4 tab / 过滤 / 增量渲染 / Top N 一键填入）+
+  `pkg_list_popular.txt`（每生态前 100 共 400 行，供 community-health 第二批采集）。
+- CLI：`--refresh --top 1000 --txt-top 100 --workers 8 --only <eco>`（单生态增量刷新）；
+  CI 只跑离线转换（`--json/--txt`），可字节级复现 txt。
+- `version_key()` 自研版本比较覆盖 Maven/PyPI/Go 三种形态；限定词先去数字再判稳定词。
+- 已弃用数据源：npmjs.com/browse、mvnrepository.com（Cloudflare 403）、Maven Central Solr
+  （无流行度字段且约 50% 超时）、proxy.golang.org（沙箱阻断）。
+- 细节与踩坑见 2026-10-17 日志。
+
 ## 技术约定
 - 前端为 ES5 风格 IIFE（var / function），无构建步骤，不要引入需要编译的语法。
 - Python 侧：评估与同步路径保持零第三方依赖（内网可运行），仅采集器用 `requests`。
 - 测试方式：Python `python -m unittest discover -s tests`（tests/fixtures.py 提供本地桩）；
   前端用 jsdom（装在 `/Users/block/.workbuddy/binaries/node/workspace`）+ 本地 vulns.json
   桩掉 fetch，在 node 里 eval `assets/app.js` 后操作 DOM 断言。
+- 前端冒烟必须带 `NODE_PATH=/Users/block/.workbuddy/binaries/node/workspace/node_modules`
+  跑 `node tests/.tmp-frontend-smoke.js`，否则 jsdom MODULE_NOT_FOUND。
+- gate JSON 单组件时同时含 `result` 与 `results` 双键；depinfo `--results` 兼容三种形态
+  （results 列表 / 单 result 对象 / items 列表）——2026-10-17 修过的 HEAD 既有 bug。

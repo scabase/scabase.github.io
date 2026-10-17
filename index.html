@@ -75,6 +75,35 @@
         <span class="examples-label">快速填入：</span>
         <div id="exampleChips" class="chips"></div>
       </div>
+
+      <details class="popular-panel" id="popularPanel" hidden>
+        <summary class="popular-summary">
+          <span class="popular-title">常用依赖 Top 清单</span>
+          <span class="popular-hint">按生态浏览与过滤，点击任意一行即填入查询框</span>
+        </summary>
+        <div class="popular-body">
+          <div class="pop-tabs" id="popTabs" role="tablist" aria-label="生态切换"></div>
+          <div class="pop-toolbar">
+            <input id="popSearch" type="search" autocomplete="off"
+              placeholder="按名称或说明过滤，如 spring / lodash / gin" />
+            <select id="popFillN" class="tb" aria-label="填入条数">
+              <option value="10">前 10 条</option>
+              <option value="50" selected>前 50 条</option>
+              <option value="100">前 100 条</option>
+              <option value="200">前 200 条</option>
+              <option value="0">当前全部</option>
+            </select>
+            <button id="popFill" class="ghost tb-btn" type="button">填入查询框</button>
+            <button id="popCopy" class="ghost tb-btn" type="button">复制清单</button>
+            <span id="popCount" class="stamp"></span>
+          </div>
+          <div class="pop-basis" id="popBasis"></div>
+          <div class="pop-list" id="popList"></div>
+          <div class="pop-more">
+            <button id="popMore" class="ghost tb-btn" type="button" hidden>显示更多</button>
+          </div>
+        </div>
+      </details>
     </section>
 
     <section id="status" class="status" hidden></section>
@@ -108,6 +137,41 @@
       </p>
 
       <div id="healthKpis" class="kpis"></div>
+
+      <label class="field-label field-label-gap" for="healthQuery">
+        按组件查询（每行一条，格式与漏洞查询一致；留空则展示全部已收录组件）
+      </label>
+      <textarea id="healthQuery" spellcheck="false" rows="5"
+        placeholder="maven|org.springframework.boot:spring-boot-starter-web|2.7.0&#10;npm|lodash|4.17.20&#10;pypi|requests|2.20.0&#10;log4j:log4j:1.2.17"></textarea>
+
+      <div class="controls">
+        <button id="healthRun" class="primary" type="button">查询</button>
+        <button id="healthClear" class="ghost" type="button">清空</button>
+        <button id="healthCopyMissing" class="ghost tb-btn" type="button" hidden>复制未收录清单</button>
+        <span id="healthSummary" class="stamp" aria-live="polite"></span>
+      </div>
+
+      <details class="help">
+        <summary>查询方式与数据说明</summary>
+        <div class="help-body">
+          <ul>
+            <li><b>输入格式与漏洞查询完全一致</b>：<code>ecosystem|package|version</code>、
+              <code>groupId:artifactId:version</code>、<code>ecosystem:package@version</code>；
+              <code>#</code> 开头为注释。</li>
+            <li><b>版本不是必须的</b>：社区健康度是「组件级」评估，未写版本时按同名组件匹配，
+              并在卡片上标注报告实际采用的版本。</li>
+            <li><b>未收录的组件</b>：健康度数据由 <code>community-health.yml</code> 按
+              <code>pkg_list.txt</code> / <code>pkg_list_popular.txt</code> 采集生成，未覆盖的组件会单独列出，
+              可复制到清单后重新参与采集。</li>
+            <li>查询后仍可用下方「等级 / 搜索 / 排序」做二次筛选；清空输入框并查询即回到全量浏览。</li>
+          </ul>
+        </div>
+      </details>
+
+      <div class="examples" id="healthExamples" hidden>
+        <span class="examples-label">快速填入：</span>
+        <div id="healthExampleChips" class="chips"></div>
+      </div>
 
       <div class="controls health-controls">
         <input id="healthSearch" type="search" autocomplete="off"
@@ -144,7 +208,8 @@
       <span class="dot">·</span>
       <span><a href="scabase-fetcher/data/pkg_list.txt" target="_blank" rel="noopener">包清单</a> ·
         <a href="scabase-fetcher/data/vulns.json" target="_blank" rel="noopener">vulns.json</a> ·
-        <a href="scabase-fetcher/data/community-support.json" target="_blank" rel="noopener">community-support.json</a></span>
+        <a href="scabase-fetcher/data/community-support.json" target="_blank" rel="noopener">community-support.json</a> ·
+        <a href="scabase-fetcher/data/popular-packages.json" target="_blank" rel="noopener">popular-packages.json</a></span>
     </div>
   </footer>
 

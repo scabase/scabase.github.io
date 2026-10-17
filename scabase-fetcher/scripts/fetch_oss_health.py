@@ -21,6 +21,7 @@ except ImportError:  # pragma: no cover
 GITHUB_API = "https://api.github.com/repos"
 DEPS_DEV = "https://api.deps.dev/v3alpha/systems"
 NPM_DOWNLOADS = "https://api.npmjs.org/downloads/point/last-month/"
+NPM_REGISTRY = "https://registry.npmjs.org"
 
 # 背后组织识别：基金会 / 厂商 / 一般组织 / 个人
 KNOWN_FOUNDATION_ORGS = {"apache", "cncf", "linuxfoundation", "eclipse", "mozilla",
@@ -223,6 +224,36 @@ def collect_from_npm(full_name):
         return None
 
 
+def npm_repo_slug(full_name):
+    """从 npm registry 元数据推断 GitHub 仓库（owner/repo）。
+
+    很多热门 npm 包没有登记在 repo-map 里，但其 registry 元数据自带仓库地址，
+    据此补齐 GitHub 信号，避免「无仓库信息」被整套判成未知。
+    """
+    if requests is None or not full_name:
+        return None
+    try:
+        resp = requests.get("%s/%s/latest" % (NPM_REGISTRY, full_name.replace("/", "%2F")),
+                            timeout=20)
+        if resp.status_code != 200:
+            return None
+        repo = (resp.json() or {}).get("repository")
+    except Exception:
+        return None
+    url = ""
+    if isinstance(repo, dict):
+        url = repo.get("url") or ""
+    elif isinstance(repo, str):
+        url = repo
+    if "github.com/" not in url:
+        return None
+    tail = url.split("github.com/", 1)[1].strip("/")
+    if tail.endswith(".git"):
+        tail = tail[:-4]
+    parts = [part for part in tail.split("/") if part]
+    return "%s/%s" % (parts[0], parts[1]) if len(parts) >= 2 else None
+
+
 def merge_health(base, extra):
     if not extra:
         return base
@@ -286,14 +317,18 @@ def main():
                 with open(fixture, "r", encoding="utf-8") as handle:
                     health.update(json.load(handle))
         elif not args.no_network:
-            slug = repo_map.get(purl_value) or github_slug(entry["info"], entry["eco"])
-            if slug:
-                merge_health(health, collect_from_github(slug, os.getenv("GITHUB_TOKEN")))
-            merge_health(health, collect_from_deps_dev(entry["eco"], entry["info"]) or {})
+            full_name = None
             if entry["eco"] == "npm":
                 info = entry["info"] or {}
                 full_name = ("@%s/%s" % (info.get("namespace"), info.get("name"))
                              if info.get("namespace") else info.get("name"))
+            slug = repo_map.get(purl_value) or github_slug(entry["info"], entry["eco"])
+            if not slug and full_name:
+                slug = npm_repo_slug(full_name)
+            if slug:
+                merge_health(health, collect_from_github(slug, os.getenv("GITHUB_TOKEN")))
+            merge_health(health, collect_from_deps_dev(entry["eco"], entry["info"]) or {})
+            if full_name:
                 merge_health(health, collect_from_npm(full_name) or {})
         if "last_commit_days" not in health and "latest_release_days" in health:
             health["last_commit_days"] = health["latest_release_days"]

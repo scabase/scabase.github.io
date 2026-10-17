@@ -29,6 +29,7 @@
   /* 报告由 community-health.yml 生成并提交到受版本管理的 data 目录，
    * pages.yml / Dockerfile 再随站点一同发布（reports/ 为 gitignore 产物，不入库）。 */
   var HEALTH_URL = CONFIG.healthUrl || "scabase-fetcher/data/community-support.json";
+  var POPULAR_URL = CONFIG.popularUrl || "scabase-fetcher/data/popular-packages.json";
   var OSV_API = CONFIG.osvApi || "https://api.osv.dev/v1/query";
   var OSV_VULN = CONFIG.osvWeb || "https://osv.dev/vulnerability/";
   var OSV_VULN_API = CONFIG.osvVulnApi || "https://api.osv.dev/v1/vulns/";
@@ -1057,17 +1058,22 @@
   }
 
   /* --------------------------- 示例 chips --------------------------- */
+  /* 点击示例统一「追加」到输入框（不清空已有内容），多行清单同理 */
+  function fillTextarea(id, text) {
+    var ta = $(id);
+    if (!ta) return;
+    ta.value = ta.value.trim() ? ta.value.replace(/\s*$/, "") + "\n" + text : text.trim();
+    ta.focus();
+  }
+
   function renderChips(lines) {
     var wrap = $("exampleChips");
+    if (!wrap) return;
     wrap.textContent = "";
     lines.slice(0, 14).forEach(function (text) {
       var chip = el("button", "chip", text);
       chip.type = "button";
-      chip.addEventListener("click", function () {
-        var ta = $("query");
-        ta.value = ta.value.trim() ? ta.value.replace(/\s*$/, "") + "\n" + text : text;
-        ta.focus();
-      });
+      chip.addEventListener("click", function () { fillTextarea("query", text); });
       wrap.appendChild(chip);
     });
   }
@@ -1092,8 +1098,451 @@
       });
   }
 
+  /* --------------------------- 常用依赖 Top 清单 --------------------------- */
+  /* data/popular-packages.json 由 gen_popular_packages.py 生成：
+   *   { lists: [{ key, label, ecosystem, count, rank_basis,
+   *               items: [{rank,name,version,desc,line,meta}] }] }
+   * 面板支持按生态切换、名称过滤、增量渲染与一键填入；健康度 tab 另有精简 chips。 */
+  var popularState = {
+    data: null, attempted: false, eco: "maven", query: "",
+    filtered: [], shown: 0, chunk: 60
+  };
+
+  function popularList(key) {
+    var lists = (popularState.data && popularState.data.lists) || [];
+    for (var i = 0; i < lists.length; i++) {
+      if (lists[i].ecosystem === key || lists[i].key === key) return lists[i];
+    }
+    return null;
+  }
+
+  function fmtNum(n) {
+    n = Number(n) || 0;
+    if (n >= 1e8) return (n / 1e8).toFixed(1).replace(/\.0$/, "") + " 亿";
+    if (n >= 1e4) return (n / 1e4).toFixed(1).replace(/\.0$/, "") + " 万";
+    return String(n);
+  }
+
+  function popularMetaText(item) {
+    var meta = item.meta || {};
+    if (meta.weekly_downloads) return "周下载 " + fmtNum(meta.weekly_downloads);
+    if (meta.monthly_downloads) return "月下载 " + fmtNum(meta.monthly_downloads);
+    if (meta.dependents) return "被依赖 " + fmtNum(meta.dependents);
+    if (meta.stars) return "★ " + fmtNum(meta.stars);
+    return "";
+  }
+
+  function popularFiltered() {
+    var list = popularList(popularState.eco);
+    var items = (list && list.items) || [];
+    var q = String(popularState.query || "").trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(function (item) {
+      var hay = (String(item.name || "") + " " + String(item.desc || "")).toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+  }
+
+  function popularLines(items, topN) {
+    return (items || [])
+      .filter(function (item) { return item && item.name; })
+      .slice(0, topN)
+      .map(function (item) { return item.line; })
+      .join("\n");
+  }
+
+  function renderPopularTabs() {
+    var wrap = $("popTabs");
+    if (!wrap) return;
+    var lists = (popularState.data && popularState.data.lists) || [];
+    wrap.textContent = "";
+    lists.forEach(function (list) {
+      var btn = el("button", "pop-tab" + (list.ecosystem === popularState.eco ? " active" : ""),
+        (list.label || list.ecosystem) + " · " + (list.count || 0));
+      btn.type = "button";
+      btn.setAttribute("data-eco", list.ecosystem);
+      btn.addEventListener("click", function () {
+        if (popularState.eco === list.ecosystem) return;
+        popularState.eco = list.ecosystem;
+        popularState.query = "";
+        var search = $("popSearch");
+        if (search) search.value = "";
+        renderPopular();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function renderPopularBasis() {
+    var host = $("popBasis");
+    if (!host) return;
+    var list = popularList(popularState.eco);
+    var stamp = (popularState.data && popularState.data.generated_at) || "";
+    host.textContent = (list && list.rank_basis ? list.rank_basis : "") +
+      (stamp ? " · 数据生成于 " + stamp.replace("T", " ").replace("Z", " UTC") : "");
+  }
+
+  function appendPopularRows() {
+    var host = $("popList");
+    if (!host) return;
+    var items = popularState.filtered;
+    var end = Math.min(popularState.shown + popularState.chunk, items.length);
+    var frag = document.createDocumentFragment();
+    for (var i = popularState.shown; i < end; i++) {
+      frag.appendChild(popularRow(items[i], i + 1));
+    }
+    host.appendChild(frag);
+    popularState.shown = end;
+    var more = $("popMore");
+    if (more) more.hidden = popularState.shown >= items.length;
+    var count = $("popCount");
+    if (count) count.textContent = "已显示 " + popularState.shown + " / " + items.length + " 条";
+  }
+
+  function popularRow(item, rank) {
+    var row = el("div", "pop-row");
+    var no = el("span", "pop-rank", String(rank));
+    var main = el("div", "pop-main");
+    var name = el("div", "pop-name");
+    name.appendChild(el("span", "pop-pkg", item.name));
+    if (item.version) name.appendChild(el("span", "pop-ver", "@" + item.version));
+    main.appendChild(name);
+    if (item.desc) main.appendChild(el("div", "pop-desc", item.desc));
+    var meta = popularMetaText(item);
+    if (meta) main.appendChild(el("div", "pop-meta", meta));
+    var add = el("button", "pop-add", "填入");
+    add.type = "button";
+    add.title = "把该行追加到查询框";
+    add.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      fillTextarea("query", item.line);
+    });
+    row.appendChild(no);
+    row.appendChild(main);
+    row.appendChild(add);
+    row.title = "点击填入：" + item.line;
+    row.addEventListener("click", function () { fillTextarea("query", item.line); });
+    return row;
+  }
+
+  function renderPopular() {
+    renderPopularTabs();
+    renderPopularBasis();
+    popularState.filtered = popularFiltered();
+    popularState.shown = 0;
+    var host = $("popList");
+    if (host) host.textContent = "";
+    appendPopularRows();
+  }
+
+  function initPopularControls() {
+    var search = $("popSearch");
+    if (search) search.addEventListener("input", function () {
+      popularState.query = this.value;
+      renderPopular();
+    });
+    var fill = $("popFill");
+    if (fill) fill.addEventListener("click", function () {
+      var sel = $("popFillN");
+      var n = sel ? parseInt(sel.value, 10) : 50;
+      var lines = popularLines(popularState.filtered, n || popularState.filtered.length);
+      if (lines) fillTextarea("query", lines);
+    });
+    var copy = $("popCopy");
+    if (copy) copy.addEventListener("click", function () {
+      var sel = $("popFillN");
+      var n = sel ? parseInt(sel.value, 10) : 50;
+      var lines = popularLines(popularState.filtered, n || popularState.filtered.length);
+      copyText(lines, copy);
+    });
+    var more = $("popMore");
+    if (more) more.addEventListener("click", function () { appendPopularRows(); });
+    var list = $("popList");
+    if (list) list.addEventListener("scroll", function () {
+      if (this.scrollTop + this.clientHeight >= this.scrollHeight - 120 &&
+          popularState.shown < popularState.filtered.length) {
+        appendPopularRows();
+      }
+    });
+  }
+
+  /* 健康度 tab 的精简 chips：每生态 Top 20 + 四生态合并 */
+  function renderHealthChips() {
+    var wrap = $("healthExampleChips");
+    if (!wrap) return;
+    var lists = (popularState.data && popularState.data.lists) || [];
+    wrap.textContent = "";
+    lists.forEach(function (list) {
+      var chip = el("button", "chip chip-list",
+        (list.ecosystem === "maven" ? "Maven" : list.ecosystem.toUpperCase()) + " Top 20");
+      chip.type = "button";
+      chip.title = (list.rank_basis || "") + " · 共 " + (list.count || 0) + " 项";
+      chip.addEventListener("click", function () {
+        fillTextarea("healthQuery", popularLines(list.items, 20));
+      });
+      wrap.appendChild(chip);
+    });
+    var chipAll = el("button", "chip chip-list", "四生态各 Top 20");
+    chipAll.type = "button";
+    chipAll.title = "四个生态各取前 20 条合并填入";
+    chipAll.addEventListener("click", function () {
+      var all = lists.map(function (list) { return popularLines(list.items, 20); })
+        .filter(Boolean).join("\n");
+      fillTextarea("healthQuery", all);
+    });
+    wrap.appendChild(chipAll);
+  }
+
+  function loadPopular() {
+    if (popularState.attempted) return;
+    popularState.attempted = true;
+    fetch(POPULAR_URL, { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (json) {
+        popularState.data = json;
+        var panel = $("popularPanel");
+        if (panel) panel.hidden = false;
+        var wrapH = $("healthExamples");
+        if (wrapH) wrapH.hidden = false;
+        renderPopular();
+        renderHealthChips();
+      })
+      .catch(function () { popularState.data = null; });
+  }
+
   /* --------------------------- 开源软件支持力度与活跃度 --------------------------- */
-  var healthState = { data: null, attempted: false, sort: "grade", grade: "ALL", query: "" };
+  var healthState = {
+    data: null, attempted: false, sort: "grade", grade: "ALL", query: "",
+    queryMode: false, matched: [], missing: [], pendingQuery: false
+  };
+
+  /* pkg: eco/namespace/name@version -> { type, ns, name, version } */
+  function parseHealthPurl(value) {
+    var body = String(value || "").replace(/^pkg:/i, "");
+    var at = body.lastIndexOf("@");
+    var version = at > 0 ? body.slice(at + 1) : "";
+    var path = at > 0 ? body.slice(0, at) : body;
+    var slash = path.indexOf("/");
+    var type = slash > 0 ? path.slice(0, slash) : path;
+    var rest = slash > 0 ? path.slice(slash + 1) : "";
+    var segs = rest.split("/");
+    var name = segs.pop() || "";
+    var ns = segs.join("/");
+    return { type: String(type).toLowerCase(), ns: ns, name: name, version: version };
+  }
+
+  /* 同一个组件在输入里可能有多种写法，全部登记，保证「怎么写都能查到」 */
+  function healthNameKeys(info) {
+    var out = [];
+    function push(x) {
+      x = String(x || "").toLowerCase();
+      if (x && out.indexOf(x) === -1) out.push(x);
+    }
+    if (info.type === "maven") {
+      if (info.ns) push(info.ns + ":" + info.name);
+      push(info.name);
+    } else if (info.ns) {
+      if (info.type === "npm") {
+        push("@" + info.ns + "/" + info.name);
+        push(info.ns + "/" + info.name);   // 无 @ 写法（purl 内 scope 不带 @）
+      } else if (info.type === "golang" || info.type === "go") {
+        push(info.ns + "/" + info.name);
+        push(info.name);
+      } else {
+        push(info.name);
+      }
+    } else {
+      push(info.name);
+    }
+    return out;
+  }
+
+  function buildHealthIndex(report) {
+    var exact = {}, byName = {};
+    (report.components || []).forEach(function (c) {
+      var eco = canonEco(c.eco || "").toLowerCase();
+      var info = parseHealthPurl(c.purl);
+      healthNameKeys(info).forEach(function (nameKey) {
+        var key = eco + "|" + nameKey;
+        (byName[key] = byName[key] || []).push(c);
+        if (info.version) {
+          var vk = key + "|" + info.version.toLowerCase();
+          (exact[vk] = exact[vk] || []).push(c);
+        }
+      });
+    });
+    return { exact: exact, byName: byName };
+  }
+
+  function matchHealth(entry, index) {
+    var eco = canonEco(entry.ecosystem || "").toLowerCase();
+    var name = String(entry.name || "").toLowerCase();
+    var version = entry.version ? String(entry.version).toLowerCase() : "";
+    if (version) {
+      var hits = index.exact[eco + "|" + name + "|" + version];
+      if (hits && hits.length) return { component: hits[0], exactVersion: true, candidates: hits.length };
+    }
+    var list = index.byName[eco + "|" + name];
+    if (list && list.length) {
+      list = list.slice().sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
+      return { component: list[0], exactVersion: false, candidates: list.length };
+    }
+    return null;
+  }
+
+  function healthHay(component) {
+    return (String(component.display || "") + " " + String(component.purl || "") + " " +
+      String(component.eco || "")).toLowerCase();
+  }
+
+  function healthEntryLine(entry) {
+    if (entry.version) return entry.ecosystem + "|" + entry.name + "|" + entry.version;
+    return entry.ecosystem + "|" + entry.name;
+  }
+
+  function componentVersion(component) {
+    return parseHealthPurl(component.purl).version;
+  }
+
+  function copyText(text, onDone) {
+    function fallback() {
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        onDone();
+      } catch (e) { onDone(new Error("copy-failed")); }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onDone, fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  function renderHealthMatchedCard(item) {
+    var card = renderHealthCard(item.component);
+    var ver = componentVersion(item.component);
+    var notes = [];
+    if (item.entry && item.entry.version && ver && ver !== String(item.entry.version)) {
+      notes.push("查询版本 " + item.entry.version + "，报告实际评估版本 " + ver);
+    } else if (item.entry && !item.entry.version) {
+      notes.push("未指定版本，按组件名匹配（报告版本 " + (ver || "未知") + "）");
+    }
+    if (item.candidates > 1) {
+      notes.push("同一组件共 " + item.candidates + " 个已采集版本，此处取评分最高者");
+    }
+    if (item.duplicates && item.duplicates.length) {
+      notes.push("清单中另有 " + item.duplicates.length + " 行指向同一组件");
+    }
+    if (!notes.length) return card;
+    var body = card.querySelector(".health-body");
+    if (!body) return card;
+    var note = el("p", "health-querynote", notes.join("；"));
+    body.insertBefore(note, body.firstChild);
+    return card;
+  }
+
+  function renderHealthMissingCard(item) {
+    var card = el("article", "card health-card health-miss");
+    var head = el("div", "card-head");
+    var pkg = el("div", "pkg");
+    pkg.appendChild(el("span", "eco", item.entry.ecosystem || "—"));
+    pkg.appendChild(el("span", "name", item.entry.name || "—"));
+    head.appendChild(pkg);
+    head.appendChild(el("div", "badges")).appendChild(el("span", "grade grade-na", "未收录"));
+    card.appendChild(head);
+
+    var body = el("div", "health-body");
+    body.appendChild(el("p", "health-missing",
+      (item.reason || "健康度数据未收录该组件") + "：" + healthEntryLine(item.entry)));
+    body.appendChild(el("p", "advice",
+      "把该条加进 scabase-fetcher/data/pkg_list.txt（或用 gen_popular_packages.py 生成的 " +
+      "pkg_list_popular.txt），执行 community-health 工作流采集后即可在此查询。"));
+    card.appendChild(body);
+    return card;
+  }
+
+  function runHealthQuery() {
+    var ta = $("healthQuery");
+    if (!ta) return;
+
+    if (!ta.value.trim()) {
+      healthState.queryMode = false;
+      healthState.matched = [];
+      healthState.missing = [];
+      healthState.pendingQuery = false;
+      var copyBtn = $("healthCopyMissing");
+      if (copyBtn) copyBtn.hidden = true;
+      if (!healthState.data) return;
+      healthStatus("");
+      renderHealth();
+      return;
+    }
+
+    if (!healthState.data) {
+      // 数据尚未到位（切 tab 时会触发加载）：先标记，加载完成后自动补跑；
+      // 若此前加载失败过，这里重置 attempted 以便重试一次。
+      healthState.pendingQuery = true;
+      if (healthState.attempted) healthState.attempted = false;
+      healthStatus("正在加载健康度数据，加载完成后自动查询…", false, true);
+      loadHealth();
+      return;
+    }
+
+    var parsed = parseInput(ta.value);
+    if (!parsed.entries.length) {
+      healthStatus(parsed.errors.length ? parsed.errors.join("；") : "没有可查询的条目。", true);
+      return;
+    }
+
+    var index = buildHealthIndex(healthState.data);
+    var matched = [], missing = [], taken = {};
+    parsed.entries.forEach(function (entry) {
+      if (entry.kind === "cve") {
+        missing.push({
+          entry: { ecosystem: "?", name: entry.cve, version: null },
+          reason: "CVE 编号用于漏洞查询，此处需填写组件"
+        });
+        return;
+      }
+      var hit = matchHealth(entry, index);
+      if (!hit) { missing.push({ entry: entry, reason: "健康度数据未收录" }); return; }
+      var key = hit.component.purl;
+      if (taken[key]) { taken[key].duplicates.push(entry); return; }
+      taken[key] = {
+        component: hit.component, entry: entry,
+        exactVersion: hit.exactVersion, candidates: hit.candidates || 1, duplicates: []
+      };
+      matched.push(taken[key]);
+    });
+
+    healthState.queryMode = true;
+    healthState.matched = matched;
+    healthState.missing = missing;
+    healthState.pendingQuery = false;
+    renderHealth();
+
+    var msg = "输入 " + parsed.entries.length + " 条 · 命中 " + matched.length +
+      " 个组件 · 未收录 " + missing.length + " 条";
+    if (parsed.errors.length) msg += " · 解析失败 " + parsed.errors.length + " 行：" + parsed.errors.join("；");
+    healthStatus(msg, !!parsed.errors.length);
+    var btn = $("healthCopyMissing");
+    if (btn) btn.hidden = !missing.length;
+  }
+
+  function copyHealthMissing() {
+    var lines = healthState.missing.map(function (item) { return healthEntryLine(item.entry); });
+    if (!lines.length) return;
+    copyText(lines.join("\n"), function (err) {
+      healthStatus(err ? "复制失败，请手动选择复制。" : "已复制 " + lines.length + " 条未收录条目到剪贴板。", !!err);
+    });
+  }
 
   function orgLabel(b) {
     if (!b) return "未知";
@@ -1143,6 +1592,8 @@
         healthState.data = json;
         healthStatus("");
         renderHealth();
+        // 数据到位后补跑此前被阻塞的查询
+        if (healthState.pendingQuery) runHealthQuery();
       })
       .catch(function () {
         healthStatus("未能加载社区健康报告（" + HEALTH_URL + "）。请先由 community-health.yml 工作流或 " +
@@ -1243,41 +1694,60 @@
     return card;
   }
 
+  function sortHealth(list) {
+    list.sort(function (a, b) {
+      var ca = a.component, cb = b.component;
+      if (healthState.sort === "score") return (cb.score || 0) - (ca.score || 0);
+      if (healthState.sort === "name") return String(ca.display).localeCompare(String(cb.display));
+      var rank = { A: 0, B: 1, C: 2, D: 3 };
+      var ra = rank[ca.grade] != null ? rank[ca.grade] : 9;
+      var rb = rank[cb.grade] != null ? rank[cb.grade] : 9;
+      if (ra !== rb) return ra - rb;
+      return (cb.score || 0) - (ca.score || 0);
+    });
+    return list;
+  }
+
   function renderHealth() {
     var report = healthState.data;
     if (!report) return;
     renderHealthKpis(report);
-    var list = (report.components || []).slice();
+
+    var list, missing;
+    if (healthState.queryMode) {
+      list = healthState.matched.slice();
+      missing = healthState.missing.slice();
+    } else {
+      list = (report.components || []).map(function (c) {
+        return { component: c, entry: null, exactVersion: true, candidates: 1, duplicates: [] };
+      });
+      missing = [];
+    }
+
     if (healthState.grade !== "ALL") {
-      list = list.filter(function (c) { return c.grade === healthState.grade; });
+      list = list.filter(function (m) { return m.component.grade === healthState.grade; });
     }
     var q = String(healthState.query || "").trim().toLowerCase();
     if (q) {
-      list = list.filter(function (c) {
-        var hay = (String(c.display || "") + " " + String(c.purl || "") + " " +
-          String(c.eco || "")).toLowerCase();
-        return hay.indexOf(q) !== -1;
+      list = list.filter(function (m) { return healthHay(m.component).indexOf(q) !== -1; });
+      missing = missing.filter(function (m) {
+        return healthEntryLine(m.entry).toLowerCase().indexOf(q) !== -1 ||
+          String(m.reason || "").toLowerCase().indexOf(q) !== -1;
       });
     }
-    list.sort(function (a, b) {
-      if (healthState.sort === "score") return (b.score || 0) - (a.score || 0);
-      if (healthState.sort === "name") return String(a.display).localeCompare(String(b.display));
-      var rank = { A: 0, B: 1, C: 2, D: 3 };
-      var ra = rank[a.grade] != null ? rank[a.grade] : 9;
-      var rb = rank[b.grade] != null ? rank[b.grade] : 9;
-      if (ra !== rb) return ra - rb;
-      return (b.score || 0) - (a.score || 0);
-    });
+    sortHealth(list);
+
     var host = $("healthResults");
     host.textContent = "";
-    if (!list.length) {
+    if (!list.length && !missing.length) {
       var all = (report.components || []).length;
       host.appendChild(el("div", "empty", all
-        ? "当前筛选条件下没有组件（共 " + all + " 个），试试清空搜索或切回「全部等级」。"
+        ? "当前筛选条件下没有组件（已采集 " + all + " 个），试试清空搜索或切回「全部等级」。"
         : "报告中没有组件数据。"));
       return;
     }
-    list.forEach(function (c) { host.appendChild(renderHealthCard(c)); });
+    list.forEach(function (item) { host.appendChild(renderHealthMatchedCard(item)); });
+    missing.forEach(function (item) { host.appendChild(renderHealthMissingCard(item)); });
   }
 
   function initHealthControls() {
@@ -1294,6 +1764,31 @@
       healthState.data = null;
       loadHealth();
     });
+
+    var runBtn = $("healthRun");
+    if (runBtn) runBtn.addEventListener("click", runHealthQuery);
+    var ta = $("healthQuery");
+    if (ta) {
+      ta.addEventListener("keydown", function (ev) {
+        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") runHealthQuery();
+      });
+    }
+    var clearBtn = $("healthClear");
+    if (clearBtn) clearBtn.addEventListener("click", function () {
+      if (ta) ta.value = "";
+      healthState.queryMode = false;
+      healthState.matched = [];
+      healthState.missing = [];
+      healthState.pendingQuery = false;
+      healthState.query = "";
+      if ($("healthSearch")) $("healthSearch").value = "";
+      var btn = $("healthCopyMissing");
+      if (btn) btn.hidden = true;
+      healthStatus("");
+      renderHealth();
+    });
+    var copyBtn = $("healthCopyMissing");
+    if (copyBtn) copyBtn.addEventListener("click", copyHealthMissing);
   }
 
   var tabsBound = false;
@@ -1378,6 +1873,7 @@
     try { initTabs(); } catch (e) {}
     try { initToolbar(); } catch (e) {}
     try { initHealthControls(); } catch (e) {}
+    try { initPopularControls(); } catch (e) {}
 
     if (OFFLINE) {
       var wrap = $("forceLiveWrap");
@@ -1409,6 +1905,7 @@
     });
 
     loadChips();
+    loadPopular();
 
     loadLocal().then(function (res) {
       if (res) {
@@ -1442,7 +1939,11 @@
       recordItems: recordItems,
       collectCves: collectCves,
       sortCves: sortCves,
-      cveGroups: cveGroups
+      cveGroups: cveGroups,
+      parseHealthPurl: parseHealthPurl,
+      healthNameKeys: healthNameKeys,
+      buildHealthIndex: buildHealthIndex,
+      matchHealth: matchHealth
     };
   }
 

@@ -14,6 +14,8 @@ NVD_WEB="${SCABASE_NVD_WEB:-https://nvd.nist.gov/vuln/detail/}"
 FACTS_DIR="${SCABASE_FACTS_DIR:-/scabase-fetcher/data/facts}"
 FRESHNESS_SLA="${SCABASE_FRESHNESS_SLA_DAYS:-14}"
 GROUP_ASSETS="${SCABASE_GROUP_ASSETS:-}"
+HEALTH_URL="${SCABASE_HEALTH_URL:-scabase-fetcher/data/community-support.json}"
+POPULAR_URL="${SCABASE_POPULAR_URL:-scabase-fetcher/data/popular-packages.json}"
 
 # 去掉可能破坏 JS 字面量的引号与反斜杠
 sanitize() { printf '%s' "$1" | tr -d "\"'\\"; }
@@ -26,6 +28,8 @@ NVD_WEB=$(sanitize "$NVD_WEB")
 FACTS_DIR=$(sanitize "$FACTS_DIR")
 FRESHNESS_SLA=$(sanitize "$FRESHNESS_SLA")
 GROUP_ASSETS=$(sanitize "$GROUP_ASSETS")
+HEALTH_URL=$(sanitize "$HEALTH_URL")
+POPULAR_URL=$(sanitize "$POPULAR_URL")
 
 mkdir -p "$CONF_DIR"
 cat > "$CONF_FILE" <<EOF
@@ -38,7 +42,9 @@ window.SCABASE_CONFIG = {
   nvdWeb: "$NVD_WEB",
   factsDir: "$FACTS_DIR",
   freshnessSlaDays: "$FRESHNESS_SLA",
-  groupAssets: "$GROUP_ASSETS"
+  groupAssets: "$GROUP_ASSETS",
+  healthUrl: "$HEALTH_URL",
+  popularUrl: "$POPULAR_URL"
 };
 EOF
 

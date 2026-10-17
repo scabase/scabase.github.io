@@ -133,7 +133,10 @@ def cmd_gate(args):
 
     if len(results) == 1:
         markdown = report_mod.render_gate_markdown(results[0], conf_report, source)
-        payload = {"source": source, "confidence": conf_report, "result": results[0]}
+        # 同时给 "result"（单组件便捷读取）与 "results"（机器消费的统一形态），
+        # 避免 depinfo 回传等下游在单组件时拿不到列表
+        payload = {"source": source, "confidence": conf_report,
+                   "result": results[0], "results": results}
     else:
         markdown = report_mod.render_multi_markdown(results, conf_report, source)
         payload = {"source": source, "confidence": conf_report, "results": results}
@@ -333,7 +336,12 @@ def cmd_depinfo(args):
     elif args.results:
         with open(args.results, "r", encoding="utf-8") as handle:
             raw = json.load(handle)
-        items = raw.get("results") or raw.get("components") or raw.get("items") or []
+        # 兼容三种结果形态：批量（results 列表）、单组件（result 对象）、
+        # 以及巡检/清点输出（items 列表）
+        single = raw.get("result")
+        items = (raw.get("results")
+                 or ([single] if isinstance(single, dict) else [])
+                 or raw.get("components") or raw.get("items") or [])
         payload = depinfo_mod.result_payload(items, mask=not args.no_mask,
                                           sync_token=args.sync_token)
         if args.push:

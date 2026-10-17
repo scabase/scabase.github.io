@@ -346,8 +346,56 @@ python scabase-fetcher/scripts/build_facts.py \
 | deps.dev | 下游依赖项目数、最新发布时间 |
 | npm registry | 月下载量 |
 
-- 组件清单格式 `ecosystem|package|version`，见 `scabase-fetcher/data/pkg_list.txt`。
-- `github_slug()` 只能从 go module 路径推断仓库，**其余生态必须在 `repo-map.json` 登记**，
+- 组件清单格式 `ecosystem|package|version`，见 `scabase-fetcher/data/pkg_list.txt`；
+  `community-health.yml` 还会额外采集 `pkg_list_popular.txt`（常用依赖四生态各 Top 100），
+  两份结果合并写入 `health.json`。
+- `github_slug()` 只能从 go module 路径推断仓库；**npm 包会从 registry 元数据的
+  `repository` 字段自动推断**，其余生态（主要是 Maven）仍建议在 `repo-map.json` 登记，
   否则社区治理类信号只能依赖 deps.dev 与 registry。
 - 任一来源失败只降级，不中断整批；未配置 `GITHUB_TOKEN` 时仍可运行（限流更严格）。
 - 产物（`health.json` + 社区支持力度报告）会上传为 workflow artifact，并写入 Step Summary。
+
+## 16. 常用依赖 Top 清单（站点示例）
+
+`scabase-fetcher/scripts/gen_popular_packages.py` 维护 **Maven / npm / PyPI / Go 四个生态
+各 Top 1000** 的高频依赖，版本号取刷新时刻的最新稳定发布版本，供站点「常用依赖 Top 清单」
+面板浏览、快速填入示例与健康度采集复用。
+
+各生态排序依据（`rank_basis` 字段会写入 JSON，前端「排序依据」可查）：
+
+| 生态 | 数据源 | 排序信号 |
+| --- | --- | --- |
+| npm | npm registry 搜索接口（`/-/v1/search`，392 个关键词采样合并） | 近一周下载量 |
+| PyPI | `top-pypi-packages`（hugovk.github.io，PyPI 官方下载量近 30 天榜） | 近 30 天下载量 |
+| Maven | deps.dev `GetRequirements` 依赖图一层展开 + 人工高频构件种子 | 公开依赖项目数（Maven Central 不公开构件级下载量） |
+| Go | GitHub 搜索 `language:go` 按 Star 排序 + deps.dev `GetProjectPackageVersions` 映射 | Star 数（辅以生态核心模块种子） |
+
+```bash
+# 联网刷新四个生态（默认每生态 1000 条）
+python scabase-fetcher/scripts/gen_popular_packages.py --refresh
+
+# 只补某一个生态（其余沿用已有 JSON，适合 npm 数据刷新失败后重试）
+python scabase-fetcher/scripts/gen_popular_packages.py --refresh --only npm --top 1000
+
+# 离线：直接用已有 JSON 重新生成 pkg_list（CI 内就用这个姿势）
+python scabase-fetcher/scripts/gen_popular_packages.py \
+  --json scabase-fetcher/data/popular-packages.json \
+  --txt scabase-fetcher/data/pkg_list_popular.txt
+```
+
+| 产物 | 用途 |
+| --- | --- |
+| `data/popular-packages.json` | 前端「常用依赖 Top 清单」四个生态 tab 的数据源（每生态 1000 项，含版本/描述/热度元数据） |
+| `data/pkg_list_popular.txt` | `pkg_list` 格式，每生态取前 `--txt-top`（默认 100）条共 400 行，供 `community-health.yml` 第二批健康度采集 |
+
+- 版本比较自研 `version_key()` / `pick_latest_stable()`，覆盖 Maven（`7.1.0-M2`）、
+  PyPI（`1.0.0.post1`）、Go（`v1.11.1`、`+incompatible`、伪版本）三种形态；
+  无法解析的版本退化为字符串排序，预发布版不作为首选。
+- `--txt-top` 是采集量与数据完整度的平衡：全量 4000 条会显著拖长
+  `community-health.yml` 的 GitHub API 配额消耗，CI 只取每生态前 100。
+
+前端消费方式：
+
+- **漏洞查询**：清单支持按名称过滤、`Top N` 一键填入（10/50/100/1000），填入为追加语义；
+- **支持力度与活跃度**：健康度是组件级评估，允许不带版本；未写版本时按同名组件匹配，
+  并在卡片上标注报告实际采用的版本；未被 `pkg_list*.txt` 收录的组件单独列出，可一键复制回清单。
