@@ -93,7 +93,7 @@ jobs:
 
       - name: Build and push scabase (nginx:alpine)
         id: build-and-push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
@@ -139,7 +139,7 @@ jobs:
         run: echo "DATE_YYYYMMDD=$(date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Build linux/amd64 tar
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
@@ -151,7 +151,7 @@ jobs:
           tags: scabase:latest
 
       - name: Build linux/arm64 tar
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
