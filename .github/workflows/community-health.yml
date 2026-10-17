@@ -39,7 +39,7 @@ jobs:
     env:
       POPULAR_LIST: ${{ github.event.inputs.popular-pkg-list || 'scabase-fetcher/data/pkg_list_popular.txt' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
