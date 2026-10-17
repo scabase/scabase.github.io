@@ -1,0 +1,60 @@
+# ScaBase
+
+> ScaBase 是开源软件成分分析（SCA）漏洞与社区支持查询站，覆盖 Maven / npm / PyPI / Go 四个生态，
+> 漏洞数据源自 OSV 与 NVD，结果以 CVE 编号为主标识聚合。本站为纯静态站点，
+> 全部数据以 JSON / 文本文件公开，可通过 WebFetch 直接获取，无需 API Key、无跨域限制。
+
+站点：https://scabase.roweb.cn
+源码：https://github.com/scabase/scabase.github.io
+
+## 给 LLM 的取数步骤
+
+1. 先获取数据索引：https://scabase.roweb.cn/scabase-fetcher/data/index.json
+   （含每个数据集的 URL、字节数、sha256、schema 与内嵌生成时间，可据此决定拉取策略）
+2. 按需拉取具体数据集。体积参考：vulns.json 为数 MB 级，popular-packages.json 约 0.7 MB，
+   pkg_list_popular.txt 仅约 13 KB——上下文有限时优先小文件。
+3. 查某个组件是否有漏洞：以 `ecosystem|package|version` 为 key 直接查 vulns.json，
+   例：`npm|lodash|4.17.20`、`maven|com.alibaba:fastjson|1.2.24`。
+4. 查某个 CVE 影响哪些组件：遍历 vulns.json 的 key，在 enriched[].osv.id / aliases 中匹配 CVE 编号。
+
+## 数据集
+
+- [数据索引 index.json](https://scabase.roweb.cn/scabase-fetcher/data/index.json):
+  机器可读的数据集目录（URL / bytes / sha256 / schema / generated_at），由构建时生成，始终最新。
+
+- [漏洞库 vulns.json](https://scabase.roweb.cn/scabase-fetcher/data/vulns.json):
+  漏洞主库。结构为对象，key 为 `ecosystem|package|version`（ecosystem ∈ maven/npm/pypi/go；
+  Maven 的 package 为 `groupId:artifactId`），value 为
+  `{ "osv_raw": { "vulns": [OSV 原始记录] }, "enriched": [ { "osv": OSV 记录, "nvd": NVD CVE 记录 } ] }`。
+  每日由 GitHub Action 采集更新。key 查找示例：`npm|lodash|4.17.20`、`maven|com.alibaba:fastjson|1.2.24`。
+
+- [常用依赖 Top 清单 popular-packages.json](https://scabase.roweb.cn/scabase-fetcher/data/popular-packages.json):
+  `{ generated_at, source, notes, lists: [ { key, label, ecosystem, count, rank_basis, items } ] }`，
+  四个生态（maven/npm/pypi/go）各 1000 条。item 为
+  `{ rank, name, version, desc, line, meta }`，其中 `line` 即 `ecosystem|package|version` 查询行；
+  `meta` 按生态不同：npm 为 `weekly_downloads`、pypi 为 `monthly_downloads`、
+  maven 为 `dependents`（deps.dev 公开依赖项目数）、go 为 `stars`。
+  `rank_basis` 字段说明该生态的排序依据。
+
+- [社区支持力度报告 community-support.json](https://scabase.roweb.cn/scabase-fetcher/data/community-support.json):
+  `{ generated_at, component_count, grade_counts, missing_signal_counts, components: [...] }`。
+  component 为 `{ purl, display, eco, score, grade(A/B/C/D), level, archived,
+  last_commit_days, releases_12m, maintainers, contributors, org_backing,
+  monthly_downloads, missing, advice }`。评分遵循「未知即风险」，archived 直接判 D。
+
+- [常用依赖采集清单 pkg_list_popular.txt](https://scabase.roweb.cn/scabase-fetcher/data/pkg_list_popular.txt):
+  每行 `ecosystem|package|version`，四生态各前 100 条共约 400 行，`#` 为注释。
+  体积小，适合作为 LLM 首批拉取的热门组件清单。
+
+- [基础组件清单 pkg_list.txt](https://scabase.roweb.cn/scabase-fetcher/data/pkg_list.txt):
+  站点默认展示的组件清单，格式同上。
+
+- [仓库映射 repo-map.json](https://scabase.roweb.cn/scabase-fetcher/data/repo-map.json):
+  purl → GitHub `owner/repo` 映射（如 `"pkg:npm/lodash@4.17.20": "lodash/lodash"`），
+  用于把组件关联到源码仓库。
+
+## 页面功能（人工使用）
+
+- 漏洞查询：粘贴清单（每行一条）批量查询；支持 CVE 编号反查、按 CVE 过滤、按组件/CVE 两种视图。
+- 支持力度与活跃度：查询组件的社区健康度评分卡（A/B/C/D）。
+- 常用依赖 Top 清单：按生态浏览、过滤、一键填入。

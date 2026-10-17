@@ -48,29 +48,6 @@
         <span id="dataStamp" class="stamp" aria-live="polite"></span>
       </div>
 
-      <details class="help">
-        <summary>支持的输入格式</summary>
-        <div class="help-body">
-          <ul>
-            <li><b>pkg_list 格式（推荐）</b>：<code>ecosystem|package|version</code>，与
-              <code>data/pkg_list.txt</code> 一致。Maven 的 package 为 <code>groupId:artifactId</code>。
-              例：<code>maven|com.alibaba:fastjson|1.2.24</code>、<code>npm|lodash|4.17.20</code>、
-              <code>pypi|requests|2.20.0</code>、<code>go|github.com/gin-gonic/gin|1.6.0</code>。</li>
-            <li><b>GAV（Maven 坐标）</b>：<code>groupId:artifactId:version</code>，例
-              <code>org.springframework.boot:spring-boot-starter-web:2.7.0</code>；省略版本为
-              <code>groupId:artifactId</code>。</li>
-            <li><b>简写</b>：<code>ecosystem:package@version</code>，例 <code>PyPI:requests@2.20.0</code>。</li>
-            <li><b>CVE 编号</b>：直接输入 <code>CVE-2021-44228</code>，可反查本地漏洞库中受该 CVE 影响的组件。</li>
-            <li>以 <code>#</code> 开头的行视为注释，空行自动忽略。支持生态：
-              <code>maven / npm / pypi / go</code>（并自动映射为 OSV 生态名）。</li>
-          </ul>
-          <p class="help-note">
-            结果默认以 <strong>CVE 编号</strong> 为主标识展示（GHSA 等作为次要别名），
-            一条记录关联多个 CVE 时会全部列出；可用工具栏按 CVE 过滤、切换「按 CVE」聚合视图。
-          </p>
-        </div>
-      </details>
-
       <div class="examples">
         <span class="examples-label">快速填入：</span>
         <div id="exampleChips" class="chips"></div>
@@ -79,7 +56,7 @@
       <details class="popular-panel" id="popularPanel" hidden>
         <summary class="popular-summary">
           <span class="popular-title">常用依赖 Top 清单</span>
-          <span class="popular-hint">按生态浏览与过滤，点击任意一行即填入查询框</span>
+          <span class="popular-hint">按生态浏览与过滤，点击任意一行即填入上方查询框</span>
         </summary>
         <div class="popular-body">
           <div class="pop-tabs" id="popTabs" role="tablist" aria-label="生态切换"></div>
@@ -102,6 +79,29 @@
           <div class="pop-more">
             <button id="popMore" class="ghost tb-btn" type="button" hidden>显示更多</button>
           </div>
+        </div>
+      </details>
+
+      <details class="help">
+        <summary>支持的输入格式</summary>
+        <div class="help-body">
+          <ul>
+            <li><b>pkg_list 格式（推荐）</b>：<code>ecosystem|package|version</code>，与
+              <code>data/pkg_list.txt</code> 一致。Maven 的 package 为 <code>groupId:artifactId</code>。
+              例：<code>maven|com.alibaba:fastjson|1.2.24</code>、<code>npm|lodash|4.17.20</code>、
+              <code>pypi|requests|2.20.0</code>、<code>go|github.com/gin-gonic/gin|1.6.0</code>。</li>
+            <li><b>GAV（Maven 坐标）</b>：<code>groupId:artifactId:version</code>，例
+              <code>org.springframework.boot:spring-boot-starter-web:2.7.0</code>；省略版本为
+              <code>groupId:artifactId</code>。</li>
+            <li><b>简写</b>：<code>ecosystem:package@version</code>，例 <code>PyPI:requests@2.20.0</code>。</li>
+            <li><b>CVE 编号</b>：直接输入 <code>CVE-2021-44228</code>，可反查本地漏洞库中受该 CVE 影响的组件。</li>
+            <li>以 <code>#</code> 开头的行视为注释，空行自动忽略。支持生态：
+              <code>maven / npm / pypi / go</code>（并自动映射为 OSV 生态名）。</li>
+          </ul>
+          <p class="help-note">
+            结果默认以 <strong>CVE 编号</strong> 为主标识展示（GHSA 等作为次要别名），
+            一条记录关联多个 CVE 时会全部列出；可用工具栏按 CVE 过滤、切换「按 CVE」聚合视图。
+          </p>
         </div>
       </details>
     </section>
@@ -128,17 +128,7 @@
 
   <div id="pane-health" class="pane" role="tabpanel" aria-labelledby="tab-health" hidden>
     <section class="panel">
-      <p class="field-label">开源软件支持力度与活跃度</p>
-      <p class="health-intro">
-        汇总各开源组件的<strong>社区支持力度与活跃度</strong>（维护健康度）：由
-        <code>community_report.py</code> 基于 GitHub / deps.dev / 各生态 registry 信号评分，
-        按 <strong>A/B/C/D</strong> 四级呈现。评分遵循「未知即风险」——缺失信号按保守扣分，
-        已归档 / 停止维护直接判 <span class="grade grade-D">D · 弱</span>。
-      </p>
-
-      <div id="healthKpis" class="kpis"></div>
-
-      <label class="field-label field-label-gap" for="healthQuery">
+      <label class="field-label" for="healthQuery">
         按组件查询（每行一条，格式与漏洞查询一致；留空则展示全部已收录组件）
       </label>
       <textarea id="healthQuery" spellcheck="false" rows="5"
@@ -150,6 +140,21 @@
         <button id="healthCopyMissing" class="ghost tb-btn" type="button" hidden>复制未收录清单</button>
         <span id="healthSummary" class="stamp" aria-live="polite"></span>
       </div>
+
+      <div class="examples" id="healthExamples" hidden>
+        <span class="examples-label">快速填入：</span>
+        <div id="healthExampleChips" class="chips"></div>
+      </div>
+
+      <p class="field-label field-label-gap">开源软件支持力度与活跃度</p>
+      <p class="health-intro">
+        汇总各开源组件的<strong>社区支持力度与活跃度</strong>（维护健康度）：由
+        <code>community_report.py</code> 基于 GitHub / deps.dev / 各生态 registry 信号评分，
+        按 <strong>A/B/C/D</strong> 四级呈现。评分遵循「未知即风险」——缺失信号按保守扣分，
+        已归档 / 停止维护直接判 <span class="grade grade-D">D · 弱</span>。
+      </p>
+
+      <div id="healthKpis" class="kpis"></div>
 
       <details class="help">
         <summary>查询方式与数据说明</summary>
@@ -167,11 +172,6 @@
           </ul>
         </div>
       </details>
-
-      <div class="examples" id="healthExamples" hidden>
-        <span class="examples-label">快速填入：</span>
-        <div id="healthExampleChips" class="chips"></div>
-      </div>
 
       <div class="controls health-controls">
         <input id="healthSearch" type="search" autocomplete="off"
@@ -210,6 +210,9 @@
         <a href="scabase-fetcher/data/vulns.json" target="_blank" rel="noopener">vulns.json</a> ·
         <a href="scabase-fetcher/data/community-support.json" target="_blank" rel="noopener">community-support.json</a> ·
         <a href="scabase-fetcher/data/popular-packages.json" target="_blank" rel="noopener">popular-packages.json</a></span>
+      <span class="dot">·</span>
+      <span>机器可读：<a href="llms.txt" target="_blank" rel="noopener">llms.txt</a> ·
+        <a href="scabase-fetcher/data/index.json" target="_blank" rel="noopener">数据索引</a></span>
     </div>
   </footer>
 

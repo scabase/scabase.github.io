@@ -56,6 +56,20 @@ setTimeout(() => {
 
   /* ---------- 常用依赖 Top 清单面板 ---------- */
   check("Top 清单面板已显示", $("popularPanel").hidden === false);
+  check("Top 清单面板默认折叠", $("popularPanel").open === false);
+  // 布局回归：输入框置顶，选择项（Top 清单 / chips）在其下方
+  check("查询框位于 Top 清单面板上方",
+    ($("query").compareDocumentPosition($("popularPanel")) & 4) !== 0);
+  // 健康度 tab：输入框同样置顶（标题/简介/KPI 在其之后）
+  check("健康度查询框位于 KPI 上方",
+    ($("healthQuery").compareDocumentPosition($("healthKpis")) & 4) !== 0);
+  // 健康度 tab：快速填入 chips 必须位于帮助说明上方
+  check("健康度快速填入位于帮助说明上方",
+    ($("healthExamples").compareDocumentPosition(
+      $("pane-health").querySelector("details.help")) & 4) !== 0);
+  check("页脚提供 llms.txt 入口",
+    Array.from(window.document.querySelectorAll(".site-footer a"))
+      .some((a) => /llms\.txt$/.test(a.getAttribute("href") || "")));
   const tabs = $("popTabs").querySelectorAll(".pop-tab");
   check("渲染 4 个生态 tab", tabs.length === 4, tabs.length);
   check("默认选中 Maven", tabs[0].classList.contains("active"), tabs[0].textContent);

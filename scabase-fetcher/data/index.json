@@ -1,0 +1,158 @@
+{
+  "site": "ScaBase",
+  "description": "开源组件漏洞与社区支持查询站的机器可读数据索引；字段 llm_hint 面向通过 WebFetch 取数的智能体",
+  "base_url": "https://scabase.roweb.cn",
+  "llms_txt": "https://scabase.roweb.cn/llms.txt",
+  "generated_at": "2026-10-17T00:53:56Z",
+  "datasets": [
+    {
+      "id": "vulns",
+      "file": "vulns.json",
+      "title": "漏洞库（OSV + NVD）",
+      "format": "json",
+      "update": "每日（GitHub Action 采集）",
+      "schema": {
+        "type": "object",
+        "key": "ecosystem|package|version（ecosystem ∈ maven/npm/pypi/go；Maven 的 package 为 groupId:artifactId）",
+        "value": {
+          "osv_raw": {
+            "vulns": "OSV 原始记录列表"
+          },
+          "enriched": [
+            {
+              "osv": "OSV 记录",
+              "nvd": "NVD CVE 记录"
+            }
+          ]
+        }
+      },
+      "llm_hint": "组件→漏洞主查找表，key 精确匹配，例：npm|lodash|4.17.20；反查 CVE 时遍历 key 并匹配 enriched[].osv.id / aliases",
+      "path": "/scabase-fetcher/data/vulns.json",
+      "url": "https://scabase.roweb.cn/scabase-fetcher/data/vulns.json",
+      "bytes": 2846429,
+      "sha256": "89cb4ce36aaf7336bfdc6a166bf1c06d6953471b013fc1c39215abe1f3e77c3b"
+    },
+    {
+      "id": "popular-packages",
+      "file": "popular-packages.json",
+      "title": "常用依赖 Top 清单（四生态各 1000）",
+      "format": "json",
+      "update": "手动 / 按需刷新",
+      "schema": {
+        "type": "object",
+        "fields": {
+          "generated_at": "生成时间（UTC）",
+          "source": "数据源说明",
+          "notes": "备注",
+          "lists": "按生态分组，见下"
+        },
+        "list": {
+          "key": "生态标识（maven/npm/pypi/go）",
+          "label": "展示名",
+          "ecosystem": "同 key",
+          "count": "条目数",
+          "rank_basis": "排序依据",
+          "items": [
+            {
+              "rank": "排名",
+              "name": "包名",
+              "version": "版本",
+              "desc": "说明",
+              "line": "ecosystem|package|version 查询行",
+              "meta": "热度元数据（按生态：weekly_downloads / monthly_downloads / dependents / stars）"
+            }
+          ]
+        }
+      },
+      "llm_hint": "热门组件清单；item.line 可直接作为 vulns.json 的 key 前缀参考",
+      "path": "/scabase-fetcher/data/popular-packages.json",
+      "url": "https://scabase.roweb.cn/scabase-fetcher/data/popular-packages.json",
+      "bytes": 726759,
+      "sha256": "ee29014997465bf620f513f67399a94b31776977c89f9ed2541310da11042f50",
+      "generated_at": "2026-10-17T00:27:59Z"
+    },
+    {
+      "id": "community-support",
+      "file": "community-support.json",
+      "title": "社区支持力度与活跃度报告",
+      "format": "json",
+      "update": "每日（GitHub Action 采集）",
+      "schema": {
+        "type": "object",
+        "fields": {
+          "generated_at": "生成时间（UTC）",
+          "component_count": "组件数",
+          "grade_counts": "各等级组件数",
+          "missing_signal_counts": "缺失信号统计",
+          "components": "组件评分卡列表，见下"
+        },
+        "component": {
+          "purl": "Package URL",
+          "display": "展示名",
+          "eco": "生态",
+          "score": "评分",
+          "grade": "A/B/C/D",
+          "level": "等级中文名",
+          "archived": "是否已归档",
+          "missing": "缺失信号列表",
+          "advice": "建议"
+        }
+      },
+      "llm_hint": "组件级健康度；评分遵循「未知即风险」，archived 直接判 D",
+      "path": "/scabase-fetcher/data/community-support.json",
+      "url": "https://scabase.roweb.cn/scabase-fetcher/data/community-support.json",
+      "bytes": 5847,
+      "sha256": "5483aa604312064cb7411f32d910d2a81fa6765d35623d693bb334c69ea32a57",
+      "generated_at": "2026-10-15T14:55:15Z"
+    },
+    {
+      "id": "pkg-list",
+      "file": "pkg_list.txt",
+      "title": "基础组件清单",
+      "format": "text",
+      "update": "随仓库维护",
+      "schema": {
+        "type": "text",
+        "line": "ecosystem|package|version，# 开头为注释"
+      },
+      "llm_hint": "站点默认展示的组件清单",
+      "path": "/scabase-fetcher/data/pkg_list.txt",
+      "url": "https://scabase.roweb.cn/scabase-fetcher/data/pkg_list.txt",
+      "bytes": 448,
+      "sha256": "8e940f28bfd08c3ff84dae9c53664825bb8734cc07693668157dc4670da08363"
+    },
+    {
+      "id": "pkg-list-popular",
+      "file": "pkg_list_popular.txt",
+      "title": "常用依赖采集清单（四生态各前 100）",
+      "format": "text",
+      "update": "随 popular-packages.json 生成",
+      "schema": {
+        "type": "text",
+        "line": "ecosystem|package|version，# 开头为注释"
+      },
+      "llm_hint": "约 400 行的小体积热门组件清单，适合作为首批拉取",
+      "path": "/scabase-fetcher/data/pkg_list_popular.txt",
+      "url": "https://scabase.roweb.cn/scabase-fetcher/data/pkg_list_popular.txt",
+      "bytes": 13065,
+      "sha256": "bee50fbb9fe6b98f9762698c85c51ecba1ea6fb6eb5032466710019a4e6654e8"
+    },
+    {
+      "id": "repo-map",
+      "file": "repo-map.json",
+      "title": "purl → GitHub 仓库映射",
+      "format": "json",
+      "update": "随仓库维护",
+      "schema": {
+        "type": "object",
+        "key": "purl",
+        "value": "owner/repo"
+      },
+      "llm_hint": "把组件关联到源码仓库，例：pkg:npm/lodash@4.17.20 → lodash/lodash",
+      "path": "/scabase-fetcher/data/repo-map.json",
+      "url": "https://scabase.roweb.cn/scabase-fetcher/data/repo-map.json",
+      "bytes": 675,
+      "sha256": "0f9d64ee7a3b494feebacb89decdd5b856fd4fd5f7f2e0928e3290b5e7712d3a"
+    }
+  ]
+}

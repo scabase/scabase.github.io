@@ -68,6 +68,18 @@
   （无流行度字段且约 50% 超时）、proxy.golang.org（沙箱阻断）。
 - 细节与踩坑见 2026-10-17 日志。
 
+## 机器可读数据 / LLM 取数（2026-10-17 新增）
+- 根目录 `llms.txt`（llmstxt.org 规范）是 LLM WebFetch 入口；数据索引
+  `scabase-fetcher/data/index.json` 由 `gen_data_index.py` 生成（URL/bytes/sha256/generated_at/llm_hint）。
+- 发布面（Pages 与 Docker 一致）：llms.txt + index.json + vulns.json + popular-packages.json
+  + community-support.json + pkg_list.txt + pkg_list_popular.txt + repo-map.json。
+  pages.yml 构建时重新生成 index.json；Dockerfile 显式 COPY llms.txt。
+- 前端布局约定（2026-10-17 用户最终确认）：**输入框置顶，选择项在下**。
+  pane-vuln 顺序：查询框 → 查询/清空按钮 → 快速填入 chips → popularPanel（默认折叠，
+  提示文案「填入上方查询框」）→ help；pane-health 顺序：查询框 → 按钮 → chips →
+  标题/简介/KPI → help → 筛选控件。曾把 popularPanel 置顶+展开被用户明确否决
+  （"输入框置顶，不是把选择项置顶"）。冒烟测试用 compareDocumentPosition 断言该顺序。
+
 ## 技术约定
 - 前端为 ES5 风格 IIFE（var / function），无构建步骤，不要引入需要编译的语法。
 - Python 侧：评估与同步路径保持零第三方依赖（内网可运行），仅采集器用 `requests`。

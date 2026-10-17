@@ -53,6 +53,8 @@ scabase-fetcher/scripts/
   fetch_oss_health.py  社区支持力度与活跃度采集（deps.dev / GitHub / registry）
   fetch_kev_epss.py    KEV / EPSS 采集与富化
   community_report.py  社区支持力度汇总报告（0-100 分 + A/B/C/D）
+  gen_popular_packages.py  常用依赖 Top 清单生成（四生态各 1000）
+  gen_data_index.py    机器可读数据索引 index.json 生成（LLM WebFetch 入口）
 .github/workflows/
   community-health.yml 每日采集社区支持力度与活跃度信号
   self-scan.yml        仓库自身依赖面自查（用本项目门禁引擎扫 requirements.txt）
@@ -399,3 +401,34 @@ python scabase-fetcher/scripts/gen_popular_packages.py \
 - **漏洞查询**：清单支持按名称过滤、`Top N` 一键填入（10/50/100/1000），填入为追加语义；
 - **支持力度与活跃度**：健康度是组件级评估，允许不带版本；未写版本时按同名组件匹配，
   并在卡片上标注报告实际采用的版本；未被 `pkg_list*.txt` 收录的组件单独列出，可一键复制回清单。
+
+## 17. 机器可读数据（LLM / WebFetch 取数）
+
+站点为纯静态架构，全部数据以文件形式公开，大模型或外部工具通过 WebFetch
+即可直接获取，无需 API Key：
+
+- **入口**：`https://scabase.roweb.cn/llms.txt`（llmstxt.org 规范）：站点说明、
+  取数步骤、各数据集 schema 与示例；
+- **数据索引**：`scabase-fetcher/data/index.json`：每个数据集的 URL、字节数、
+  sha256、内嵌 `generated_at` 与 `llm_hint`，由 `gen_data_index.py` 在构建时重新生成
+  （pages.yml 每次部署刷新，字节数与哈希始终与实际产物一致）；
+- **漏洞主库**：`vulns.json` 以 `ecosystem|package|version` 为 key 精确查找；
+  反查 CVE 需遍历 key 并匹配 `enriched[].osv.id` / `aliases`。
+
+```bash
+# 本地重新生成索引（CI 与镜像构建同款）
+python scabase-fetcher/scripts/gen_data_index.py \
+  --data scabase-fetcher/data --out scabase-fetcher/data/index.json
+```
+
+发布面（GitHub Pages 与 Docker 镜像保持一致）：
+
+| 路径 | 内容 |
+| --- | --- |
+| `/llms.txt` | LLM 取数入口 |
+| `/scabase-fetcher/data/index.json` | 机器可读数据索引 |
+| `/scabase-fetcher/data/vulns.json` | 漏洞库（OSV + NVD） |
+| `/scabase-fetcher/data/popular-packages.json` | 常用依赖 Top 清单（四生态各 1000） |
+| `/scabase-fetcher/data/community-support.json` | 社区支持力度报告 |
+| `/scabase-fetcher/data/pkg_list.txt` / `pkg_list_popular.txt` | 组件清单（`ecosystem\|package\|version`） |
+| `/scabase-fetcher/data/repo-map.json` | purl → GitHub 仓库映射 |

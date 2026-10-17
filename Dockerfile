@@ -33,6 +33,7 @@ RUN chmod +x /docker-entrypoint.d/10-env-config.sh
 
 # 站点静态文件
 COPY index.html /usr/share/nginx/html/index.html
+COPY llms.txt /usr/share/nginx/html/llms.txt
 COPY assets/ /usr/share/nginx/html/assets/
 COPY scabase-fetcher/data/ /usr/share/nginx/html/scabase-fetcher/data/
 
