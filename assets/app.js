@@ -1316,6 +1316,15 @@
     queryMode: false, matched: [], missing: [], pendingQuery: false
   };
 
+  /* 数据来源展示名（与 community_report.py 的 SOURCE_LABELS 保持一致） */
+  var SOURCE_LABELS = {
+    "github": "GitHub",
+    "deps.dev": "deps.dev",
+    "npm-registry": "npm registry",
+    "pypi": "PyPI",
+    "repo-map": "repo-map"
+  };
+
   /* pkg: eco/namespace/name@version -> { type, ns, name, version } */
   function parseHealthPurl(value) {
     var body = String(value || "").replace(/^pkg:/i, "");
@@ -1682,6 +1691,16 @@
       grid.appendChild(sig);
     });
     body.appendChild(grid);
+
+    var sources = c.sources || [];
+    if (sources.length) {
+      var srcBox = el("div", "health-sources");
+      srcBox.appendChild(el("span", "health-sources-label", "数据来源"));
+      sources.forEach(function (src) {
+        srcBox.appendChild(el("span", "src", SOURCE_LABELS[src] || src));
+      });
+      body.appendChild(srcBox);
+    }
 
     var missing = c.missing || [];
     if (missing.length) {

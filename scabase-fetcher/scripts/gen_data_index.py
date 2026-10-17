@@ -81,6 +81,7 @@ DATASETS = [
                 "component_count": "组件数",
                 "grade_counts": "各等级组件数",
                 "missing_signal_counts": "缺失信号统计",
+                "source_counts": "各数据来源覆盖的组件数",
                 "components": "组件评分卡列表，见下",
             },
             "component": {
@@ -91,6 +92,7 @@ DATASETS = [
                 "grade": "A/B/C/D",
                 "level": "等级中文名",
                 "archived": "是否已归档",
+                "sources": "信号来源列表（github / deps.dev / npm-registry / pypi / repo-map）",
                 "missing": "缺失信号列表",
                 "advice": "建议",
             },

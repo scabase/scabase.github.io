@@ -3,7 +3,7 @@
   "description": "开源组件漏洞与社区支持查询站的机器可读数据索引；字段 llm_hint 面向通过 WebFetch 取数的智能体",
   "base_url": "https://scabase.roweb.cn",
   "llms_txt": "https://scabase.roweb.cn/llms.txt",
-  "generated_at": "2026-10-17T00:53:56Z",
+  "generated_at": "2026-10-17T04:41:22Z",
   "datasets": [
     {
       "id": "vulns",
@@ -84,6 +84,7 @@
           "component_count": "组件数",
           "grade_counts": "各等级组件数",
           "missing_signal_counts": "缺失信号统计",
+          "source_counts": "各数据来源覆盖的组件数",
           "components": "组件评分卡列表，见下"
         },
         "component": {
@@ -94,6 +95,7 @@
           "grade": "A/B/C/D",
           "level": "等级中文名",
           "archived": "是否已归档",
+          "sources": "信号来源列表（github / deps.dev / npm-registry / pypi / repo-map）",
           "missing": "缺失信号列表",
           "advice": "建议"
         }

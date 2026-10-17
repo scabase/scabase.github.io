@@ -21,6 +21,9 @@ const health = JSON.parse(
 const popular = JSON.parse(
   fs.readFileSync(path.join(ROOT, "scabase-fetcher", "data", "popular-packages.json"), "utf8"));
 
+/* 为所有 fixture 组件注入 sources，验证健康度卡片的「数据来源」徽章渲染 */
+(health.components || []).forEach(function (c) { c.sources = ["github", "deps.dev"]; });
+
 const failures = [];
 function check(name, cond, extra) {
   if (cond) { console.log("ok   -", name); return; }
@@ -152,6 +155,10 @@ setTimeout(() => {
 
     const cards = $("healthResults").querySelectorAll(".health-card");
     check("结果区渲染 6 张卡（4 命中 + 2 未收录）", cards.length === 6, cards.length);
+    const srcBadges = $("healthResults").querySelectorAll(".health-sources .src");
+    check("健康度卡片渲染数据来源徽章", srcBadges.length >= 2, srcBadges.length);
+    check("来源徽章含 deps.dev",
+      Array.from(srcBadges).some((b) => b.textContent === "deps.dev"));
     const missed = $("healthResults").querySelectorAll(".health-miss");
     check("未收录卡片单独渲染", missed.length === 2, missed.length);
 

@@ -241,6 +241,17 @@ python -m oss_intake.cli scan --path ./payment-core --app 支付核心 \
 安全响应策略、CI、基金会/厂商背书、下游依赖数、下载量、Star。
 输出 0-100 分与 A/B/C/D 等级，每项扣分都有依据，缺失信号按「未知即风险」扣分。
 
+采集侧（`scabase-fetcher/scripts/fetch_oss_health.py`）按生态组合多数据源，
+每个组件在 `health.json` 中记录 `sources` 列表说明信号构成（前端卡片同步展示）：
+
+| 来源 | 提供的信号 |
+| --- | --- |
+| GitHub API | archived、最近提交、近 12 月发布、贡献者、PR 合并周期、SECURITY.md、CI、背后组织、Star |
+| deps.dev | 下游依赖项目数；全版本 `publishedAt` → **近 12 月发布数**、最近发布距今天数（覆盖无 GitHub 仓库的 Maven / PyPI / Go 组件） |
+| npm registry | 月下载量；`repository` 字段推断 GitHub 仓库；packument 的 `maintainers` 与发布时间（**仅在无 GitHub 信号时兜底**，超 4MB 的大包放弃） |
+| PyPI JSON | 版本级接口（约 10KB）的 `project_urls` / `home_page` 推断 GitHub 仓库，补全 repo-map 未登记的 PyPI 组件；整包接口的发布时间作为兜底 |
+| repo-map | 显式 purl → owner/repo 映射（非 Go 生态的主要仓库来源） |
+
 ```bash
 python -m oss_intake.cli gate --facts intranet-data/facts \
   --purl pkg:maven/com.alibaba/fastjson@1.2.24 --md reports/fastjson.md
@@ -340,22 +351,24 @@ python scabase-fetcher/scripts/build_facts.py \
   --facts scabase-fetcher/data/facts --health scabase-fetcher/data/health.json
 ```
 
-采集的三类信号：
+采集的数据来源（每个组件的实际构成记录在 `health.json` 的 `sources` 字段）：
 
 | 来源 | 信号 |
 | --- | --- |
 | GitHub API | 最近提交、近 12 月发布、贡献者数、PR 合并周期、`SECURITY.md`、`.github/workflows`（CI）、archived、星标、背后组织（基金会/厂商/组织/个人） |
-| deps.dev | 下游依赖项目数、最新发布时间 |
-| npm registry | 月下载量 |
+| deps.dev | 下游依赖项目数、全版本发布时间（→ 近 12 月发布数、最近发布距今天数） |
+| npm registry | 月下载量、`repository` 推断仓库、packument 的 maintainers 与发布时间（无 GitHub 信号时兜底） |
+| PyPI JSON | `project_urls` 推断仓库、发布时间（兜底） |
 
 - 组件清单格式 `ecosystem|package|version`，见 `scabase-fetcher/data/pkg_list.txt`；
   `community-health.yml` 还会额外采集 `pkg_list_popular.txt`（常用依赖四生态各 Top 100），
   两份结果合并写入 `health.json`。
-- `github_slug()` 只能从 go module 路径推断仓库；**npm 包会从 registry 元数据的
-  `repository` 字段自动推断**，其余生态（主要是 Maven）仍建议在 `repo-map.json` 登记，
-  否则社区治理类信号只能依赖 deps.dev 与 registry。
+- 仓库推断优先级：`repo-map.json` 显式映射 → go module 路径 → npm registry `repository`
+  → **PyPI `project_urls`**；都失败时组件仍保留 deps.dev 与 registry 信号，
+  按「未知即风险」对缺失的治理类信号扣分，不会被静默当作满分。
 - 任一来源失败只降级，不中断整批；未配置 `GITHUB_TOKEN` 时仍可运行（限流更严格）。
-- 产物（`health.json` + 社区支持力度报告）会上传为 workflow artifact，并写入 Step Summary。
+- 产物（`health.json` + 社区支持力度报告）会上传为 workflow artifact，并写入 Step Summary；
+  报告的「数据来源覆盖」章节统计每个来源实际覆盖的组件数。
 
 ## 16. 常用依赖 Top 清单（站点示例）
 

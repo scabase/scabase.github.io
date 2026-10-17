@@ -2,11 +2,14 @@ name: community-health
 
 # 互联网侧：采集开源组件社区支持力度与活跃度信号 → 写入事实层 → 生成汇总报告
 #
-# 采集信号（供 oss_intake.community 评分）：
+# 采集信号（供 oss_intake.community 评分，实际构成记录在 health.json 的 sources 字段）：
 #   GitHub API   最近提交、近 12 月发布、贡献者、PR 合并周期、SECURITY.md、
-#                .github/workflows（CI）、archived、星标、背后组织（基金会/厂商/组织/个人）
-#   deps.dev     下游依赖项目数、最新发布时间
-#   npm registry 月下载量
+#                 .github/workflows（CI）、archived、星标、背后组织（基金会/厂商/组织/个人）
+#   deps.dev     下游依赖项目数、全版本发布时间（→ 近 12 月发布数、最近发布距今天数，
+#                 无 GitHub 仓库的 Maven / PyPI / Go 组件的主要节奏信号）
+#   npm registry 月下载量、repository 推断仓库、packument 的 maintainers 与发布时间
+#                 （无 GitHub 信号时兜底，超 4MB 的大包放弃）
+#   PyPI JSON    project_urls / home_page 推断 GitHub 仓库，补全 repo-map 未登记的组件
 #
 # 任一来源失败只降级，不中断整批任务；未配置 GITHUB_TOKEN 时仍可跑（限流更严格）。
 on:

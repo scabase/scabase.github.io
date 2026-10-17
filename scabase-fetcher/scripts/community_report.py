@@ -24,11 +24,21 @@ from oss_intake import purl as purl_mod  # noqa: E402
 
 GRADE_ORDER = {"A": 0, "B": 1, "C": 2, "D": 3}
 
+# 数据来源展示名（与前端 app.js 的 SOURCE_LABELS 保持一致）
+SOURCE_LABELS = {
+    "github": "GitHub API",
+    "deps.dev": "deps.dev",
+    "npm-registry": "npm registry",
+    "pypi": "PyPI JSON",
+    "repo-map": "repo-map 显式映射",
+}
+
 
 def build_report(health):
     rows = []
     counts = {}
     missing_total = {}
+    source_total = {}
     for purl_value, payload in sorted(health.items()):
         if not isinstance(payload, dict):
             continue
@@ -36,6 +46,9 @@ def build_report(health):
         counts[result["grade"]] = counts.get(result["grade"], 0) + 1
         for key in result.get("missing") or []:
             missing_total[key] = missing_total.get(key, 0) + 1
+        sources = payload.get("sources") or []
+        for source in sources:
+            source_total[source] = source_total.get(source, 0) + 1
         info = purl_mod.parse(purl_value) or {}
         rows.append({
             "purl": purl_value,
@@ -50,6 +63,7 @@ def build_report(health):
             "maintainers": (result.get("signals") or {}).get("maintainers"),
             "org_backing": (result.get("signals") or {}).get("org_backing"),
             "monthly_downloads": (result.get("signals") or {}).get("monthly_downloads"),
+            "sources": sources,
             "missing": result.get("missing") or [],
             "advice": result.get("advice"),
         })
@@ -59,6 +73,7 @@ def build_report(health):
         "component_count": len(rows),
         "grade_counts": counts,
         "missing_signal_counts": missing_total,
+        "source_counts": source_total,
         "components": rows,
     }
 
@@ -92,6 +107,16 @@ def render_markdown(report):
         for key, count in sorted(report["missing_signal_counts"].items(),
                                  key=lambda item: -item[1]):
             lines.append("- `%s`：%d 个组件缺失" % (key, count))
+        lines.append("")
+
+    if report.get("source_counts"):
+        lines.append("## 数据来源覆盖")
+        lines.append("")
+        lines.append("| 来源 | 覆盖组件数 |")
+        lines.append("| --- | --- |")
+        for source, count in sorted(report["source_counts"].items(),
+                                    key=lambda item: -item[1]):
+            lines.append("| %s | %d |" % (SOURCE_LABELS.get(source, source), count))
         lines.append("")
     return "\n".join(lines)
 

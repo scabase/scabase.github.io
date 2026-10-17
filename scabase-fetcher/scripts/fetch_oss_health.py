@@ -1,17 +1,24 @@
 """采集开源组件活跃度 / 维护健康度指标。
 
-数据源优先级：
-  1. deps.dev（跨生态元数据：发布时间、许可证、关联漏洞）
-  2. GitHub API（archived、push 时间、发布数、贡献者数、星标）
-  3. 各生态 registry 元数据（下载量、deprecated 标记）
+数据源（按对评分信号的贡献）：
+  1. deps.dev（跨生态元数据：下游依赖项目数、全部版本发布时间
+     → 近 12 月发布数 / 最近发布距今天数；MAVEN/NPM/PYPI/GO/CARGO/RUBYGEMS/NUGET）
+  2. GitHub API（archived、push 时间、发布数、贡献者数、星标、背后组织、
+     SECURITY.md / CI、PR 合并周期）
+  3. npm registry（月下载量；packument 的 maintainers 与发布时间，无 GitHub 信号时兜底；
+     repository 字段推断 GitHub 仓库）
+  4. PyPI JSON（project_urls / home_page 推断 GitHub 仓库，补全 PyPI 组件的 GitHub 信号）
 
-任一源失败只降级，不中断整批任务。支持 --fixtures 用本地 JSON 离线回放，便于测试。
+任一源失败只降级，不中断整批任务。每个组件记录 `sources` 列表说明信号来源，
+便于人工复核「未知即风险」扣分的构成。支持 --fixtures 用本地 JSON 离线回放，便于测试。
 """
 import argparse
+import calendar
 import json
 import os
 import sys
 import time
+from urllib.parse import quote
 
 try:
     import requests
@@ -22,6 +29,14 @@ GITHUB_API = "https://api.github.com/repos"
 DEPS_DEV = "https://api.deps.dev/v3alpha/systems"
 NPM_DOWNLOADS = "https://api.npmjs.org/downloads/point/last-month/"
 NPM_REGISTRY = "https://registry.npmjs.org"
+PYPI_JSON = "https://pypi.org/pypi"
+
+# npm packument 整包体积上限（@types/node 等超大类可达 10MB+，超出则放弃兜底）
+NPM_PACKUMENT_MAX_BYTES = 4 * 1024 * 1024
+
+# PyPI project_urls 标签优先级：越靠前越可能是源码仓库
+PYPI_URL_LABEL_PRIORITY = ("source", "source code", "repository", "repo", "github",
+                           "homepage", "home page", "home")
 
 # 背后组织识别：基金会 / 厂商 / 一般组织 / 个人
 KNOWN_FOUNDATION_ORGS = {"apache", "cncf", "linuxfoundation", "eclipse", "mozilla",
@@ -67,17 +82,123 @@ def _get(url, token=None, timeout=30, retries=3):
     return None
 
 
+def _parse_utc(iso_stamp):
+    """把 UTC ISO 时间戳解析为 epoch 秒（timegm，不受本机时区影响）。"""
+    try:
+        return calendar.timegm(time.strptime(iso_stamp[:19], "%Y-%m-%dT%H:%M:%S"))
+    except (ValueError, OverflowError):
+        try:
+            return calendar.timegm(time.strptime(iso_stamp[:10], "%Y-%m-%d"))
+        except (ValueError, OverflowError):
+            return None
+
+
 def days_since(iso_stamp):
     if not iso_stamp:
         return None
-    try:
-        parsed = time.mktime(time.strptime(iso_stamp[:19], "%Y-%m-%dT%H:%M:%S"))
-    except (ValueError, OverflowError):
-        try:
-            parsed = time.mktime(time.strptime(iso_stamp[:10], "%Y-%m-%d"))
-        except (ValueError, OverflowError):
-            return None
+    parsed = _parse_utc(iso_stamp)
+    if parsed is None:
+        return None
     return max(0, int((time.time() - parsed) / 86400))
+
+
+def count_within(stamps, days=365, now=None):
+    """统计 ISO 时间戳中距今不超过 days 的数量（近 12 月发布数等）。"""
+    horizon = (now if now is not None else time.time()) - days * 86400
+    count = 0
+    for stamp in stamps:
+        if not stamp:
+            continue
+        parsed = _parse_utc(stamp)
+        if parsed is not None and parsed >= horizon:
+            count += 1
+    return count
+
+
+def github_slug_from_url(url):
+    """从任意 URL 中提取 GitHub owner/repo（无则返回 None）。
+
+    兼容 ``https://github.com/o/r``、``git+https://…/o/r.git`` 与
+    ``git@github.com:o/r``（SCP 风格）三种写法。
+    """
+    if not url:
+        return None
+    text = str(url)
+    if "github.com/" in text:
+        tail = text.split("github.com/", 1)[1]
+    elif "github.com:" in text:
+        tail = text.split("github.com:", 1)[1]
+    else:
+        return None
+    tail = tail.strip("/")
+    if tail.endswith(".git"):
+        tail = tail[:-4]
+    parts = [part for part in tail.split("/") if part]
+    if len(parts) < 2 or not parts[0] or not parts[1]:
+        return None
+    return "%s/%s" % (parts[0], parts[1])
+
+
+def slug_from_pypi_info(info):
+    """从 PyPI JSON 的 info 块推断 GitHub 仓库（project_urls 优先 Source/Repository）。"""
+    if not isinstance(info, dict):
+        return None
+    candidates = []
+    project_urls = info.get("project_urls")
+    if isinstance(project_urls, dict):
+        for label, url in project_urls.items():
+            if isinstance(url, str):
+                candidates.append((str(label or "").strip().lower(), url))
+    for key in ("home_page", "project_url"):
+        value = info.get(key)
+        if isinstance(value, str):
+            candidates.append(("", value))
+
+    def rank(item):
+        label = item[0]
+        return (PYPI_URL_LABEL_PRIORITY.index(label)
+                if label in PYPI_URL_LABEL_PRIORITY else len(PYPI_URL_LABEL_PRIORITY))
+
+    candidates.sort(key=rank)  # 稳定排序：同优先级保持原始顺序
+    for _, url in candidates:
+        slug = github_slug_from_url(url)
+        if slug:
+            return slug
+    return None
+
+
+def npm_packument_signals(payload):
+    """npm packument → {maintainers, releases_12m}（供无 GitHub 信号时兜底）。"""
+    out = {}
+    maintainers = payload.get("maintainers") if isinstance(payload, dict) else None
+    if isinstance(maintainers, list) and maintainers:
+        out["maintainers"] = len(maintainers)
+    time_map = payload.get("time") if isinstance(payload, dict) else None
+    if isinstance(time_map, dict):
+        stamps = [value for key, value in time_map.items()
+                  if key not in ("created", "modified") and isinstance(value, str)]
+        if stamps:
+            out["releases_12m"] = count_within(stamps, 365)
+    return out
+
+
+def pypi_release_signals(payload):
+    """PyPI 整包 JSON 的 releases → {releases_12m, latest_release_days}。"""
+    releases = payload.get("releases") if isinstance(payload, dict) else None
+    if not isinstance(releases, dict):
+        return {}
+    stamps = []
+    for files in releases.values():
+        if not isinstance(files, list):
+            continue
+        for item in files:
+            stamp = item.get("upload_time") if isinstance(item, dict) else None
+            if stamp:
+                stamps.append(stamp)
+    if not stamps:
+        return {}
+    return {"releases_12m": count_within(stamps, 365),
+            "latest_release_days": days_since(max(stamps))}
 
 
 def github_slug(purl, eco):
@@ -182,15 +303,35 @@ def collect_from_github(slug, token, releases_limit=100):
     return health
 
 
+def deps_dev_package_path(eco, purl):
+    """按生态拼 deps.dev 包名（与各 ecosystem 的官方命名一致）。
+
+    MAVEN 为 ``groupId:artifactId``；NPM 的 scope 包保留 ``@`` 前缀
+    （项目内 purl 约定把 scope 存为无 @ 的 namespace，这里要补回来）；
+    Go 等其余生态为 ``namespace/name``。
+    """
+    name = purl.get("name")
+    if not name:
+        return None
+    namespace = purl.get("namespace")
+    system = ECO_TO_DEPS_SYSTEM.get(eco)
+    if namespace and system == "MAVEN":
+        return "%s:%s" % (namespace, name)
+    if namespace and system == "NPM":
+        return "@%s/%s" % (namespace, name)
+    if namespace:
+        return "%s/%s" % (namespace, name)
+    return name
+
+
 def collect_from_deps_dev(eco, purl):
     system = ECO_TO_DEPS_SYSTEM.get(eco)
     if not system:
         return None
-    name = purl.get("name")
-    if not name:
+    path = deps_dev_package_path(eco, purl)
+    if not path:
         return None
-    path = "%s/%s" % (purl.get("namespace"), name) if purl.get("namespace") else name
-    url = "%s/%s/packages/%s" % (DEPS_DEV, system, path.replace("/", "%2F"))
+    url = "%s/%s/packages/%s" % (DEPS_DEV, system, quote(path, safe=""))
     payload = _get(url)
     if not payload:
         return None
@@ -202,6 +343,8 @@ def collect_from_deps_dev(eco, purl):
     published = [v.get("publishedAt") for v in versions if v.get("publishedAt")]
     if published:
         info["latest_release_days"] = days_since(max(published))
+        # 全版本发布时间 → 近 12 月发布数（无 GitHub 仓库的组件的主要节奏信号）
+        info["releases_12m"] = count_within(published, 365)
     dependents = payload.get("dependentsCount")
     if dependents is None:
         dependents = payload.get("dependents_count")
@@ -245,13 +388,69 @@ def npm_repo_slug(full_name):
         url = repo.get("url") or ""
     elif isinstance(repo, str):
         url = repo
-    if "github.com/" not in url:
+    return github_slug_from_url(url)
+
+
+def collect_from_pypi(name, version):
+    """PyPI JSON 采集：推断 GitHub 仓库 + （整包接口才有）发布时间信号。
+
+    优先请求版本级接口（``/pypi/<name>/<version>/json``，约 10KB，含 project_urls），
+    404（版本已删除 / 清单过期）时回退整包接口（大包可达数 MB）。
+    返回 {"repo_hint": slug, "releases_12m": n, "latest_release_days": d} 或 None。
+    """
+    if requests is None or not name:
         return None
-    tail = url.split("github.com/", 1)[1].strip("/")
-    if tail.endswith(".git"):
-        tail = tail[:-4]
-    parts = [part for part in tail.split("/") if part]
-    return "%s/%s" % (parts[0], parts[1]) if len(parts) >= 2 else None
+    encoded = quote(name, safe="")
+    urls = []
+    if version:
+        urls.append("%s/%s/%s/json" % (PYPI_JSON, encoded, quote(version, safe="")))
+    urls.append("%s/%s/json" % (PYPI_JSON, encoded))
+    for url in urls:
+        try:
+            resp = requests.get(url, timeout=20, headers={"Accept": "application/json"})
+        except Exception:
+            continue
+        if resp.status_code != 200:
+            continue
+        try:
+            payload = resp.json()
+        except ValueError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        out = {"repo_hint": slug_from_pypi_info(payload.get("info"))}
+        out.update(pypi_release_signals(payload))
+        return out
+    return None
+
+
+def collect_from_npm_meta(full_name):
+    """npm packument 兜底：maintainers 数 + 近 12 月发布数。
+
+    仅在拿不到 GitHub 信号时调用（无仓库或 GitHub 采集失败）。
+    整包 packument 对大包可达 10MB+，超限直接放弃（stream 预检 Content-Length）。
+    """
+    if requests is None or not full_name:
+        return None
+    url = "%s/%s" % (NPM_REGISTRY, full_name.replace("/", "%2F"))
+    try:
+        resp = requests.get(url, stream=True, timeout=20)
+    except Exception:
+        return None
+    try:
+        length = resp.headers.get("Content-Length")
+        if length and length.isdigit() and int(length) > NPM_PACKUMENT_MAX_BYTES:
+            return None
+        if resp.status_code != 200:
+            return None
+        payload = resp.json()
+    except Exception:
+        return None
+    finally:
+        resp.close()
+    if not isinstance(payload, dict):
+        return None
+    return npm_packument_signals(payload)
 
 
 def merge_health(base, extra):
@@ -322,14 +521,58 @@ def main():
                 info = entry["info"] or {}
                 full_name = ("@%s/%s" % (info.get("namespace"), info.get("name"))
                              if info.get("namespace") else info.get("name"))
-            slug = repo_map.get(purl_value) or github_slug(entry["info"], entry["eco"])
+            sources = []
+            slug = repo_map.get(purl_value)
+            if slug:
+                sources.append("repo-map")
+            if not slug:
+                slug = github_slug(entry["info"], entry["eco"])
             if not slug and full_name:
                 slug = npm_repo_slug(full_name)
-            if slug:
-                merge_health(health, collect_from_github(slug, os.getenv("GITHUB_TOKEN")))
-            merge_health(health, collect_from_deps_dev(entry["eco"], entry["info"]) or {})
+                if slug:
+                    sources.append("npm-registry")
+            # PyPI：版本级 JSON 推断仓库（补全 repo-map 未登记的 PyPI 组件）
+            pypi_meta = None
+            if entry["eco"] == "pypi":
+                pypi_meta = collect_from_pypi((entry["info"] or {}).get("name"),
+                                              (entry["info"] or {}).get("version"))
+                if pypi_meta:
+                    repo_hint = pypi_meta.pop("repo_hint", None)
+                    if not slug and repo_hint:
+                        slug = repo_hint
+                        sources.append("pypi")
+            github_health = collect_from_github(slug, os.getenv("GITHUB_TOKEN")) if slug else None
+            if github_health:
+                merge_health(health, github_health)
+                sources.append("github")
+            deps_info = collect_from_deps_dev(entry["eco"], entry["info"])
+            if deps_info:
+                merge_health(health, deps_info)
+                sources.append("deps.dev")
             if full_name:
-                merge_health(health, collect_from_npm(full_name) or {})
+                npm_info = collect_from_npm(full_name)
+                if npm_info:
+                    merge_health(health, npm_info)
+                    if "npm-registry" not in sources:
+                        sources.append("npm-registry")
+            # 兜底一：PyPI 发布时间（deps.dev 缺失时）
+            if pypi_meta:
+                for key, value in pypi_meta.items():
+                    if value is not None and key not in health:
+                        health[key] = value
+                if "pypi" not in sources:
+                    sources.append("pypi")
+            # 兜底二：npm packument 的 maintainers / 发布时间（无 GitHub 信号时）
+            if full_name and not github_health:
+                meta = collect_from_npm_meta(full_name)
+                if meta:
+                    for key, value in meta.items():
+                        if value is not None and key not in health:
+                            health[key] = value
+                    if "npm-registry" not in sources:
+                        sources.append("npm-registry")
+            if sources:
+                health["sources"] = sources
         if "last_commit_days" not in health and "latest_release_days" in health:
             health["last_commit_days"] = health["latest_release_days"]
         if not any(k in health for k in ("archived", "releases_12m", "maintainers", "last_commit_days")):

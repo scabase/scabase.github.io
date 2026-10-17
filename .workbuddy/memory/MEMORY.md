@@ -40,6 +40,13 @@
 - 社区采集 CI：`.github/workflows/community-health.yml`（每日 03:17 UTC）；
   依赖 `scabase-fetcher/data/repo-map.json` 做 purl→owner/repo 映射（非 go 生态必须登记）；
   `community_report.py` 产出汇总；`build_facts.py` 只为 count>0 的数据集刷新水位。
+- 健康度数据源（2026-10-17 补充）：GitHub API / deps.dev（全版本 publishedAt → releases_12m）/
+  npm registry（下载量 + packument 兜底 maintainers，>4MB 放弃）/ PyPI JSON（版本级接口
+  12KB 推断仓库）/ repo-map。每组件记 `sources` 归因，报告有 source_counts 与
+  「数据来源覆盖」章节，前端卡片渲染来源徽章。
+- 坑：deps.dev 包名必须按生态拼（MAVEN `g:a`、NPM `@s/n`，再 `quote(safe="")`），
+  用 `/` 连接会对 Maven 与 npm scope 包静默 404；UTC 时间戳解析用 calendar.timegm
+  （mktime 受本机时区影响）。
 - 环境注意：某些会话没有 Bash 工具，无法执行测试；交付时要在 tasks.md 标注「待执行验证」。
 
 ## 包注册表发布（2026-10-15 新增）
