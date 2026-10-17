@@ -162,7 +162,7 @@ jobs:
           outputs: type=docker,dest=./scabase-linux-arm64.tar
           tags: scabase:latest
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: scabase-image-${{ env.DATE_YYYYMMDD }}
           path: |

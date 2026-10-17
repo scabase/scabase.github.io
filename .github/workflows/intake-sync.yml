@@ -69,7 +69,7 @@ jobs:
           python -m oss_intake.cli genscript --target python --out-dir scripts/python
 
       - name: 上传脚本产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scabase-baseline-scripts
           path: |
@@ -105,7 +105,7 @@ jobs:
           done
 
       - name: 上传数据包产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scabase-bundles
           path: bundles/*.tar.gz
