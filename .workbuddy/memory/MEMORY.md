@@ -110,6 +110,13 @@ CI 为 `.github/workflows/software-collect.yml`（每日 03:43 UTC）。
   标题/简介/KPI → help → 筛选控件。曾把 popularPanel 置顶+展开被用户明确否决
   （"输入框置顶，不是把选择项置顶"）。冒烟测试用 compareDocumentPosition 断言该顺序。
 
+## 健康度页签展示约定（2026-10-18 用户确认）
+- **默认态不铺全量列表**：只显示总数 KPI + 查询引导；「查询」后才渲染结果，
+  每页 20 条 + 翻页条（healthState.page / softwareState.healthPage）。
+- 卡片信号 8 项：最近提交 / 近12月发布 / 维护者 / 背后组织 / 月下载量（缩写）/
+  GitHub Star / Fork / Watch（后三项千分位精确值，供人工核对）。
+- 前端测试资产：`tests/frontend-health-smoke.js`（jsdom，40 项）。
+
 ## 技术约定
 - 前端为 ES5 风格 IIFE（var / function），无构建步骤，不要引入需要编译的语法。
 - Python 侧：评估与同步路径保持零第三方依赖（内网可运行），仅采集器用 `requests`。

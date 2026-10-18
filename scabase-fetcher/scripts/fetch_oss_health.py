@@ -56,6 +56,51 @@ ECO_TO_DEPS_SYSTEM = {
 }
 
 
+def _wait_env(name, default):
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+# GitHub 配额等待预算（秒）：用法见 _rate_limit_sleep
+WAIT_BUDGET = _wait_env("SCABASE_GH_WAIT_BUDGET", 1800)
+_wait_left = [WAIT_BUDGET]
+
+
+def reset_wait_budget(seconds=None):
+    """重置等待预算（便于测试与分段使用）。"""
+    _wait_left[0] = WAIT_BUDGET if seconds is None else seconds
+
+
+def _rate_limit_sleep(resp, budget):
+    """限流时睡到 X-RateLimit-Reset，预算内自动续跑。
+
+    GitHub 配额按小时窗口计：CI 上 community-health（03:17，400+ 组件）与
+    software-collect 相隔不到一小时，后者开跑时配额已被前者打满。旧实现只退避
+    几秒就「降级」，于是相当一部分组件连仓库信息都没采到（65 个软件里只有 23 个
+    有 stars、0 个 forks/watchers）。这里改为按服务端给出的 reset 时间等待，
+    超出 WAIT_BUDGET 才降级。
+
+    返回等待秒数；无需等待或预算不足时返回 None。
+    """
+    try:
+        remaining = resp.headers.get("X-RateLimit-Remaining")
+        reset = int(resp.headers.get("X-RateLimit-Reset", "0") or 0)
+    except (AttributeError, ValueError):
+        return None
+    if remaining != "0" or not reset:
+        return None
+    wait = reset - int(time.time()) + 2
+    if wait <= 0 or wait > budget[0]:
+        return None
+    budget[0] -= wait
+    print("  GitHub 配额已用尽，等待 %d 秒至配额重置（剩余预算 %d 秒）…"
+          % (wait, budget[0]), file=sys.stderr)
+    time.sleep(wait)
+    return wait
+
+
 def _get(url, token=None, timeout=30, retries=3):
     headers = {"Accept": "application/vnd.github+json"}
     if token:
@@ -70,8 +115,9 @@ def _get(url, token=None, timeout=30, retries=3):
             time.sleep(2 ** attempt)
             continue
         if resp.status_code == 403 or resp.status_code == 429:
-            # 触发限流，退避后重试
-            time.sleep(min(60, 5 * (attempt + 1)))
+            # 触发限流：优先睡到配额重置（不消耗重试次数），否则短退避重试
+            if _rate_limit_sleep(resp, _wait_left) is None:
+                time.sleep(min(60, 5 * (attempt + 1)))
             continue
         if resp.status_code >= 400:
             return None
@@ -223,9 +269,14 @@ def _head_status(url, token=None, timeout=20):
         headers["Authorization"] = "Bearer %s" % token
     try:
         resp = requests.get(url, headers=headers, timeout=timeout)
-        return resp.status_code
     except Exception:
         return None
+    if resp.status_code in (403, 429) and _rate_limit_sleep(resp, _wait_left):
+        try:
+            return requests.get(url, headers=headers, timeout=timeout).status_code
+        except Exception:
+            return None
+    return resp.status_code
 
 
 def _org_backing(repo):

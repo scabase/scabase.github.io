@@ -676,12 +676,15 @@ def _fixture_payload(base, name, kind):
 
 
 def build_document(refresh, token, only=None, fixtures=None, health=True,
-                   existing_vulns=None, existing_support=None, gh_token=None):
+                   existing_vulns=None, existing_support=None, gh_token=None,
+                   include_vulns=True):
     """组装两份产物数据。
 
     refresh   ：联网采集；否则沿用 existing_* 里的旧数据（离线转换场景）
     fixtures  ：本地回放目录，文件名为 <slug>-cves.json / <slug>-health.json
     gh_token  ：GitHub API token（GITHUB_TOKEN）；缺省时匿名调用、限流严格
+    include_vulns：False 时跳过 NVD，只刷健康度（--no-vulns），用于配额紧张时
+                   单独补 GitHub 信号；未选中的软件仍沿用旧漏洞数据
     """
     existing_vulns = existing_vulns or {}
     existing_support = existing_support or {}
@@ -723,7 +726,8 @@ def build_document(refresh, token, only=None, fixtures=None, health=True,
             if support_row is None:
                 support_row = build_support_row(name, entry, gh_health, version)
         elif refresh:
-            cves = fetch_nvd_cves(entry, token=token)
+            cves = fetch_nvd_cves(entry, token=token) if include_vulns \
+                else (prior_cves.get(name) or {}).get("cves") or []
             gh_health, version = ({}, None)
             if health:
                 gh_health, version = fetch_software_health(
@@ -744,7 +748,8 @@ def build_document(refresh, token, only=None, fixtures=None, health=True,
         })
         if health and support_row:
             support_rows.append(support_row)
-        if refresh and not fixtures:
+        # 跳过 NVD 时无需遵守 NVD 的请求间隔（6.5s/条），避免无谓等待
+        if refresh and not fixtures and include_vulns:
             time.sleep(interval)
     vulns_doc = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -776,6 +781,8 @@ def main():
     parser = argparse.ArgumentParser(description="常用软件漏洞与健康度采集")
     parser.add_argument("--refresh", action="store_true", help="联网采集")
     parser.add_argument("--no-health", action="store_true", help="跳过健康度采集")
+    parser.add_argument("--no-vulns", action="store_true",
+                        help="跳过 NVD，只刷 GitHub 健康度信号（未选中条目沿用旧漏洞数据）")
     parser.add_argument("--only", action="append", default=[],
                         help="只采集指定软件（可多次，按名称或别名）")
     parser.add_argument("--fixtures", help="离线回放目录（测试用）")
@@ -797,8 +804,11 @@ def main():
         health=not args.no_health,
         existing_vulns=_load_json(args.out_vulns),
         existing_support=_load_json(args.out_support),
-        gh_token=gh_token)
-    write_json(args.out_vulns, vulns_doc)
+        gh_token=gh_token, include_vulns=not args.no_vulns)
+    # --no-vulns 时漏洞数据完全沿用旧文件：不重写 generated_at，
+    # 避免 7MB 的 software-vulns.json 每轮都产生巨大 diff
+    if not args.no_vulns:
+        write_json(args.out_vulns, vulns_doc)
     if not args.no_health:
         write_json(args.out_support, support_doc)
     total_cves = sum(s["cve_count"] for s in vulns_doc["software"])

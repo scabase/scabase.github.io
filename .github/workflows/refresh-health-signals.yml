@@ -1,0 +1,108 @@
+name: refresh-health-signals
+
+# 健康度信号的一次性补采通道。
+#
+# 为什么需要它：健康度信号扩展（如新增 GitHub Star / Fork / Watch）或采集脚本
+# 修复后，仓库里已有的数据是旧快照，必须重新联网采集才会带上新字段；而每日定时
+# 工作流要等到下一个窗口才执行。本工作流即「手动按下补采按钮」：
+#   1) workflow_dispatch     在 Actions 页面手动 Run workflow
+#   2) push 本文件本身        改一行注释并推送也能触发（便于脚本化的自愈通道）
+#
+# 两点设计约束（踩过坑）：
+#   - GitHub 配额按小时窗口计：community-health（03:17 UTC）与 software-collect
+#     相隔不到一小时时，后者开跑即撞上被打满的配额，于是 65 个软件里只有 23 个
+#     采到 stars、0 个 forks/watchers。补采因此**串行**执行，并依赖采集器
+#     「睡到 X-RateLimit-Reset」而不是直接降级。
+#   - 补采只刷 GitHub 信号（--no-vulns）：NVD 漏洞数据不变，
+#     software-vulns.json 就不会产生 7MB 的无意义 diff。
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/refresh-health-signals.yml"
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  software-signals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      # 采集器读它做 GitHub 鉴权（未配置时退化匿名 60 次/时）
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 补采软件维度 GitHub 信号（跳过 NVD）
+        run: |
+          python scabase-fetcher/scripts/fetch_software.py --refresh --no-vulns \
+            --out-vulns scabase-fetcher/data/software-vulns.json \
+            --out-support scabase-fetcher/data/software-support.json
+
+      - name: 校验 GitHub 信号覆盖率
+        # 限流会让组件静默降级为「未知」，没有这层门禁时补采可能白跑一轮
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+
+          with open("scabase-fetcher/data/software-support.json", encoding="utf-8") as handle:
+              rows = json.load(handle)["components"]
+          total = len(rows)
+          with_repo = [r for r in rows if r.get("repo")]
+          got = [r for r in with_repo if r.get("forks") is not None]
+          stars = [r for r in with_repo if r.get("stars") is not None]
+          ratio = len(got) / max(1, len(with_repo))
+          print("软件 %d 个，登记仓库 %d 个，forks 覆盖 %d 个（%.0f%%），stars 覆盖 %d 个"
+                % (total, len(with_repo), len(got), ratio * 100, len(stars)))
+          if len(with_repo) and ratio < 0.9:
+              print("GitHub 信号覆盖率过低，可能被限流：请稍后重跑本工作流", file=sys.stderr)
+              sys.exit(1)
+          PY
+
+      - name: 提交软件健康度数据
+        run: |
+          python3 scabase-fetcher/scripts/gen_data_index.py \
+            --data scabase-fetcher/data \
+            --out scabase-fetcher/data/index.json \
+            --base-url "https://scabase.roweb.cn"
+          if [ -z "$(git status --porcelain scabase-fetcher/data/software-support.json)" ]; then
+            git checkout -- scabase-fetcher/data/index.json
+            echo "数据无变化，跳过提交"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add scabase-fetcher/data/software-support.json \
+                  scabase-fetcher/data/index.json
+          git commit -m "chore(data): refresh 软件健康度 GitHub 信号"
+          git push
+
+  community-signals:
+    needs: software-signals
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 排队触发 community-health（串行，避免与上一轮争抢配额）
+        run: |
+          code=$(curl -s -o /tmp/dispatch.json -w "%{http_code}" \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/community-health.yml/dispatches" \
+            -d '{"ref":"main"}')
+          echo "dispatch community-health -> HTTP $code"
+          if [ "$code" != "204" ]; then
+            cat /tmp/dispatch.json
+            exit 1
+          fi

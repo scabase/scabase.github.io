@@ -13,16 +13,25 @@ name: software-collect
 # NVD 无 API key 时限流 5 次 / 30 秒（脚本内置 6.5s 间隔，全量约 8 分钟）；
 # 配置仓库 Secret NVD_API_KEY 后自动提速。GitHub 用默认 GITHUB_TOKEN。
 # 任一来源失败只降级，不中断整批。
+#
+# 排期注意（踩过坑）：GitHub 配额是 **每小时窗口**，community-health 在 03:17
+# 开跑会打满当小时的 1000 次配额；原定的 03:43 落在同一窗口内，于是软件维度
+# 大面积降级——65 个软件只有 23 个采到 stars、0 个 forks/watchers。
+# 现改为 05:43（跨过一个配额窗口），并在采集器里「睡到 X-RateLimit-Reset」。
 on:
   schedule:
-    # 每日 03:43（UTC）执行，与 community-health（03:17）错开
-    - cron: "43 3 * * *"
+    # 每日 05:43（UTC）：与 community-health（03:17）跨窗口错开
+    - cron: "43 5 * * *"
   workflow_dispatch:
     inputs:
       only:
         description: "只采集指定软件（空格分隔，按名称或别名），留空为全量"
         required: false
         default: ""
+      skip-vulns:
+        description: "true 时跳过 NVD、只刷 GitHub 健康度信号"
+        required: false
+        default: "false"
 
 permissions:
   # 采集结果需要提交回仓库，pages.yml 才能随站点发布
@@ -47,12 +56,33 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -- --refresh
+          if [ "${{ github.event.inputs.skip-vulns }}" = "true" ]; then
+            set -- "$@" --no-vulns
+          fi
           if [ -n "${{ github.event.inputs.only }}" ]; then
             for name in ${{ github.event.inputs.only }}; do
               set -- "$@" --only "$name"
             done
           fi
           python scabase-fetcher/scripts/fetch_software.py "$@"
+
+      - name: 校验 GitHub 信号覆盖率
+        # 限流会让软件静默降级成「未知」，没有这层门禁时一轮白跑也无人察觉
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+
+          with open("scabase-fetcher/data/software-support.json", encoding="utf-8") as handle:
+              rows = json.load(handle)["components"]
+          with_repo = [r for r in rows if r.get("repo")]
+          got = [r for r in with_repo if r.get("forks") is not None]
+          ratio = len(got) / max(1, len(with_repo))
+          print("登记仓库 %d 个，forks 覆盖 %d 个（%.0f%%）" % (len(with_repo), len(got), ratio * 100))
+          if with_repo and ratio < 0.9:
+              print("GitHub 信号覆盖率过低（疑似限流），本次不覆盖旧数据", file=sys.stderr)
+              sys.exit(1)
+          PY
 
       - name: 提交数据更新
         run: |

@@ -147,6 +147,28 @@ jobs:
             --md reports/community-support.md \
             --json scabase-fetcher/data/community-support.json
 
+      - name: 校验 GitHub 信号覆盖率
+        # 限流会把组件静默降级成「未知」信号（按「未知即风险」还倒扣分），
+        # 若直接提交，等于把一份更差的数据覆盖掉旧数据且无人察觉。
+        # 因此这里按「登记了 GitHub 仓库的组件」子集核算 forks 覆盖率，
+        # 未达标就不提交、让工作流失败提示。
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+
+          with open("scabase-fetcher/data/community-support.json", encoding="utf-8") as handle:
+              rows = json.load(handle)["components"]
+          with_repo = [r for r in rows if r.get("repo")]
+          got = [r for r in with_repo if r.get("forks") is not None]
+          ratio = len(got) / max(1, len(with_repo))
+          print("组件 %d 个，登记仓库 %d 个，forks 覆盖 %d 个（%.0f%%）"
+                % (len(rows), len(with_repo), len(got), ratio * 100))
+          if with_repo and ratio < 0.8:
+              print("GitHub 信号覆盖率过低（疑似限流），保留旧数据不提交", file=sys.stderr)
+              sys.exit(1)
+          PY
+
       - name: 写入事实层（health 数据集）
         # 仅刷新 health 水位；--license 传空表示本轮不处理许可证，避免把未采集的数据集标记为新鲜
         run: |
