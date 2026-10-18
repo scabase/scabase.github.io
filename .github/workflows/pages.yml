@@ -77,6 +77,14 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # 数据工作流可能相隔几十秒连续提交，两个部署同时写 github-pages
+      # environment 会互相抢占，被打断的那个记为 failure（重试即可成功）
       - name: Deploy to GitHub Pages
         id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Retry deploy（并发抢占时重试一次）
+        id: retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
