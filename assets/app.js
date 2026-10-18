@@ -2237,6 +2237,13 @@
       body.appendChild(el("div", "health-alert",
         "⚠ 项目已归档 / 停止维护，社区支持基本中断，原则上不得引入。"));
     }
+    if (c.repo_status === "not_found") {
+      // 区分「仓库已失效」与「本轮采集被限流」：前者需要人工修映射，后者重跑即可
+      body.appendChild(el("div", "health-alert warn",
+        "⚠ 登记的 GitHub 仓库不可访问（" + (c.repo || "未登记") +
+        "，可能已迁移 / 改名 / 转为私有），Star / Fork / Watch 等信号无法采集，" +
+        "请人工核对后更新仓库映射。"));
+    }
 
     var scoreBar = el("div", "score-bar sb-" + c.grade);
     var fill = el("i");

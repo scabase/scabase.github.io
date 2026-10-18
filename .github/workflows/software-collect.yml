@@ -37,6 +37,11 @@ permissions:
   # 采集结果需要提交回仓库，pages.yml 才能随站点发布
   contents: write
 
+concurrency:
+  # 串行执行：并发实例互抢 GitHub 配额且容易在提交时撞车（详见 push 段注释）
+  group: software-collect
+  cancel-in-progress: false
+
 jobs:
   collect-software:
     runs-on: ubuntu-latest

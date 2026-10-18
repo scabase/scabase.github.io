@@ -90,6 +90,40 @@ class RateLimitWaitTest(unittest.TestCase):
         self.assertEqual(req.get.call_count, 2)
 
 
+class RepoStatusTest(unittest.TestCase):
+    """登记的仓库失效时必须能和低质量采集区分开（GitLab 迁出 GitHub 的场景）。"""
+
+    def _call(self, resp_or_exc):
+        with mock.patch.object(foh, "requests") as req:
+            if isinstance(resp_or_exc, Exception):
+                req.get.side_effect = resp_or_exc
+            else:
+                req.get.return_value = resp_or_exc
+            return foh.repo_status("gitlab-org/gitlab", None)
+
+    def test_ok(self):
+        self.assertEqual(self._call(FakeResponse({}, 200)), "ok")
+
+    def test_not_found(self):
+        self.assertEqual(self._call(FakeResponse({}, 404)), "not_found")
+
+    def test_network_error_is_unknown(self):
+        self.assertEqual(self._call(Exception("timeout")), "unknown")
+
+    def test_no_slug(self):
+        self.assertEqual(foh.repo_status(None, None), "unknown")
+
+    def test_row_carries_repo_status(self):
+        import fetch_software as fs
+
+        row = fs.build_support_row(
+            "GitLab", {"name": "GitLab", "repo": "gitlab-org/gitlab"},
+            {}, None, repo_status="not_found")
+        self.assertEqual(row["repo_status"], "not_found")
+        self.assertIsNone(row["stars"])
+        self.assertIsNone(row["forks"])
+
+
 class NoVulnsRefreshTest(unittest.TestCase):
     def test_skip_vulns_keeps_existing_cves(self):
         """--no-vulns 只刷 GitHub 信号：不调 NVD，漏洞条目原样保留。"""

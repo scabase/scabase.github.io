@@ -217,6 +217,28 @@ python -m oss_intake.cli verify-release --pkg build/scabase-data
 同一版本号与文件指纹在三处完全一致，内容未变化时自动跳过发布；
 详细说明见 [`docs/github-packages.md`](docs/github-packages.md)。
 
+### 每日数据快照邮件推送
+
+`.github/workflows/data-mail.yml` 每天 **07:00 UTC**（北京 15:00，排在全部采集之后）
+把 `scabase-fetcher/data/` 打包成 `scabase-data-YYYYMMDD.tar.gz` 发到指定邮箱，
+同时上传 artifact 留存 30 天。原始数据约 11MB，压缩后约 1.3MB，作为附件发送没有压力；
+若附件超过 20MB 会自动降级为「邮件里给 artifact 下载链接」，避免被退信。
+
+首次使用需在 **Settings → Secrets and variables → Actions** 配置：
+
+| Secret | 示例 | 说明 |
+| --- | --- | --- |
+| `MAIL_SERVER` | `smtp.qq.com` | SMTP 服务器 |
+| `MAIL_PORT` | `465` | SSL 465 / STARTTLS 587，缺省 465 |
+| `MAIL_USERNAME` | `xxx@qq.com` | 发件邮箱完整地址 |
+| `MAIL_PASSWORD` | — | **SMTP 授权码**，不是邮箱登录密码 |
+| `MAIL_SECURE` | `true` | `false` 时走 STARTTLS（配 587） |
+| `MAIL_TO` | `luweb@foxmail.com` | 可选，未配置时回落工作流里的默认收件人 |
+
+未配置 `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_SERVER` 时工作流**不会报错**：
+只打包上传 artifact 并打 warning，避免每天一个红叉掩盖真正的问题。
+手动运行（Actions → Mail Data Snapshot → Run workflow）可临时指定收件人或关闭附件。
+
 - 规范与提案：`openspec/`（基线 `specs/`，变更 `changes/add-oss-intake-evaluation/`）
 - 设计与操作手册：[`docs/oss-intake.md`](docs/oss-intake.md)
 - 测试：`python -m unittest discover -s tests`

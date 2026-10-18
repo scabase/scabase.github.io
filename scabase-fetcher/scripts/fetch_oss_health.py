@@ -316,6 +316,42 @@ def collect_pr_merge_days(slug, token, limit=30):
     return round((gaps[middle - 1] + gaps[middle]) / 2.0, 1)
 
 
+def _auth_headers(token=None):
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = "Bearer %s" % token
+    return headers
+
+
+def repo_status(slug, token=None, timeout=20):
+    """仓库可访问性：ok / not_found / unknown。
+
+    登记的 owner/repo 可能随时间失效（例如 GitLab 把源码迁出自有实例后，
+    ``gitlab-org/gitlab`` 在 GitHub 上返回 404）。这时健康信号全为空，
+    若不区分「仓库没了」和「限流没采到」，前端只看到一堆「未知」，
+    人工也无法判断是该改映射还是重跑采集。
+    """
+    if not slug:
+        return "unknown"
+    url = "%s/%s" % (GITHUB_API, slug)
+    try:
+        resp = requests.get(url, headers=_auth_headers(token), timeout=timeout)
+    except Exception:
+        return "unknown"
+    if resp.status_code == 404:
+        return "not_found"
+    if resp.status_code in (403, 429):
+        if _rate_limit_sleep(resp, _wait_left):
+            try:
+                retry = requests.get(url, headers=_auth_headers(token),
+                                     timeout=timeout)
+            except Exception:
+                return "unknown"
+            return "not_found" if retry.status_code == 404 else "unknown"
+        return "unknown"
+    return "ok" if resp.status_code < 400 else "unknown"
+
+
 def collect_from_github(slug, token, releases_limit=100):
     repo = _get("%s/%s" % (GITHUB_API, slug), token=token)
     if not repo:

@@ -25,6 +25,11 @@ permissions:
   contents: write
   actions: write
 
+concurrency:
+  # 手动连点两次 Run workflow 会造成两个实例互抢配额，双双跑不全
+  group: refresh-health-signals
+  cancel-in-progress: false
+
 jobs:
   software-signals:
     runs-on: ubuntu-latest

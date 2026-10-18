@@ -1,0 +1,237 @@
+name: Mail Data Snapshot
+
+# 每日把采集到的数据打包压缩，作为附件发送到指定邮箱。
+#
+# 为什么需要它：数据是每日定时采集后 commit 回仓库的，但仓库里只有「当前快照」，
+# 想回溯某一天的数据、或在没有 GitHub 访问权限的环境里拿到全量数据，就得有一份
+# 可归档的离线副本。邮件是最低成本的分发通道——不需要额外的对象存储或账号体系。
+#
+# 触发时机排在所有采集工作流之后（02:00 漏洞 / 03:17 社区健康 / 05:43 软件漏洞），
+# 07:00 UTC 发出的是当天完整数据；排在前面的话会漏掉当天最后一次采集。
+# 亦可在 Actions 手动触发，临时指定收件人或关闭附件。
+#
+# 需要配置 Secrets（Settings → Secrets and variables → Actions）：
+#   MAIL_SERVER     SMTP 服务器，如 smtp.qq.com
+#   MAIL_PORT       端口，SSL 用 465，STARTTLS 用 587
+#   MAIL_USERNAME   发件邮箱完整地址
+#   MAIL_PASSWORD   SMTP 授权码（不是邮箱登录密码）
+#   MAIL_SECURE     可选，"true" 走 SSL(465)，"false" 走 STARTTLS(587)，默认 true
+#   MAIL_TO         可选，收件人；未配置时回落到下方 DEFAULT_TO
+#
+# 未配置 MAIL_PASSWORD 时本工作流不会失败：只打包并上传 artifact，在日志里提示
+# 「SMTP 未配置，已跳过发送」，避免每天一个红叉掩盖真正的问题。
+
+on:
+  schedule:
+    # 每天 07:00 UTC（北京 15:00），当晚一天全部采集完成之后
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+    inputs:
+      to:
+        description: "收件人邮箱，留空用默认地址"
+        type: string
+        default: ""
+      attach:
+        description: "以附件发送（关闭则只上传 artifact 并在邮件里给链接）"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-mail
+  cancel-in-progress: false
+
+env:
+  DEFAULT_TO: "luweb@foxmail.com"
+  # 附件体积上限（字节）。QQ / Foxmail 普通附件上限 50MB，这里留足余量：
+  # 超过就降级为「上传 artifact + 邮件里给下载链接」，而不是硬发导致被退信。
+  MAX_ATTACH_BYTES: 20000000
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve recipients
+        id: to
+        env:
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          INPUT_TO: ${{ inputs.to }}
+        run: |
+          to="${INPUT_TO:-${MAIL_TO:-$DEFAULT_TO}}"
+          echo "addr=$to" >> "$GITHUB_OUTPUT"
+          echo "收件人: $to"
+
+      - name: Pack data
+        id: pack
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y%m%d)"
+          name="scabase-data-${stamp}.tar.gz"
+
+          # facts/ 是事实层中间产物（已 gitignore），不进包
+          tar --exclude='facts' -czf "$name" -C scabase-fetcher data
+
+          size="$(stat -c %s "$name")"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "size=$size" >> "$GITHUB_OUTPUT"
+          echo "打包完成: $name（$size 字节）"
+
+      - name: Build summary
+        id: summary
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > mail_body.html
+          import html, json, os
+
+          idx_path = "scabase-fetcher/data/index.json"
+          idx = {}
+          if os.path.exists(idx_path):
+              try:
+                  with open(idx_path, encoding="utf-8") as fh:
+                      idx = json.load(fh)
+              except (ValueError, OSError):
+                      idx = {}
+
+          datasets = idx.get("datasets", [])
+          rows = []
+          for ds in datasets:
+              size = ds.get("bytes")
+              size_txt = f"{size/1024:.1f} KB" if isinstance(size, (int, float)) else "-"
+              rows.append(
+                  "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+                      html.escape(str(ds.get("title", ds.get("id", "")))),
+                      html.escape(str(ds.get("file", ""))),
+                      size_txt,
+                      html.escape(str(ds.get("update", "-"))),
+                  )
+              )
+
+          if not rows:
+              rows.append('<tr><td colspan="4">index.json 缺失或为空，未列出数据集</td></tr>')
+
+          print("""<div style="font-family:-apple-system,'PingFang SC',sans-serif;font-size:14px;color:#1f2328">
+            <p>ScaBase 数据快照已生成，附件为 <code>scabase-fetcher/data/</code> 全量数据。</p>
+            <table border="1" cellspacing="0" cellpadding="6"
+                   style="border-collapse:collapse;border-color:#d0d7de">
+              <thead style="background:#f6f8fa">
+                <tr><th>数据集</th><th>文件</th><th>大小</th><th>更新频率</th></tr>
+              </thead>
+              <tbody>{}</tbody>
+            </table>
+            <p style="color:#57606a">
+              索引生成时间：{}<br>
+              站点：{}<br>
+              本次运行（可下载 artifact）：<a href="{}">{}</a>
+            </p>
+          </div>""".format(
+              "\n".join(rows),
+              html.escape(str(idx.get("generated_at", "-"))),
+              html.escape(str(idx.get("base_url", "-"))),
+              html.escape(os.environ.get("RUN_URL", "")),
+              html.escape(os.environ.get("RUN_URL", "")),
+          ))
+          PY
+          python3 - <<'PY' > mail_body.txt
+          import json, os
+          idx_path = "scabase-fetcher/data/index.json"
+          idx = {}
+          if os.path.exists(idx_path):
+              try:
+                  with open(idx_path, encoding="utf-8") as fh:
+                      idx = json.load(fh)
+              except (ValueError, OSError):
+                  idx = {}
+          lines = ["ScaBase 数据快照已生成。", "数据集清单：", ""]
+          for ds in idx.get("datasets", []):
+              size = ds.get("bytes")
+              size_txt = f"{size/1024:.1f} KB" if isinstance(size, (int, float)) else "-"
+              lines.append(f"  - {ds.get('title', ds.get('id', ''))} ({ds.get('file', '')}) {size_txt}")
+          if len(lines) == 3:
+              lines.append("  （index.json 缺失或为空）")
+          lines += [
+              "",
+              f"索引生成时间: {idx.get('generated_at', '-')}",
+              f"站点: {idx.get('base_url', '-')}",
+              f"本次运行（可下载 artifact）: {os.environ.get('RUN_URL', '')}",
+          ]
+          print("\n".join(lines))
+          PY
+
+      - name: Upload artifact (always, as fallback)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pack.outputs.name }}
+          path: ${{ steps.pack.outputs.name }}
+          retention-days: 30
+
+      - name: Decide delivery mode
+        id: mode
+        env:
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+          WANT_ATTACH: ${{ inputs.attach }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MAIL_USERNAME:-}" ] || [ -z "${MAIL_PASSWORD:-}" ] || [ -z "${MAIL_SERVER:-}" ]; then
+            echo "send=false" >> "$GITHUB_OUTPUT"
+            echo "attach=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::SMTP 未配置（MAIL_SERVER / MAIL_USERNAME / MAIL_PASSWORD），跳过发送；产物已上传 artifact"
+            exit 0
+          fi
+          echo "send=true" >> "$GITHUB_OUTPUT"
+          size="${{ steps.pack.outputs.size }}"
+          want="${WANT_ATTACH:-true}"
+          if [ "$want" = "true" ] && [ "$size" -le "${MAX_ATTACH_BYTES:-20000000}" ]; then
+            echo "attach=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "attach=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::附件体积 $size 超过上限或已关闭附件，改为邮件内给 artifact 下载链接"
+          fi
+
+      - name: Send mail (with attachment)
+        if: steps.mode.outputs.send == 'true' && steps.mode.outputs.attach == 'true'
+        uses: dawidd6/action-send-mail@v4
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT || '465' }}
+          secure: ${{ secrets.MAIL_SECURE != 'false' }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "ScaBase 数据快照 ${{ steps.pack.outputs.name }}"
+          to: ${{ steps.to.outputs.addr }}
+          from: ${{ secrets.MAIL_USERNAME }}
+          body: file://mail_body.txt
+          html_body: file://mail_body.html
+          attachments: ${{ steps.pack.outputs.name }}
+
+      - name: Send mail (link only)
+        if: steps.mode.outputs.send == 'true' && steps.mode.outputs.attach == 'false'
+        uses: dawidd6/action-send-mail@v4
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT || '465' }}
+          secure: ${{ secrets.MAIL_SECURE != 'false' }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "ScaBase 数据快照 ${{ steps.pack.outputs.name }}（附件超限，请从 Actions 下载）"
+          to: ${{ steps.to.outputs.addr }}
+          from: ${{ secrets.MAIL_USERNAME }}
+          body: file://mail_body.txt
+          html_body: file://mail_body.html
+
+      - name: Report
+        if: always()
+        run: |
+          echo "产物: ${{ steps.pack.outputs.name }}"
+          echo "收件人: ${{ steps.to.outputs.addr }}"
+          echo "是否发送: ${{ steps.mode.outputs.send }}"
+          echo "是否带附件: ${{ steps.mode.outputs.attach }}"

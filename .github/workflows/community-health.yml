@@ -36,6 +36,12 @@ permissions:
   # 由 pages.yml 随 GitHub Pages 一并发布，前端健康度 tab 才能读到数据。
   contents: write
 
+concurrency:
+  # 同一工作流串行执行：并发实例会互抢同一份 GitHub 配额（1000 次/时），
+  # 结果是彼此大面积降级被限流；排队虽慢，但每轮数据都是完整的。
+  group: community-health
+  cancel-in-progress: false
+
 jobs:
   collect-health:
     runs-on: ubuntu-latest

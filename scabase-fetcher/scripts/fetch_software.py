@@ -621,10 +621,14 @@ def fetch_software_health(repo, token=None):
     return health, version
 
 
-def build_support_row(name, entry, health, version):
-    """评分卡（结构与 community-support.json 对齐，前端可直接复用渲染）。"""
+def build_support_row(name, entry, health, version, repo_status=None):
+    """评分卡（结构与 community-support.json 对齐，前端可直接复用渲染）。
+
+    repo_status：仅在 GitHub 信号为空时补记，区分「登记的仓库已不可访问」
+    与「本次限流没采到」——否则两种情况的卡片长得一模一样。
+    """
     result = community_mod.evaluate(health)
-    return {
+    row = {
         "purl": "pkg:generic/%s@%s" % (name.lower().replace(" ", "-"),
                                        version or ""),
         "display": "%s%s" % (name, (" " + version) if version else ""),
@@ -648,6 +652,9 @@ def build_support_row(name, entry, health, version):
         "missing": result.get("missing") or [],
         "advice": result.get("advice"),
     }
+    if repo_status:
+        row["repo_status"] = repo_status
+    return row
 
 
 def _select_entries(only):
@@ -734,6 +741,10 @@ def build_document(refresh, token, only=None, fixtures=None, health=True,
                     entry.get("repo"), token=gh_token)
             support_row = build_support_row(name, entry, gh_health, version) \
                 if health else None
+            # GitHub 信号为空时探一次仓库可达性：区分「仓库失效」与「本轮被限流」
+            if support_row and entry.get("repo") and not gh_health:
+                support_row["repo_status"] = foh.repo_status(
+                    entry["repo"], gh_token)
         else:
             cves = (prior_cves.get(name) or {}).get("cves") or []
             support_row = prior_rows.get(name)

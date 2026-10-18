@@ -58,6 +58,12 @@ for (var s = 0; s < SW_COUNT; s++) {
 var swVulnsDoc = { software: swList };
 var swSupportDoc = { components: swComps };
 
+// comp1 模拟「登记的 GitHub 仓库已失效」（如 GitLab 迁出自有实例）
+components[1].stars = null;
+components[1].forks = null;
+components[1].watchers = null;
+components[1].repo_status = "not_found";
+
 var healthDoc = {
   generated_at: "2026-10-18T00:00:00Z",
   component_count: COUNT,
@@ -179,6 +185,9 @@ waitReady().then(function () {
     check("月下载量仍缩写", signalValue(c0, "月下载量") === "1.2M", signalValue(c0, "月下载量"));
     check("来源徽章可点击", c0.querySelectorAll(".health-sources a.src-link").length === 2,
       c0.querySelectorAll(".health-sources a.src-link").length + " 个");
+    var warn = host.querySelector(".health-alert.warn");
+    check("仓库失效时给出可操作提示", !!warn &&
+      warn.textContent.indexOf("org/comp1") !== -1, warn ? warn.textContent : "无");
 
     // 翻到第 2 页
     pager.querySelectorAll(".pager-btn")[1].click();

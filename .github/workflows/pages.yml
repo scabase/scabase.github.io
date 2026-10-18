@@ -19,7 +19,11 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # 数据工作流可能在几分钟内连续提交（例如软件 / 社区健康度各提交一次），
+  # cancel-in-progress: true 会让后来的部署取消前一个，被取消的那个记为 failure
+  #（现象：Deploy to GitHub Pages failure，站点其实被最新一份覆盖了）。
+  # 改为排队串行：多等十几秒，但每次部署都有明确成功结论。
+  cancel-in-progress: false
 
 jobs:
   build:
