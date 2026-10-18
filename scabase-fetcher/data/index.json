@@ -3,7 +3,7 @@
   "description": "开源组件漏洞与社区支持查询站的机器可读数据索引；字段 llm_hint 面向通过 WebFetch 取数的智能体",
   "base_url": "https://scabase.roweb.cn",
   "llms_txt": "https://scabase.roweb.cn/llms.txt",
-  "generated_at": "2026-10-18T09:37:05Z",
+  "generated_at": "2026-10-18T14:44:04Z",
   "datasets": [
     {
       "id": "vulns",
@@ -186,9 +186,9 @@
       "llm_hint": "组件级健康度；评分遵循「未知即风险」，archived 直接判 D",
       "path": "/scabase-fetcher/data/community-support.json",
       "url": "https://scabase.roweb.cn/scabase-fetcher/data/community-support.json",
-      "bytes": 356280,
-      "sha256": "37622a63b305b8dbd67ebbda7633b9b86266000bc11bff51c58ff908e0774233",
-      "generated_at": "2026-10-18T08:18:39Z"
+      "bytes": 356281,
+      "sha256": "4816714d7594b9d1a6c901eada173dac9e8178b3df7b64f8e982b19e24f35d14",
+      "generated_at": "2026-10-18T14:44:00Z"
     },
     {
       "id": "pkg-list",
