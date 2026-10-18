@@ -1155,7 +1155,8 @@
     return null;
   }
 
-  function fmtNum(n) {
+  /* 大数简写（万 / 亿）：流行榜卡片用，仅作量级提示 */
+  function fmtAbbrev(n) {
     n = Number(n) || 0;
     if (n >= 1e8) return (n / 1e8).toFixed(1).replace(/\.0$/, "") + " 亿";
     if (n >= 1e4) return (n / 1e4).toFixed(1).replace(/\.0$/, "") + " 万";
@@ -1164,10 +1165,10 @@
 
   function popularMetaText(item) {
     var meta = item.meta || {};
-    if (meta.weekly_downloads) return "周下载 " + fmtNum(meta.weekly_downloads);
-    if (meta.monthly_downloads) return "月下载 " + fmtNum(meta.monthly_downloads);
-    if (meta.dependents) return "被依赖 " + fmtNum(meta.dependents);
-    if (meta.stars) return "★ " + fmtNum(meta.stars);
+    if (meta.weekly_downloads) return "周下载 " + fmtAbbrev(meta.weekly_downloads);
+    if (meta.monthly_downloads) return "月下载 " + fmtAbbrev(meta.monthly_downloads);
+    if (meta.dependents) return "被依赖 " + fmtAbbrev(meta.dependents);
+    if (meta.stars) return "★ " + fmtAbbrev(meta.stars);
     return "";
   }
 
@@ -1337,6 +1338,7 @@
     vulnsDoc: null, supportDoc: null, loaded: false, loading: false, failed: false,
     index: {}, aliasKeys: [], supportIndex: {}, byName: {},
     healthPage: 1, // 软件健康度查询结果的当前页
+    healthHits: [], // 最近一次软件健康度查询的命中，翻页时复用
     pending: [] // 软件数据到位后补跑的查询回调
   };
 
@@ -1628,7 +1630,8 @@
     var box = $("softwareHealth");
     if (!box) return;
     box.textContent = "";
-    if (!hits.length) { box.hidden = true; return; }
+    if (!hits.length) { softwareState.healthHits = []; box.hidden = true; return; }
+    softwareState.healthHits = hits;
     if (!softwareState.supportDoc) {
       box.hidden = false;
       if (softwareState.loading) {
@@ -1661,13 +1664,24 @@
         candidates: 1, duplicates: []
       });
     });
-    matched.forEach(function (item) { box.appendChild(renderHealthMatchedCard(item)); });
-    missing.forEach(function (item) { box.appendChild(renderHealthMissingCard(item)); });
     if (matched.length) {
-      var stamp = el("p", "software-summary",
-        "软件维度 · 命中 " + matched.length + " 个 · 未收录 " + missing.length + " 条");
-      box.insertBefore(stamp, box.firstChild);
+      box.appendChild(el("p", "software-summary",
+        "软件维度 · 命中 " + matched.length + " 个 · 未收录 " + missing.length + " 条"));
     }
+
+    // 命中较多时按页展示，避免一次堆叠大量健康度卡片
+    var total = matched.length;
+    var pages = Math.max(1, Math.ceil(total / HEALTH_PAGE_SIZE));
+    if (softwareState.healthPage > pages) softwareState.healthPage = pages;
+    if (softwareState.healthPage < 1) softwareState.healthPage = 1;
+    var start = (softwareState.healthPage - 1) * HEALTH_PAGE_SIZE;
+    matched.slice(start, start + HEALTH_PAGE_SIZE)
+      .forEach(function (item) { box.appendChild(renderHealthMatchedCard(item)); });
+    missing.forEach(function (item) { box.appendChild(renderHealthMissingCard(item)); });
+    renderPager(box, total, softwareState.healthPage, function (p) {
+      softwareState.healthPage = p;
+      renderSoftwareHealth(softwareState.healthHits);
+    });
   }
 
   /* 软件快速填入 chips（漏洞 tab 与健康度 tab 共用同一份全量清单，按分类分组；
@@ -2335,10 +2349,20 @@
     return box;
   }
 
+  /* 二次筛选（搜索 / 排序 / 等级）只在查询态有意义：默认态藏起来，
+     避免用户对着空白列表操作控件；「重新加载」始终保留。 */
+  function toggleHealthFilters(on) {
+    ["healthSearch", "healthSort", "healthGrade"].forEach(function (id) {
+      var node = $(id);
+      if (node) node.hidden = !on;
+    });
+  }
+
   function renderHealth() {
     var report = healthState.data;
     if (!report) return;
     renderHealthKpis(report);
+    toggleHealthFilters(healthState.queryMode);
 
     var host = $("healthResults");
     host.textContent = "";

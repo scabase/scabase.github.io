@@ -748,3 +748,49 @@ a.src:hover {
 .signal .k { font-size: 11.5px; color: var(--fg-muted); }
 .signal .v { font-family: var(--mono); font-size: 13px; }
 .advice { margin: 12px 0 0; font-size: 13px; }
+
+/* 结果翻页：仅在总条数超过每页条数时出现 */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 14px 0 2px;
+  padding: 10px 0 0;
+  border-top: 1px dashed var(--border);
+}
+.pager-info { font-size: 12.5px; color: var(--fg-muted); font-family: var(--mono); }
+.pager-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pager-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.pager-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* 健康度默认态：不铺全量列表，只给查询引导 */
+.health-guide {
+  padding: 18px 20px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.health-guide-title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.health-guide-tips { margin: 0; padding-left: 20px; }
+.health-guide-tips li { margin: 6px 0; font-size: 13.5px; color: var(--fg-muted); line-height: 1.7; }
+.health-guide-tips code {
+  padding: 1px 5px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}

@@ -142,7 +142,7 @@
     <section class="panel">
       <label class="field-label" for="healthQuery">
         查询清单（每行一条，格式与漏洞查询一致；开源库与应用软件均可，如 <code>nginx</code> /
-        <code>Apache HTTP Server</code> / <code>k8s</code>；留空则展示全部已收录组件）
+        <code>Apache HTTP Server</code> / <code>k8s</code>；默认不铺开全量列表，查询后按页展示）
       </label>
       <textarea id="healthQuery" spellcheck="false" rows="5"
         placeholder="maven|org.springframework.boot:spring-boot-starter-web|2.7.0&#10;npm|lodash|4.17.20&#10;pypi|requests|2.20.0&#10;log4j:log4j:1.2.17&#10;nginx&#10;7-Zip&#10;Apache HTTP Server 2.4.58"></textarea>
@@ -191,12 +191,16 @@
             <li><b>未收录的组件</b>：健康度数据由 <code>community-health.yml</code> 按
               <code>pkg_list.txt</code> / <code>pkg_list_popular.txt</code> 采集生成，未覆盖的组件会单独列出，
               可复制到清单后重新参与采集。</li>
-            <li>查询后仍可用下方「等级 / 搜索 / 排序」做二次筛选；清空输入框并查询即回到全量浏览。</li>
+            <li><b>默认不铺开全量列表</b>：进入页签只显示总数 KPI 与查询引导，输入清单「查询」后才渲染结果；
+              结果按每页 <b>20 条</b>分页，用卡片下方的翻页按钮浏览，也可配合「等级 / 搜索 / 排序」缩小范围。</li>
+            <li><b>活跃度原始数据</b>：卡片同时给出 GitHub <b>Star / Fork / Watch</b> 精确计数与最近提交天数，
+              Star 等数字可与卡片底部「数据来源」徽章点开的项目页直接核对。</li>
+            <li>「清空」即回到查询引导态，不再一次渲染数百张卡片。</li>
           </ul>
         </div>
       </details>
 
-      <div class="controls health-controls">
+      <div class="controls health-controls" id="healthControls">
         <input id="healthSearch" type="search" autocomplete="off"
           placeholder="按组件名过滤，如 lodash / fastjson" />
         <select id="healthSort" class="tb" aria-label="排序方式">
