@@ -235,7 +235,7 @@ jobs:
 
       - name: 上传 payload
         if: steps.gate.outputs.skipped != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scabase-data-${{ steps.release.outputs.version }}
           path: ${{ env.PAYLOAD_DIR }}/scabase-data-${{ steps.release.outputs.version }}.tar.gz
