@@ -54,6 +54,32 @@ class WorkflowFilesTest(unittest.TestCase):
                         "%s 的 %s 被缩进（%r），GitHub 会判 Invalid workflow file"
                         % (name, key, line))
 
+    def test_data_push_is_conflict_safe(self):
+        """提交数据的工作流不得裸 `git push`。
+
+        software-collect 曾在与 community-health 并发时被拒（non-fast-forward），
+        整轮采集结果没能落盘，外部只看到「数据一直是旧的」。因此凡涉及把
+        data/ 推回仓库的 workflow，push 前必须 fetch + rebase 并能重试。
+        """
+        for path in sorted(glob.glob(os.path.join(WORKFLOW_DIR, "*.yml"))):
+            name = os.path.basename(path)
+            with open(path, "r", encoding="utf-8") as handle:
+                text = handle.read()
+            if "git push" not in text:
+                continue
+            for token in ("git fetch origin main", "git rebase FETCH_HEAD"):
+                self.assertIn(
+                    token, text,
+                    "%s 存在 git push 但没有 %s：并发提交时会被拒"
+                    "（数据工作流之间互相覆盖或丢数据）" % (name, token))
+            # 裸 push（行首只有这两个词）应已被重试逻辑取代
+            for line in text.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("git push"):
+                    self.assertTrue(
+                        stripped.startswith("git push origin main;"),
+                        "%s 仍有不带冲突处理的裸命令: %r" % (name, stripped))
+
 
 if __name__ == "__main__":
     unittest.main()

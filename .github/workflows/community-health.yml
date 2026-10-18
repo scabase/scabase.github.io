@@ -221,4 +221,22 @@ jobs:
           git add scabase-fetcher/data/community-support.json \
                   scabase-fetcher/data/index.json
           git commit -m "chore(data): update community-support.json"
-          git push
+          # 数据工作流可能并发提交（software-collect 曾因 push 被拒丢掉整轮采集）：
+          # push 前先 rebase，索引冲突则重算后 continue，仍被拒则重试
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if ! git rebase FETCH_HEAD; then
+              git checkout FETCH_HEAD -- scabase-fetcher/data/index.json
+              python3 scabase-fetcher/scripts/gen_data_index.py \
+                --data scabase-fetcher/data \
+                --out scabase-fetcher/data/index.json \
+                --base-url "https://scabase.roweb.cn"
+              git add scabase-fetcher/data/index.json
+              GIT_EDITOR=true git rebase --continue
+            fi
+            if git push origin main; then exit 0; fi
+            echo "push 被拒（第 $attempt 次），20 秒后重试…"
+            sleep 20
+          done
+          echo "push 连续失败：请查看 Actions 运行记录是否有并发提交" >&2
+          exit 1

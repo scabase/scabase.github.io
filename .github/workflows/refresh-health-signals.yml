@@ -5,8 +5,10 @@ name: refresh-health-signals
 # 为什么需要它：健康度信号扩展（如新增 GitHub Star / Fork / Watch）或采集脚本
 # 修复后，仓库里已有的数据是旧快照，必须重新联网采集才会带上新字段；而每日定时
 # 工作流要等到下一个窗口才执行。本工作流即「手动按下补采按钮」：
-#   1) workflow_dispatch     在 Actions 页面手动 Run workflow
-#   2) push 本文件本身        改一行注释并推送也能触发（便于脚本化的自愈通道）
+#   Actions → refresh-health-signals → Run workflow。
+#
+# 曾一度把 push（paths: 本文件）也作为触发器以便脚本化自愈，但同一批改动推送会
+# 触发多个实例并发抢同一份 GitHub 配额，反而都跑不全，故只保留手动入口。
 #
 # 两点设计约束（踩过坑）：
 #   - GitHub 配额按小时窗口计：community-health（03:17 UTC）与 software-collect
@@ -18,9 +20,6 @@ name: refresh-health-signals
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/refresh-health-signals.yml"
 
 permissions:
   contents: write
@@ -86,7 +85,24 @@ jobs:
           git add scabase-fetcher/data/software-support.json \
                   scabase-fetcher/data/index.json
           git commit -m "chore(data): refresh 软件健康度 GitHub 信号"
-          git push
+          # 与每日数据工作流并存，push 可能撞车：先 rebase，冲突重算索引后 continue
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if ! git rebase FETCH_HEAD; then
+              git checkout FETCH_HEAD -- scabase-fetcher/data/index.json
+              python3 scabase-fetcher/scripts/gen_data_index.py \
+                --data scabase-fetcher/data \
+                --out scabase-fetcher/data/index.json \
+                --base-url "https://scabase.roweb.cn"
+              git add scabase-fetcher/data/index.json
+              GIT_EDITOR=true git rebase --continue
+            fi
+            if git push origin main; then exit 0; fi
+            echo "push 被拒（第 $attempt 次），20 秒后重试…"
+            sleep 20
+          done
+          echo "push 连续失败：请查看 Actions 运行记录是否有并发提交" >&2
+          exit 1
 
   community-signals:
     needs: software-signals

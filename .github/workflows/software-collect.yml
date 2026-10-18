@@ -103,4 +103,22 @@ jobs:
                   scabase-fetcher/data/software-support.json \
                   scabase-fetcher/data/index.json
           git commit -m "chore(data): update software vulns & support"
-          git push
+          # 曾在与 community-health 并发时 push 被拒（non-fast-forward），
+          # 整轮采集结果未能落盘；改为先 rebase、冲突重算索引、失败重试
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if ! git rebase FETCH_HEAD; then
+              git checkout FETCH_HEAD -- scabase-fetcher/data/index.json
+              python3 scabase-fetcher/scripts/gen_data_index.py \
+                --data scabase-fetcher/data \
+                --out scabase-fetcher/data/index.json \
+                --base-url "https://scabase.roweb.cn"
+              git add scabase-fetcher/data/index.json
+              GIT_EDITOR=true git rebase --continue
+            fi
+            if git push origin main; then exit 0; fi
+            echo "push 被拒（第 $attempt 次），20 秒后重试…"
+            sleep 20
+          done
+          echo "push 连续失败：请查看 Actions 运行记录是否有并发提交" >&2
+          exit 1
