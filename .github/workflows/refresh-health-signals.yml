@@ -34,7 +34,7 @@ jobs:
       # 采集器读它做 GitHub 鉴权（未配置时退化匿名 60 次/时）
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
