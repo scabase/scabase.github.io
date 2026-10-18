@@ -31,6 +31,17 @@ const softwareSupport = JSON.parse(
   c.sources = ["github", "deps.dev", "npm-registry", "pypi"];
 });
 
+/* 模拟「清单内但健康度尚未采集」：CI 首跑后 65 个软件的健康度可能全部有数据，
+   此处从桩数据里摘掉 Apache Tomcat，回归「未采集」卡 + 仓库链接的渲染路径 */
+const swSupportStripped = JSON.parse(JSON.stringify(softwareSupport));
+swSupportStripped.components = (swSupportStripped.components || [])
+  .filter(function (c) { return c.software !== "Apache Tomcat"; });
+
+/* 未采集软件的期望个数从数据推导，避免 CI 采集进度变化后断言失效 */
+const expectedDimChips = (softwareVulns.software || []).filter(function (s) {
+  return !s.cve_count;
+}).length;
+
 const failures = [];
 function check(name, cond, extra) {
   if (cond) { console.log("ok   -", name); return; }
@@ -57,7 +68,7 @@ window.fetch = function (url) {
   }
   if (to.indexOf("software-support.json") !== -1) {
     return Promise.resolve({ ok: true, status: 200, headers: { get: () => null },
-      json: () => Promise.resolve(softwareSupport) });
+      json: () => Promise.resolve(swSupportStripped) });
   }
   if (to.indexOf("repo-map.json") !== -1) {
     return Promise.resolve({ ok: true, status: 200, headers: { get: () => null },
@@ -142,9 +153,23 @@ setTimeout(() => {
   check("NPM 行填入 npm 格式", /^npm\|/.test($("query").value.trim()), $("query").value);
 
   /* ---------- 软件维度：漏洞查询 ---------- */
-  check("软件 chips 已渲染", $("softwareChips").querySelectorAll(".chip").length > 0,
-    $("softwareChips").querySelectorAll(".chip").length);
+  const swChipCount = $("softwareChips").querySelectorAll(".chip").length;
+  check("软件 chips 渲染全量清单", swChipCount === 65, swChipCount);
+  check("软件 chips 按分类分组",
+    $("softwareChips").querySelectorAll(".chip-group").length >= 10,
+    $("softwareChips").querySelectorAll(".chip-group").length);
+  check("未采集软件为暗色 chips",
+    $("softwareChips").querySelectorAll(".chip-dim").length === expectedDimChips,
+    { got: $("softwareChips").querySelectorAll(".chip-dim").length, expect: expectedDimChips });
   check("软件示例区已展开", $("softwareExamples").hidden === false);
+  // 两个页签共用同一份软件查询清单（统一查询清单）
+  const healthChipTexts = Array.from(
+    $("softwareHealthChips").querySelectorAll(".chip")).map((c) => c.textContent);
+  const vulnChipTexts = Array.from(
+    $("softwareChips").querySelectorAll(".chip")).map((c) => c.textContent);
+  check("两个页签软件 chips 完全一致",
+    vulnChipTexts.length === healthChipTexts.length &&
+    vulnChipTexts.every((n, i) => n === healthChipTexts[i]), null);
 
   $("query").value = "nginx 1.24.0";
   $("run").click();
@@ -180,6 +205,21 @@ setTimeout(() => {
   check("不带版本时展示全部 CVE",
     $("softwareResults").querySelectorAll(".sw-cve").length === 15,
     $("softwareResults").querySelectorAll(".sw-cve").length);
+
+  // 清单内未采集软件（CI 采集进度外的占位项）：卡片 + 数据来源链接
+  // （NVD / GitHub 均可点击人工核对）
+  $("query").value = "containerd";
+  $("run").click();
+  const pendingCard = $("softwareResults").querySelector(".software-card");
+  check("漏洞 tab 渲染未采集软件卡", !!pendingCard, null);
+  check("软件卡带 NVD / GitHub 来源链接",
+    !!pendingCard && pendingCard.querySelectorAll(".health-sources a").length === 2 &&
+    /nvd\.nist\.gov/.test(pendingCard.querySelector(".health-sources a").getAttribute("href")),
+    pendingCard && Array.from(pendingCard.querySelectorAll(".health-sources a"))
+      .map((a) => a.getAttribute("href")));
+  check("未采集空态说明采集节奏",
+    !!pendingCard && /software-collect\.yml/.test(pendingCard.textContent),
+    pendingCard && pendingCard.textContent.slice(0, 120));
 
   // 混合输入：软件 + 库（lodash 在本地 vulns.json 样本中，不发网络）；
   // 软件部分同步渲染，库部分走异步查询链（由后续用例覆盖渲染）
@@ -333,6 +373,56 @@ setTimeout(() => {
           .some((b) => b.tagName === "A" &&
             /^https:\/\/github\.com\//.test(b.getAttribute("href") || "")), null);
 
+      // 多词软件名与别名最长匹配（统一查询清单：怎么写都能查到）
+      const swParseCases = [
+        ["Apache HTTP Server", "Apache HTTP Server"],
+        ["apache httpd 2.4.58", "Apache HTTP Server"],
+        ["docker engine", "Docker Engine"],
+        ["linux kernel 6.1", "Linux Kernel"],
+        ["node.js 18", "Node.js"],
+        ["7z 23.01", "7-Zip"],
+        ["kube", "Kubernetes"],
+        ["zk", "ZooKeeper"],
+        ["nginx@1.24.0", "nginx"],
+        ["nginx:1.24.0", "nginx"],
+        ["nginx-1.24.0", "nginx"]
+      ];
+      swParseCases.forEach(function (pair) {
+        $("healthQuery").value = pair[0];
+        $("healthRun").click();
+        const name = String((swHealth.querySelector(".pkg .name") || {}).textContent);
+        check("健康度解析「" + pair[0] + "」→ " + pair[1],
+          name.indexOf(pair[1]) === 0, name);
+      });
+
+      // 库坐标不能误判为软件（maven:group:artifact:version 不是 Apache Maven）
+      $("healthQuery").value = "maven:org.springframework:spring-core:5.3.0";
+      $("healthRun").click();
+      check("GAV 行不误判为 Apache Maven",
+        swHealth.hidden === true, swHealth.textContent.slice(0, 80));
+
+      // 清单内未采集软件：未采集卡 + 仓库链接（数据来源可人工验证）
+      $("healthQuery").value = "tomcat";
+      $("healthRun").click();
+      const missCard = swHealth.querySelector(".health-miss");
+      check("清单内未采集软件渲染未采集卡",
+        !!missCard && /未采集/.test(missCard.textContent),
+        missCard && missCard.textContent.slice(0, 60));
+      const missGh = missCard && missCard.querySelector(".health-sources a");
+      check("未采集卡带 GitHub 仓库链接",
+        !!missGh && missGh.getAttribute("href") === "https://github.com/apache/tomcat",
+        missGh && missGh.getAttribute("href"));
+      check("未采集卡说明采集节奏", /software-collect\.yml/.test(missCard.textContent), null);
+      check("未采集时状态行区分未采集与未收录",
+        /未采集 1 条/.test($("healthStatus").textContent), $("healthStatus").textContent);
+
+      // 纯库查询：清掉上一次残留的软件结果
+      $("healthQuery").value = "npm|lodash|4.17.20";
+      $("healthRun").click();
+      check("纯库查询清空软件健康度区（无残留）",
+        swHealth.hidden === true && swHealth.textContent === "",
+        swHealth.textContent.slice(0, 80));
+
       /* ---------- 清空回到全量浏览 ---------- */
       $("healthClear").click();
       check("清空后软件健康度区收起",
@@ -342,12 +432,14 @@ setTimeout(() => {
       check("清空后展示全部已采集组件", all.length === health.components.length,
         { got: all.length, expect: health.components.length });
 
-      // repo-map 未收录的组件：GitHub 徽章降级为纯文本，deps.dev / 注册表仍可点
+      // 数据未带 repo 字段且 repo-map 未收录的组件：GitHub 徽章降级为纯文本，
+      // deps.dev / 注册表仍可点（数据自 2026-10-18 CI 起自带 repo 字段，
+      // 此处用真正无仓库的 go 组件回归降级路径）
       const r324 = Array.from(all).find((card) => {
         const name = String((card.querySelector(".pkg .name") || {}).textContent);
-        return name.indexOf("requests") !== -1 && name.indexOf("2.32.4") !== -1;
+        return name.indexOf("go.uber.org/zap") !== -1;
       });
-      check("全量浏览含 requests@2.32.4 卡片", !!r324);
+      check("全量浏览含 go.uber.org/zap 卡片", !!r324);
       if (r324) {
         const gh = Array.from(r324.querySelectorAll(".health-sources .src"))
           .find((x) => x.textContent === "GitHub");
@@ -356,13 +448,88 @@ setTimeout(() => {
         const dv = Array.from(r324.querySelectorAll(".health-sources .src"))
           .find((x) => x.textContent === "deps.dev");
         check("降级仅限 GitHub，deps.dev 徽章仍可点",
-          !!dv && dv.tagName === "A" && dv.getAttribute("href") === "https://deps.dev/pypi/requests",
+          !!dv && dv.tagName === "A" &&
+          dv.getAttribute("href") === "https://deps.dev/go/go.uber.org/zap",
           dv && dv.getAttribute("href"));
       }
 
-      console.log(failures.length ? "\nFAILED: " + failures.join(" | ")
-        : "\nALL PASSED (" + (loadHealth ? "health loaded" : "") + ")");
-      process.exit(failures.length ? 1 : 0);
+      /* ---------- 漏洞 tab：纯库查询清残留 ---------- */
+      $("tab-vuln").click();
+      $("query").value = "npm|lodash|4.17.20";
+      $("run").click();
+      check("纯库查询清空软件漏洞区（无残留）",
+        $("softwareResults").hidden === true && $("softwareResults").textContent === "",
+        $("softwareResults").textContent.slice(0, 80));
+
+      /* ---------- 软件数据延迟到位的竞态回归 ----------
+         数据未就绪时点查询：挂起 + 提示加载中，到位后自动补渲染，
+         不能把「nginx」误报成无法识别 / 未收录（数据为空的观感） */
+      raceRegression("vuln", () => raceRegression("health", () => {
+        console.log(failures.length ? "\nFAILED: " + failures.join(" | ")
+          : "\nALL PASSED (" + (loadHealth ? "health loaded" : "") + ")");
+        process.exit(failures.length ? 1 : 0);
+      }));
     }, 30);
   }, 60);
 }, 60);
+
+/* 竞态回归：新建一个软件数据延迟 700ms 到位的窗口，
+   验证两个页签在数据未就绪时的挂起与自动补渲染（各用一个新窗口，
+   保证点击发生时数据确实未到位）。 */
+function raceRegression(pane, done) {
+  const delayed = { "software-vulns.json": softwareVulns, "software-support.json": swSupportStripped };
+  const dom = new JSDOM(html, { runScripts: "outside-only", url: "https://example.invalid/" });
+  const { window } = dom;
+  window.fetch = function (url) {
+    const to = String(url || "");
+    for (const key of Object.keys(delayed)) {
+      if (to.indexOf(key) !== -1) {
+        return new Promise((resolve) => setTimeout(() => resolve({
+          ok: true, status: 200, headers: { get: () => null },
+          json: () => Promise.resolve(delayed[key])
+        }), 700));
+      }
+    }
+    if (to.indexOf("community-support.json") !== -1) {
+      return Promise.resolve({ ok: true, status: 200, headers: { get: () => null },
+        json: () => Promise.resolve(health) });
+    }
+    if (to.indexOf("repo-map.json") !== -1) {
+      return Promise.resolve({ ok: true, status: 200, headers: { get: () => null },
+        json: () => Promise.resolve({}) });
+    }
+    return Promise.resolve({ ok: false, status: 404, headers: { get: () => null },
+      text: () => Promise.resolve(""), json: () => Promise.reject(new Error("nope")) });
+  };
+  window.navigator.clipboard = { writeText: () => Promise.resolve() };
+  window.eval(appJs);
+
+  const isHealth = pane === "health";
+  const runBtn = isHealth ? "healthRun" : "run";
+  const ta = isHealth ? "healthQuery" : "query";
+  const statusId = isHealth ? "healthStatus" : "status";
+  const boxId = isHealth ? "softwareHealth" : "softwareResults";
+  const cardSel = isHealth ? ".health-card" : ".software-card";
+
+  setTimeout(() => {
+    const $ = (id) => window.document.getElementById(id);
+    if (isHealth) $("tab-health").click();
+    $(ta).value = "nginx";
+    $(runBtn).click();
+    // 健康度数据（立即到位）加载完成后会补跑查询，此时应停在「软件数据加载中」
+    setTimeout(() => {
+      const status = $(statusId).textContent;
+      check("竞态：" + pane + " 数据未到位时提示加载中",
+        /正在加载软件数据/.test(status), status);
+      check("竞态：" + pane + " 未把 nginx 误报为无法识别",
+        !/无法识别/.test(status), status);
+
+      setTimeout(() => {
+        const cards = $(boxId).querySelectorAll(cardSel);
+        check("竞态：" + pane + " 数据到位后自动补渲染", cards.length === 1 &&
+          /nginx/.test(cards[0].textContent), cards.length);
+        done();
+      }, 900);
+    }, 150);
+  }, 80);
+}

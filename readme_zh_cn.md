@@ -13,8 +13,9 @@ ScaBase 是面向 DevSecOps、应用安全团队的开源SCA（软件成分分�
 支持 **Maven / NPM / PyPI / Go** 多语言开源组件漏洞检索，基于 OSV + NVD 双漏洞数据库驱动。
 
 - ✅ 多生态支持：Maven GAV、NPM、Python PyPI、Go Module
-- ✅ 软件维度支持：nginx / 7-Zip / ZooKeeper / Kubernetes / Redis / MySQL 等约 70 个常用
-  应用与基础设施软件的漏洞（NVD CPE 精确匹配）与社区健康度查询
+- ✅ 软件维度支持：nginx / 7-Zip / ZooKeeper / Kubernetes / Redis / MySQL 等 65 个常用
+  应用与基础设施软件的漏洞（NVD CPE 精确匹配）与社区健康度查询；两个页签共用同一份
+  软件查询清单（名称 / 别名 / 多词名 / 分类），未采集软件显示「未采集」卡并附仓库链接
 - ✅ 数据源：OSV作为主数据源，NVD补充标准CVSS、CWE信息
 - ✅ 自动更新：GitHub Actions 定时任务自动拉取最新漏洞
 - ✅ 纯静态前端：无需后端服务，可部署于 GitHub Pages / Cloudflare Pages

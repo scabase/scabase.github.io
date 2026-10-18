@@ -5,8 +5,10 @@
 > 全部数据以 JSON / 文本文件公开，可通过 WebFetch 直接获取，无需 API Key、无跨域限制。
 >
 > 除编程语言生态的依赖库外，另覆盖**应用 / 基础设施软件维度**（nginx、7-Zip、ZooKeeper、
-> Kubernetes、Redis、MySQL 等约 70 个常用服务器软件）：漏洞按 NVD CPE 精确匹配，
+> Kubernetes、Redis、MySQL 等 65 个常用服务器软件）：漏洞按 NVD CPE 精确匹配，
 > 健康度按 GitHub 仓库信号评分，查询方式见下方「软件维度」说明。
+> 软件清单（名称 / 别名 / 分类）与页面两个页签完全一致，未采集的软件同样可查
+> （返回 cve_count 为 0 的占位与仓库链接）。
 
 站点：https://scabase.roweb.cn
 源码：https://github.com/scabase/scabase.github.io
@@ -21,7 +23,9 @@
    例：`npm|lodash|4.17.20`、`maven|com.alibaba:fastjson|1.2.24`。
 4. 查某个 CVE 影响哪些组件：遍历 vulns.json 的 key，在 enriched[].osv.id / aliases 中匹配 CVE 编号。
 5. 查服务器软件（nginx / k8s / 7zip 等）的漏洞：直接查 software-vulns.json，
-   以软件名（或别名）为键，例：`software["nginx"]["cves"]`；可按 `affected` 版本区间过滤。
+   以软件名（或别名，含多词名如 "Apache HTTP Server"）为键，例：`software["nginx"]["cves"]`；
+   可按 `affected` 版本区间过滤。该文件的 `software` 数组覆盖全量采集清单，
+   `cve_count` 为 0 表示已登记、待采集。
 
 ## 数据集
 
@@ -44,9 +48,13 @@
 
 - [软件漏洞库 software-vulns.json](https://scabase.roweb.cn/scabase-fetcher/data/software-vulns.json):
   应用 / 基础设施软件维度的漏洞库。`{ generated_at, source, software_count, software: [...] }`，
-  software 元素为 `{ name, aliases, cpe, repo, cve_count, cves }`：
-  `aliases` 为查询别名（如 k8s → Kubernetes、7zip → 7-Zip）；`cpe` 为 NVD CPE
-  `vendor:product` 前缀（nginx 为 `f5:nginx`，MySQL 同时收录 `oracle:mysql` 与 `mysql:mysql`）；
+  software 覆盖全量采集清单（65 个），元素为
+  `{ name, category, aliases, cpe, repo, cve_count, cves }`：
+  `category` 为分类（Web 服务器与代理 / 数据库与缓存 / 容器与编排 等 13 类）；
+  `aliases` 为查询别名（如 k8s → Kubernetes、7zip → 7-Zip、apache http server → Apache HTTP Server）；
+  `cve_count` 为 0 表示已登记、待每日采集；
+  `cpe` 为 NVD CPE `vendor:product` 前缀（nginx 为 `f5:nginx`，MySQL 同时收录
+  `oracle:mysql` 与 `mysql:mysql`）；`repo` 为 GitHub 仓库（可点击核对）；
   `cves` 元素为 `{ id, description, cvss, severity, published, weaknesses, affected, references }`，
   其中 `affected` 为版本区间列表（`start_including` / `start_excluding` / `end_including` /
   `end_excluding`，NVD 用 null 表示未设置），用于判断给定版本是否受影响。
@@ -84,3 +92,6 @@
 - 漏洞查询：粘贴清单（每行一条）批量查询；支持 CVE 编号反查、按 CVE 过滤、按组件/CVE 两种视图。
 - 支持力度与活跃度：查询组件的社区健康度评分卡（A/B/C/D）。
 - 常用依赖 Top 清单：按生态浏览、过滤、一键填入。
+- 软件维度：两个页签共用同一份 65 个常用软件清单（按分类分组、点击填入）；
+  支持软件名 / 别名 / 多词名（Apache HTTP Server）/ 带版本（nginx 1.24.0）；
+  未采集软件显示「未采集」卡并附 GitHub 仓库链接；结果卡的数据来源徽章均可点击人工核对。

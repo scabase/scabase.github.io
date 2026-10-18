@@ -171,6 +171,22 @@ button.ghost { background: transparent; }
   cursor: pointer;
 }
 .chip:hover { color: var(--fg); border-color: var(--accent); background: var(--accent-soft); }
+/* 软件清单分组（分类标签 + 该分类下的软件 chips） */
+.chip-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 0;
+}
+.chip-group-label {
+  font-size: 11.5px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+.chip-group-label::after { content: "："; }
+/* 数据采集中的软件：暗色 chips，点击后由结果卡说明状态 */
+.chip-dim { opacity: 0.55; border-style: dashed; }
 /* Top 清单按钮：一次性填入 10 / 50 / 100 行 */
 .chip-list { border-style: dashed; font-weight: 600; }
 .examples + .examples { margin-top: -2px; }

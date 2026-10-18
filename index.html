@@ -54,7 +54,7 @@
       </div>
 
       <div class="examples" id="softwareExamples" hidden>
-        <span class="examples-label">常用软件（漏洞查询）：</span>
+        <span class="examples-label">常用软件查询（点击填入，两个页签通用）：</span>
         <div id="softwareChips" class="chips"></div>
       </div>
 
@@ -100,6 +100,11 @@
               <code>groupId:artifactId</code>。</li>
             <li><b>简写</b>：<code>ecosystem:package@version</code>，例 <code>PyPI:requests@2.20.0</code>。</li>
             <li><b>CVE 编号</b>：直接输入 <code>CVE-2021-44228</code>，可反查本地漏洞库中受该 CVE 影响的组件。</li>
+            <li><b>应用 / 基础设施软件</b>：直接输入软件名（可带版本），如 <code>nginx 1.24.0</code>、
+              <code>7-Zip 23.01</code>、<code>k8s 1.31.1</code>；支持多词名与别名（如
+              <code>Apache HTTP Server</code> / <code>docker engine</code> / <code>zk</code>），
+              <code>@</code> / <code>:</code> / 空格 / <code>-</code> 均可分隔版本。软件数据来自 NVD，
+              与下方「常用软件查询」清单一致（灰色 = 数据采集中）。</li>
             <li>以 <code>#</code> 开头的行视为注释，空行自动忽略。支持生态：
               <code>maven / npm / pypi / go</code>（并自动映射为 OSV 生态名）。</li>
           </ul>
@@ -136,10 +141,11 @@
   <div id="pane-health" class="pane" role="tabpanel" aria-labelledby="tab-health" hidden>
     <section class="panel">
       <label class="field-label" for="healthQuery">
-        按组件查询（每行一条，格式与漏洞查询一致；也支持直接输入软件名，如 <code>nginx</code> / <code>k8s</code>；留空则展示全部已收录组件）
+        查询清单（每行一条，格式与漏洞查询一致；开源库与应用软件均可，如 <code>nginx</code> /
+        <code>Apache HTTP Server</code> / <code>k8s</code>；留空则展示全部已收录组件）
       </label>
       <textarea id="healthQuery" spellcheck="false" rows="5"
-        placeholder="maven|org.springframework.boot:spring-boot-starter-web|2.7.0&#10;npm|lodash|4.17.20&#10;pypi|requests|2.20.0&#10;log4j:log4j:1.2.17&#10;nginx&#10;7-Zip&#10;zookeeper"></textarea>
+        placeholder="maven|org.springframework.boot:spring-boot-starter-web|2.7.0&#10;npm|lodash|4.17.20&#10;pypi|requests|2.20.0&#10;log4j:log4j:1.2.17&#10;nginx&#10;7-Zip&#10;Apache HTTP Server 2.4.58"></textarea>
 
       <div class="controls">
         <button id="healthRun" class="primary" type="button">查询</button>
@@ -154,7 +160,7 @@
       </div>
 
       <div class="examples" id="softwareHealthExamples" hidden>
-        <span class="examples-label">常用软件（健康度查询）：</span>
+        <span class="examples-label">常用软件查询（点击填入，两个页签通用）：</span>
         <div id="softwareHealthChips" class="chips"></div>
       </div>
 
@@ -175,6 +181,11 @@
             <li><b>输入格式与漏洞查询完全一致</b>：<code>ecosystem|package|version</code>、
               <code>groupId:artifactId:version</code>、<code>ecosystem:package@version</code>；
               <code>#</code> 开头为注释。</li>
+            <li><b>应用 / 基础设施软件</b>：直接输入软件名即可，如 <code>nginx</code> / <code>7-Zip</code> /
+              <code>k8s</code>，可带版本（<code>nginx 1.24.0</code>），支持多词名与别名
+              （<code>Apache HTTP Server</code> / <code>docker engine</code> / <code>zk</code>）。
+              清单与漏洞查询页签完全一致；已登记但尚未采集的软件会显示「未采集」卡，
+              并附 GitHub 仓库链接供人工核对。</li>
             <li><b>版本不是必须的</b>：社区健康度是「组件级」评估，未写版本时按同名组件匹配，
               并在卡片上标注报告实际采用的版本。</li>
             <li><b>未收录的组件</b>：健康度数据由 <code>community-health.yml</code> 按

@@ -472,12 +472,23 @@ python scabase-fetcher/scripts/gen_data_index.py \
 - **健康度**：复用 GitHub 信号（Star、归档、发布节奏、背后组织），
   评分走 `oss_intake.community`；版本号取最新 GitHub release tag
   （兼容 `v1.24.0` / `release-1.24.0` / `openssl-4.0.3` / `curl-8_23_0` 等形态）。
+- **统一查询清单**：`SOFTWARE` 清单（65 个，13 个分类）是两个页签共用的唯一
+  查询清单。产物 `software-vulns.json` 的 `software` 数组**覆盖全清单**——
+  未采集的软件以 `cve_count: 0` 占位（含 name / category / aliases / cpe / repo），
+  前端据此把「查无此项」变成「未采集」卡（附 GitHub 仓库链接供人工核对），
+  而不是消失在库维度里。离线重建（不带 `--refresh`）会自动补齐占位而不丢旧数据。
 - **查询语法**：输入框直接写 `nginx 1.24.0` / `nginx@1.24.0` / `k8s` / `7zip`，
   别名表见 `SOFTWARE`（含 k8s、zk、7zip、httpd、pg 等常见缩写）；
+  支持**多词名与别名最长匹配**（`Apache HTTP Server` / `docker engine` /
+  `linux kernel` / `node.js 18`），`@` / `:` / 空格 / `-` 均可分隔版本；
   带版本时按 CPE 区间过滤受影响 CVE，不带版本展示全部。
+  库坐标（`maven|g:a:v`、`g:a:v`）不会被误判成软件名。
 - **前端**：软件结果渲染在独立区域（漏洞 `#softwareResults`、健康度
   `#softwareHealth`），CVE 编号链接 NVD 详情页，健康度卡片复用库维度渲染
   （含可点击的来源徽章）；与库维度输入可混合（同一行一个条目）。
+  两个页签的「常用软件查询」chips 为同一份全量清单，按分类分组，
+  暗色 chips 表示数据采集中。软件数据加载窗口中点查询会挂起，
+  到位后自动补渲染（不会把 `nginx` 误报成无法识别）。
 - **NVD 限流**：无 `NVD_API_KEY` 时 5 次/30 秒（脚本内置 6.5s 间隔，
   全量约 8 分钟）；配置仓库 Secret `NVD_API_KEY` 后自动提速。
 
@@ -487,7 +498,11 @@ python scabase-fetcher/scripts/fetch_software.py --refresh
 
 # 只刷新指定软件（未选中的软件沿用旧数据，不会从产物中丢失）
 python scabase-fetcher/scripts/fetch_software.py --refresh --only nginx --only redis
+
+# 离线重建：不联网，用旧数据 + 全清单占位重新生成产物（前端立即可查全清单）
+python scabase-fetcher/scripts/fetch_software.py
 ```
 
-产物：`software-vulns.json`（软件 → CVE 列表）与 `software-support.json`
-（健康度评分卡，结构与 community-support.json 对齐，前端复用同一套渲染）。
+产物：`software-vulns.json`（全清单 → CVE 列表，未采集为 0 占位）与
+`software-support.json`（已采集软件的健康度评分卡，结构与 community-support.json
+对齐，前端复用同一套渲染）。

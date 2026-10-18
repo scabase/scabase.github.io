@@ -84,10 +84,11 @@ DATASETS = [
             },
             "software": {
                 "name": "软件名（查询主键）",
-                "aliases": "查询别名（k8s / 7zip / httpd 等）",
+                "category": "分类（Web 服务器与代理 / 数据库与缓存 等）",
+                "aliases": "查询别名（k8s / 7zip / httpd 等，支持多词如 apache http server）",
                 "cpe": "NVD CPE vendor:product 前缀列表（nginx 为 f5:nginx）",
                 "repo": "GitHub owner/repo",
-                "cve_count": "CVE 数",
+                "cve_count": "CVE 数（0 = 已登记待采集）",
                 "cves": [{"id": "CVE 编号", "description": "描述（截断）",
                           "cvss": "CVSS 分数", "severity": "严重级",
                           "published": "发布日期", "weaknesses": "CWE 列表",
@@ -95,7 +96,8 @@ DATASETS = [
                           "references": "参考链接"}],
             },
         },
-        "llm_hint": "服务器软件漏洞；以软件名或别名为键（software['nginx']['cves']），"
+        "llm_hint": "服务器软件漏洞；software 覆盖全量采集清单（未采集的软件 cve_count 为 0），"
+                    "以软件名或别名为键（software['nginx']['cves']），"
                     "可按 affected 版本区间判断给定版本是否受影响",
     },
     {
@@ -129,7 +131,8 @@ DATASETS = [
                 "advice": "建议",
             },
         },
-        "llm_hint": "软件级健康度；评分遵循「未知即风险」，archived 直接判 D",
+        "llm_hint": "软件级健康度；评分遵循「未知即风险」，archived 直接判 D；"
+                    "仅含已采集软件，未采集软件在 software-vulns.json 中为 cve_count 0 的占位",
     },
     {
         "id": "community-support",

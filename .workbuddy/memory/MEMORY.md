@@ -53,6 +53,16 @@ CI 为 `.github/workflows/software-collect.yml`（每日 03:43 UTC）。
 - 来源徽章可点击（2026-10-17）：community_report 行带 `repo`/`deps_dev`/`registry`
   链接字段，前端徽章渲染为 <a target=_blank rel=noopener>，缺字段降级 span；
   community-support.json 由 CI 每日 commit 回 data/，字段随下次采集生效。
+
+## 软件维度查询清单（2026-10-18 修正）
+- **统一查询清单**：`fetch_software.py` 的 SOFTWARE（65 个、13 个 category）是两个
+  页签共用的唯一软件清单；software-vulns.json 的 `software` 数组必须覆盖**全清单**
+  （未采集 = cve_count 0 占位），否则前端只能查到已采集子集（用户报「数据为空」的根因）。
+  离线重建（不带 `--refresh`）自动补齐占位且不丢旧数据。
+- 前端软件行解析是**别名最长前缀匹配**（非正则整行匹配），支持多词名
+  （Apache HTTP Server / docker engine）；剩余部分含 `:|/` 判为库坐标不判软件；
+  加载窗口期（softwareState.loading）查询挂起、settle 后自动补渲染。
+- 未采集软件渲染「未采集」卡（附 GitHub 仓库链接供人工核对），不是「未收录」。
 - **前端链接兜底**（2026-10-17，修「徽章点不开」）：数据旧快照缺链接字段时，
   app.js 从 purl 推导 deps.dev/注册表 URL（depsDevHref/registryHref），
   并 loadRepoMap() 拉 repo-map.json（与健康报告同目录，~700B）补 GitHub 链接。

@@ -6,6 +6,8 @@
   - best_cvss / cve_record：CVSS 优先级、描述截断、参考限量、CWE 提取
   - parse_release_version：release-1.24.0 / v1.24.0 → 1.24.0
   - build_document：fixtures 离线回放，产物结构对齐 community-support.json
+  - build_document：离线重建沿用旧数据，全清单占位（未采集软件也可查询）
+  - 数据文件：software-vulns.json 覆盖全清单且带分类
 """
 import json
 import os
@@ -155,9 +157,17 @@ class SoftwareCatalogTest(unittest.TestCase):
             self.assertTrue(entry.get("name"), entry)
             self.assertTrue(entry.get("cpe"), entry["name"])
             self.assertTrue(entry.get("keywords"), entry["name"])
+            # 分类供前端 chips 分组与清单浏览，每个软件都必须有
+            self.assertTrue(entry.get("category"), entry["name"])
             for cpe in entry["cpe"]:
                 vendor, _, product = cpe.partition(":")
                 self.assertTrue(vendor and product, (entry["name"], cpe))
+
+    def test_aliases_are_lowercase(self):
+        # 前端别名索引统一小写匹配，清单里的别名必须全小写
+        for entry in fs.SOFTWARE:
+            for alias in entry.get("aliases") or []:
+                self.assertEqual(alias, alias.lower(), (entry["name"], alias))
 
     def test_select_entries_by_alias(self):
         picked = fs._select_entries(["k8s", "7zip"])
@@ -195,6 +205,60 @@ class BuildDocumentFixtureTest(unittest.TestCase):
         self.assertEqual(row["version"], "1.27.3")
         self.assertTrue(row["purl"].startswith("pkg:generic/"))
         self.assertEqual(sum(support_doc["grade_counts"].values()), len(rows))
+
+
+class OfflineRebuildTest(unittest.TestCase):
+    """离线重建（不联网、不传 fixtures）：未选中的软件沿用旧数据。
+
+    这是「统一查询清单」的数据基础：即使某软件还没采集到 CVE / 健康度，
+    也会以空占位进入产物，前端据此渲染「未采集」卡而不是查无此项。
+    """
+
+    def test_offline_rebuild_emits_full_manifest(self):
+        prior_vulns = {"software": [{
+            "name": "nginx", "aliases": ["nginx"], "cpe": ["f5:nginx"],
+            "repo": "nginx/nginx", "cve_count": 2,
+            "cves": [{"id": "CVE-1"}, {"id": "CVE-2"}]
+        }]}
+        prior_support = {"components": [
+            {"software": "nginx", "purl": "pkg:generic/nginx@1.0", "grade": "B"}
+        ]}
+        vulns_doc, support_doc = fs.build_document(
+            False, None, existing_vulns=prior_vulns, existing_support=prior_support)
+        self.assertEqual(vulns_doc["software_count"], len(fs.SOFTWARE))
+        by_name = {s["name"]: s for s in vulns_doc["software"]}
+        # 旧数据完整保留
+        self.assertEqual(by_name["nginx"]["cve_count"], 2)
+        self.assertEqual(len(by_name["nginx"]["cves"]), 2)
+        # 未采集软件：空占位但别名 / CPE / 分类齐全，可被前端索引
+        self.assertEqual(by_name["Redis"]["cve_count"], 0)
+        self.assertEqual(by_name["Redis"]["cves"], [])
+        self.assertTrue(by_name["Redis"]["aliases"])
+        self.assertTrue(by_name["Redis"]["cpe"])
+        for entry in vulns_doc["software"]:
+            self.assertTrue(entry.get("category"), entry["name"])
+        # 健康度只保留已采集的行
+        self.assertEqual(len(support_doc["components"]), 1)
+        self.assertEqual(support_doc["grade_counts"], {"B": 1})
+
+
+class SoftwareDataFileTest(unittest.TestCase):
+    """已发布的数据文件必须是全清单（否则前端只能查到已采集的子集）。"""
+
+    PATH = os.path.join(ROOT, "scabase-fetcher", "data", "software-vulns.json")
+
+    def test_data_covers_full_manifest_with_categories(self):
+        if not os.path.exists(self.PATH):
+            self.skipTest("software-vulns.json 尚未生成")
+        with open(self.PATH, "r", encoding="utf-8") as handle:
+            doc = json.load(handle)
+        names = {s["name"] for s in doc["software"]}
+        self.assertEqual(names, {e["name"] for e in fs.SOFTWARE})
+        collected = [s for s in doc["software"] if s["cve_count"] > 0]
+        self.assertGreater(len(collected), 0)  # 至少有已采集样本
+        for entry in doc["software"]:
+            self.assertTrue(entry.get("category"), entry["name"])
+            self.assertEqual(entry["cve_count"], len(entry["cves"]))
 
 
 if __name__ == "__main__":

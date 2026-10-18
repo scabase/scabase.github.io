@@ -3,7 +3,7 @@
   "description": "开源组件漏洞与社区支持查询站的机器可读数据索引；字段 llm_hint 面向通过 WebFetch 取数的智能体",
   "base_url": "https://scabase.roweb.cn",
   "llms_txt": "https://scabase.roweb.cn/llms.txt",
-  "generated_at": "2026-10-18T01:57:26Z",
+  "generated_at": "2026-10-18T09:37:05Z",
   "datasets": [
     {
       "id": "vulns",
@@ -30,7 +30,7 @@
       "path": "/scabase-fetcher/data/vulns.json",
       "url": "https://scabase.roweb.cn/scabase-fetcher/data/vulns.json",
       "bytes": 2845408,
-      "sha256": "d5a479d408c19d408148d1c77374fea2ababe19909e81a0ff8830e1a3d3ad95d"
+      "sha256": "906453cf2ecc4f9d445e8ed584feaad0afbb2f2dc94c36ffaacc286cdfe88d08"
     },
     {
       "id": "popular-packages",
@@ -87,10 +87,11 @@
         },
         "software": {
           "name": "软件名（查询主键）",
-          "aliases": "查询别名（k8s / 7zip / httpd 等）",
+          "category": "分类（Web 服务器与代理 / 数据库与缓存 等）",
+          "aliases": "查询别名（k8s / 7zip / httpd 等，支持多词如 apache http server）",
           "cpe": "NVD CPE vendor:product 前缀列表（nginx 为 f5:nginx）",
           "repo": "GitHub owner/repo",
-          "cve_count": "CVE 数",
+          "cve_count": "CVE 数（0 = 已登记待采集）",
           "cves": [
             {
               "id": "CVE 编号",
@@ -105,12 +106,12 @@
           ]
         }
       },
-      "llm_hint": "服务器软件漏洞；以软件名或别名为键（software['nginx']['cves']），可按 affected 版本区间判断给定版本是否受影响",
+      "llm_hint": "服务器软件漏洞；software 覆盖全量采集清单（未采集的软件 cve_count 为 0），以软件名或别名为键（software['nginx']['cves']），可按 affected 版本区间判断给定版本是否受影响",
       "path": "/scabase-fetcher/data/software-vulns.json",
       "url": "https://scabase.roweb.cn/scabase-fetcher/data/software-vulns.json",
-      "bytes": 1929555,
-      "sha256": "2de8aa280af1605cc2e1723c4374b9249839c4595b1eb0ca7541c23f14eeec65",
-      "generated_at": "2026-10-18T01:51:05Z"
+      "bytes": 7239987,
+      "sha256": "681c65537a085694b8197219db7e0a86cb8b0c66ba7a55acc4092c52edae270c",
+      "generated_at": "2026-10-18T09:37:05Z"
     },
     {
       "id": "software-support",
@@ -143,12 +144,12 @@
           "advice": "建议"
         }
       },
-      "llm_hint": "软件级健康度；评分遵循「未知即风险」，archived 直接判 D",
+      "llm_hint": "软件级健康度；评分遵循「未知即风险」，archived 直接判 D；仅含已采集软件，未采集软件在 software-vulns.json 中为 cve_count 0 的占位",
       "path": "/scabase-fetcher/data/software-support.json",
       "url": "https://scabase.roweb.cn/scabase-fetcher/data/software-support.json",
-      "bytes": 7489,
-      "sha256": "485a6fc2c3f3a5c9f242217c9133ea2645fcdc709cecf7f2fc93965ab511d85f",
-      "generated_at": "2026-10-18T01:51:05Z"
+      "bytes": 41551,
+      "sha256": "09972143f91760525cfe6c143671b4409bb7d2f41bc2e63df2146ec9d26c44dc",
+      "generated_at": "2026-10-18T09:37:05Z"
     },
     {
       "id": "community-support",
@@ -185,9 +186,9 @@
       "llm_hint": "组件级健康度；评分遵循「未知即风险」，archived 直接判 D",
       "path": "/scabase-fetcher/data/community-support.json",
       "url": "https://scabase.roweb.cn/scabase-fetcher/data/community-support.json",
-      "bytes": 292383,
-      "sha256": "62ba52f324a9c766c8cec8ca57c62e464bf8711563c07114ee460ab58c679a35",
-      "generated_at": "2026-10-17T08:01:00Z"
+      "bytes": 356280,
+      "sha256": "37622a63b305b8dbd67ebbda7633b9b86266000bc11bff51c58ff908e0774233",
+      "generated_at": "2026-10-18T08:18:39Z"
     },
     {
       "id": "pkg-list",

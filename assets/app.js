@@ -916,9 +916,8 @@
     var effective = swHits.length ? stripSoftwareLines($("query").value, swHits) : $("query").value;
     var parsed = parseInput(effective);
     var errors = parsed.errors.slice();
-    if (!parsed.entries.length && !errors.length) {
+    if (!parsed.entries.length) {
       if (swHits.length) {
-        if (!softwareState.loaded) loadSoftware();
         renderSoftwareResults(swHits);
         $("results").textContent = "";
         state.results = [];
@@ -936,10 +935,24 @@
           " 条漏洞记录（NVD 数据，点击 CVE 编号可跳转核对）", false);
         return;
       }
-      setStatus("请输入至少一个组件（pkg_list 或 GAV）、CVE 编号或软件名（如 nginx 1.24.0）。", true);
+      // 没有可查的库条目：软件索引可能仍在加载，先挂起等数据到位后自动补跑，
+      // 避免加载窗口期把「nginx」报成无法识别 / 未收录组件（数据为空的观感）
+      if (softwareState.loading || (!softwareState.failed && !softwareDataReady())) {
+        ensureSoftwareData(function () { run(); });
+        setStatus("正在加载软件数据，加载完成后自动查询…", false, true);
+        return;
+      }
+      if (softwareState.failed) {
+        setStatus("软件数据加载失败（" + SOFTWARE_VULNS_URL + "），本次仅查询开源库；刷新页面可重试。", true);
+        return;
+      }
+      setStatus(errors.length
+        ? errors.join("；") + "（也可直接输入软件名，如 nginx 1.24.0）"
+        : "请输入至少一个组件（pkg_list 或 GAV）、CVE 编号或软件名（如 nginx 1.24.0）。", true);
       return;
     }
     if (swHits.length) renderSoftwareResults(swHits);
+    else clearSoftwareBoxes();
 
     running = true;
     $("run").disabled = true;
@@ -1321,21 +1334,38 @@
 
   /* --------------------------- 应用 / 基础设施软件维度 --------------------------- */
   var softwareState = {
-    vulnsDoc: null, supportDoc: null, loaded: false,
-    index: {}, aliasKeys: [], supportIndex: {}
+    vulnsDoc: null, supportDoc: null, loaded: false, loading: false, failed: false,
+    index: {}, aliasKeys: [], supportIndex: {}, byName: {},
+    pending: [] // 软件数据到位后补跑的查询回调
   };
 
   function loadSoftware() {
-    if (softwareState.loaded) return;
-    softwareState.loaded = true;
+    if (softwareState.loaded || softwareState.loading) return;
+    softwareState.loading = true;
+    var left = 2;
+    var settle = function () {
+      left -= 1;
+      if (left > 0) return;
+      softwareState.loading = false;
+      softwareState.loaded = true;
+      if (!softwareState.vulnsDoc && !softwareState.supportDoc) {
+        // 两份数据都没拿到：标记失败（不再自动重试，刷新页面可重试），
+        // 查询退回原有库维度逻辑，不再悬挂等待
+        softwareState.failed = true;
+      }
+      var pending = softwareState.pending;
+      softwareState.pending = [];
+      pending.forEach(function (fn) { fn(); });
+    };
     fetch(SOFTWARE_VULNS_URL, { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function (json) {
         softwareState.vulnsDoc = json;
         buildSoftwareIndex(json);
         renderSoftwareChips();
+        settle();
       })
-      .catch(function () { /* 软件数据缺失时静默：查询走原有库维度逻辑 */ });
+      .catch(function () { settle(); });
     fetch(SOFTWARE_SUPPORT_URL, { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function (json) {
@@ -1344,34 +1374,63 @@
         (json.components || []).forEach(function (c) {
           if (c.software) softwareState.supportIndex[String(c.software).toLowerCase()] = c;
         });
+        settle();
       })
-      .catch(function () { /* 同上 */ });
+      .catch(function () { settle(); });
+  }
+
+  /* 软件数据仍在加载时把查询挂起，加载完成自动补跑，
+     避免索引未就绪把「nginx」误判成未收录组件（数据为空的观感） */
+  function ensureSoftwareData(fn) {
+    if (softwareState.loaded) { fn(); return; }
+    if (!softwareState.loading) loadSoftware();
+    softwareState.pending.push(fn);
+  }
+
+  function softwareDataReady() {
+    return softwareState.loaded && !!softwareState.vulnsDoc;
   }
 
   function buildSoftwareIndex(doc) {
     softwareState.index = {};
+    softwareState.byName = {};
     (doc.software || []).forEach(function (sw) {
+      softwareState.byName[String(sw.name).toLowerCase()] = sw;
       var keys = [sw.name].concat(sw.aliases || []);
       keys.forEach(function (k) {
         var lk = String(k).toLowerCase();
         if (lk && !softwareState.index[lk]) softwareState.index[lk] = sw;
       });
     });
-    // 别名按长度降序，保证最长匹配（"linux kernel" 优先于 "linux"）
-    softwareState.aliasKeys = Object.keys(softwareState).length ? [] : [];
+    // 别名按长度降序，保证最长匹配（"apache http server" 优先于 "apache"）
     softwareState.aliasKeys = Object.keys(softwareState.index)
       .sort(function (a, b) { return b.length - a.length; });
   }
 
-  /* 识别一行是否为软件查询：name / name@ver / name:ver / name ver */
+  /* 识别一行是否为软件查询：name / name@ver / name:ver / name ver / name-ver。
+     支持多词软件名与别名（"Apache HTTP Server" / "docker engine" / "linux kernel"）：
+     按别名长度降序做前缀最长匹配，剩余部分视为版本。 */
   function parseSoftwareLine(raw) {
     var line = String(raw || "").trim();
     if (!line || line.charAt(0) === "#") return null;
-    var m = line.match(/^([^\s@:]+)(?:[@:]\s*([^\s]+)|\s+(\S+))?$/);
-    if (!m) return null;
-    var sw = softwareState.index[m[1].toLowerCase()];
-    if (!sw) return null;
-    return { line: raw, name: sw.name, version: (m[2] || m[3] || "").trim() };
+    var lower = line.toLowerCase();
+    for (var i = 0; i < softwareState.aliasKeys.length; i++) {
+      var alias = softwareState.aliasKeys[i];
+      if (lower.indexOf(alias) !== 0) continue;
+      var rest = line.slice(alias.length);
+      // 别名后必须是行尾或分隔符，避免 "kubelet" 误命中 "kube"、"maven|g:a:v" 误命中 "maven"
+      if (rest && !/^[\s@:_-]/.test(rest)) continue;
+      var sw = softwareState.index[alias];
+      var version = rest.replace(/^[\s@:_-]+/, "").trim();
+      if (version) {
+        // 剩余部分不是版本号形态时：含坐标符（:/|/）说明是库输入，整行不判为软件；
+        // 其余（如 "nginx latest"）忽略该尾巴，按不带版本处理
+        if (/[|/:]/.test(version)) return null;
+        if (!/^v?\d/i.test(version)) version = "";
+      }
+      return { line: raw, name: sw.name, version: version };
+    }
+    return null;
   }
 
   function detectSoftwareLines(text) {
@@ -1448,7 +1507,13 @@
     if (!hits.length) { box.hidden = true; return; }
     if (!softwareState.vulnsDoc) {
       box.hidden = false;
-      box.appendChild(el("div", "empty", "软件漏洞数据加载中，请稍后再次点击「查询」。"));
+      if (softwareState.loading) {
+        box.appendChild(el("div", "empty", "软件漏洞数据加载中，加载完成后自动展示…"));
+        ensureSoftwareData(function () { renderSoftwareResults(hits); });
+      } else {
+        box.appendChild(el("div", "empty",
+          "软件漏洞数据暂不可用（" + SOFTWARE_VULNS_URL + "），刷新页面可重试。"));
+      }
       return;
     }
     box.hidden = false;
@@ -1489,8 +1554,11 @@
 
     var body = el("div", "software-body");
     if (!cves.length) {
+      var hasSupport = !!(softwareState.supportIndex || {})[hit.name.toLowerCase()];
       body.appendChild(el("p", "empty", !sw.cve_count
-        ? "该软件的漏洞数据尚未采集（software-collect.yml 每日更新），可先查看其健康度信号。"
+        ? (hasSupport
+          ? "该软件的漏洞数据尚未采集到 NVD（software-collect.yml 每日更新），可先查看其健康度信号。"
+          : "该软件已登记在采集清单中，漏洞与健康度数据由 software-collect.yml 每日采集，稍后即可查询。")
         : (hit.version
           ? "未发现影响 " + hit.version + " 的已收录漏洞。"
           : "暂无已收录漏洞。")));
@@ -1532,6 +1600,24 @@
       }
       body.appendChild(row);
     });
+    // 数据来源：NVD（keywordSearch + CPE 过滤）+ GitHub 仓库，均可点击人工核对
+    var srcBox = el("div", "health-sources");
+    srcBox.appendChild(el("span", "health-sources-label", "数据来源"));
+    var nvdLink = el("a", "src src-link", "NVD");
+    nvdLink.href = "https://nvd.nist.gov/vuln/search?query=" + encodeURIComponent(sw.name);
+    nvdLink.target = "_blank";
+    nvdLink.rel = "noopener";
+    nvdLink.title = "在 NVD 中按软件名检索，核对该软件的 CVE 收录情况";
+    srcBox.appendChild(nvdLink);
+    if (sw.repo) {
+      var ghLink = el("a", "src src-link", "GitHub");
+      ghLink.href = "https://github.com/" + sw.repo;
+      ghLink.target = "_blank";
+      ghLink.rel = "noopener";
+      ghLink.title = "项目仓库：" + sw.repo;
+      srcBox.appendChild(ghLink);
+    }
+    body.appendChild(srcBox);
     card.appendChild(body);
     return card;
   }
@@ -1544,7 +1630,13 @@
     if (!hits.length) { box.hidden = true; return; }
     if (!softwareState.supportDoc) {
       box.hidden = false;
-      box.appendChild(el("div", "empty", "软件健康度数据加载中，请稍后再次点击「查询」。"));
+      if (softwareState.loading) {
+        box.appendChild(el("div", "empty", "软件健康度数据加载中，加载完成后自动展示…"));
+        ensureSoftwareData(function () { renderSoftwareHealth(hits); });
+      } else {
+        box.appendChild(el("div", "empty",
+          "软件健康度数据暂不可用（" + SOFTWARE_SUPPORT_URL + "），刷新页面可重试；该软件的漏洞维度仍可查询。"));
+      }
       return;
     }
     box.hidden = false;
@@ -1552,8 +1644,13 @@
     hits.forEach(function (hit) {
       var comp = softwareState.supportIndex[hit.name.toLowerCase()];
       if (!comp) {
-        missing.push({ entry: { ecosystem: "软件", name: hit.name, version: hit.version || null },
-                       reason: "软件健康度数据未收录" });
+        // 清单内但未采集 → 「未采集」卡（带仓库链接）；不在清单 → 「未收录」卡
+        var meta = softwareState.byName[hit.name.toLowerCase()] || null;
+        missing.push({
+          entry: { ecosystem: "软件", name: hit.name, version: hit.version || null },
+          reason: meta ? "该软件的健康度信号尚未采集" : "不在软件查询清单内",
+          manifest: meta
+        });
         return;
       }
       matched.push({
@@ -1572,27 +1669,46 @@
     }
   }
 
-  /* 软件快速填入 chips（漏洞 tab 与健康度 tab 各一个容器；只列已采集到 CVE 的软件） */
+  /* 软件快速填入 chips（漏洞 tab 与健康度 tab 共用同一份全量清单，按分类分组；
+     未采集数据的软件以暗色 chips 呈现，点击后由结果卡说明状态） */
   function renderSoftwareChips() {
     if (!softwareState.vulnsDoc) return;
-    var names = (softwareState.vulnsDoc.software || [])
-      .filter(function (s) { return s.cve_count > 0; })
-      .map(function (s) { return s.name; });
+    var groups = {};
+    (softwareState.vulnsDoc.software || []).forEach(function (s) {
+      var cat = s.category || "其他";
+      (groups[cat] = groups[cat] || []).push(s);
+    });
     ["softwareChips", "softwareHealthChips"].forEach(function (id) {
       var box = $(id);
       if (!box) return;
       box.textContent = "";
-      names.slice(0, 14).forEach(function (name) {
-        var chip = el("button", "chip", name);
-        chip.type = "button";
-        chip.addEventListener("click", function () {
-          var ta = $(id === "softwareChips" ? "query" : "healthQuery");
-          if (ta) { ta.value = name; ta.focus(); }
+      Object.keys(groups).forEach(function (cat) {
+        var group = el("span", "chip-group");
+        group.appendChild(el("span", "chip-group-label", cat));
+        groups[cat].forEach(function (s) {
+          var chip = el("button", "chip" + (s.cve_count ? "" : " chip-dim"), s.name);
+          chip.type = "button";
+          chip.title = s.cve_count
+            ? (s.name + "：已收录 " + s.cve_count + " 条 CVE，点击填入查询框")
+            : (s.name + "：数据采集中，点击填入查询框");
+          chip.addEventListener("click", function () {
+            var ta = $(id === "softwareChips" ? "query" : "healthQuery");
+            if (ta) { ta.value = s.name; ta.focus(); }
+          });
+          group.appendChild(chip);
         });
-        box.appendChild(chip);
+        box.appendChild(group);
       });
       var wrap = box.parentNode;
       if (wrap) wrap.hidden = false;
+    });
+  }
+
+  /* 无软件行的查询：清空并收起软件结果区，避免残留上一次的软件卡片 */
+  function clearSoftwareBoxes() {
+    ["softwareResults", "softwareHealth"].forEach(function (id) {
+      var box = $(id);
+      if (box) { box.textContent = ""; box.hidden = true; }
     });
   }
 
@@ -1814,21 +1930,35 @@
   }
 
   function renderHealthMissingCard(item) {
+    var manifest = item.manifest;
     var card = el("article", "card health-card health-miss");
     var head = el("div", "card-head");
     var pkg = el("div", "pkg");
     pkg.appendChild(el("span", "eco", item.entry.ecosystem || "—"));
     pkg.appendChild(el("span", "name", item.entry.name || "—"));
     head.appendChild(pkg);
-    head.appendChild(el("div", "badges")).appendChild(el("span", "grade grade-na", "未收录"));
+    head.appendChild(el("div", "badges")).appendChild(
+      el("span", "grade grade-na", manifest ? "未采集" : "未收录"));
     card.appendChild(head);
 
     var body = el("div", "health-body");
     body.appendChild(el("p", "health-missing",
       (item.reason || "健康度数据未收录该组件") + "：" + healthEntryLine(item.entry)));
-    body.appendChild(el("p", "advice",
-      "把该条加进 scabase-fetcher/data/pkg_list.txt（或用 gen_popular_packages.py 生成的 " +
-      "pkg_list_popular.txt），执行 community-health 工作流采集后即可在此查询。"));
+    // 清单内未采集的软件：给出仓库链接，人工可立即核对维护状况
+    if (manifest && manifest.repo) {
+      var srcBox = el("div", "health-sources");
+      srcBox.appendChild(el("span", "health-sources-label", "数据来源"));
+      var link = el("a", "src src-link", "GitHub · " + manifest.repo);
+      link.href = "https://github.com/" + manifest.repo;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.title = "数据尚未采集，可先到仓库人工核对维护状况";
+      srcBox.appendChild(link);
+      body.appendChild(srcBox);
+    }
+    body.appendChild(el("p", "advice", manifest
+      ? "该软件已登记在采集清单中，software-collect.yml 每日自动采集，稍后即可查询；急用可点上方仓库链接人工评估。"
+      : "把该条加进 scabase-fetcher/data/pkg_list.txt（开源库），或在 scabase-fetcher/scripts/fetch_software.py 的 SOFTWARE 清单中登记（应用 / 基础设施软件），重新采集后即可在此查询。"));
     card.appendChild(body);
     return card;
   }
@@ -1855,8 +1985,8 @@
     // 软件维度：命中别名表的行走 software-support.json 渲染
     var swHits = detectSoftwareLines(ta.value);
     var restLines = swHits.length ? stripSoftwareLines(ta.value, swHits) : ta.value;
+    if (!swHits.length) clearSoftwareBoxes();
     if (swHits.length && !restLines.trim()) {
-      if (!softwareState.loaded) loadSoftware();
       renderSoftwareHealth(swHits);
       var host = $("healthResults");
       if (host) host.textContent = "";
@@ -1864,8 +1994,14 @@
       var hitCount = swHits.filter(function (h) {
         return softwareState.supportIndex[h.name.toLowerCase()];
       }).length;
-      healthStatus("软件维度：输入 " + swHits.length + " 条 · 命中 " + hitCount +
-        " 个 · 未收录 " + (swHits.length - hitCount) + " 条", false);
+      var manifestMiss = swHits.filter(function (h) {
+        return !softwareState.supportIndex[h.name.toLowerCase()] &&
+          softwareState.byName[h.name.toLowerCase()];
+      }).length;
+      var otherMiss = swHits.length - hitCount - manifestMiss;
+      healthStatus("软件维度：输入 " + swHits.length + " 条 · 命中 " + hitCount + " 个" +
+        (manifestMiss ? " · 未采集 " + manifestMiss + " 条" : "") +
+        (otherMiss ? " · 未收录 " + otherMiss + " 条" : ""), false);
       var swBtn = $("healthCopyMissing");
       if (swBtn) swBtn.hidden = true;
       return;
@@ -1884,7 +2020,20 @@
     if (swHits.length) renderSoftwareHealth(swHits);
     var parsed = parseInput(restLines);
     if (!parsed.entries.length) {
-      healthStatus(parsed.errors.length ? parsed.errors.join("；") : "没有可查询的条目。", true);
+      // 软件索引可能仍在加载：挂起等数据到位后自动补跑（先于报错，
+      // 避免加载窗口期把「nginx」报成无法识别 / 未收录组件）
+      if (softwareState.loading || (!softwareState.failed && !softwareDataReady())) {
+        ensureSoftwareData(function () { runHealthQuery(); });
+        healthStatus("正在加载软件数据，加载完成后自动查询…", false, true);
+        return;
+      }
+      if (softwareState.failed) {
+        healthStatus("软件数据加载失败（" + SOFTWARE_VULNS_URL + "），本次仅查询开源库；刷新页面可重试。", true);
+        return;
+      }
+      healthStatus(parsed.errors.length
+        ? parsed.errors.join("；") + "（也可直接输入软件名，如 nginx 1.24.0）"
+        : "没有可查询的条目。输入组件（如 npm|lodash|4.17.20）或软件名（如 nginx 1.24.0）。", true);
       return;
     }
 
@@ -2367,7 +2516,9 @@
       parseHealthPurl: parseHealthPurl,
       healthNameKeys: healthNameKeys,
       buildHealthIndex: buildHealthIndex,
-      matchHealth: matchHealth
+      matchHealth: matchHealth,
+      parseSoftwareLine: parseSoftwareLine,
+      detectSoftwareLines: detectSoftwareLines
     };
   }
 
