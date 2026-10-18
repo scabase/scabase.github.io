@@ -1,14 +1,17 @@
 {
   "health": {
-    "stars": 24000,
     "archived": false,
-    "forks": 6800,
-    "pushed_days": 3,
-    "created_days": 6100,
-    "org_backing": "组织",
-    "releases_12m": 4,
-    "latest_release_days": 12,
-    "license": "BSD-2-Clause"
+    "stars": 31908,
+    "open_issues": 0,
+    "last_commit_days": 1,
+    "repo": "nginx/nginx",
+    "org_backing": "organization",
+    "has_security_policy": true,
+    "has_ci": true,
+    "releases_12m": 24,
+    "maintainers": 100,
+    "contributors": 100,
+    "pr_merge_days": 3.2
   },
-  "version": "1.27.3"
+  "version": "1.31.7"
 }

@@ -1336,6 +1336,7 @@
   var softwareState = {
     vulnsDoc: null, supportDoc: null, loaded: false, loading: false, failed: false,
     index: {}, aliasKeys: [], supportIndex: {}, byName: {},
+    healthPage: 1, // 软件健康度查询结果的当前页
     pending: [] // 软件数据到位后补跑的查询回调
   };
 
@@ -1730,10 +1731,14 @@
   }
 
   /* --------------------------- 开源软件支持力度与活跃度 --------------------------- */
+  /* 查询结果分页大小：默认不展示全量列表，查询后按页渲染，
+     避免一次插入 400+ 组件卡 / 65 软件卡造成页面卡顿 */
+  var HEALTH_PAGE_SIZE = 20;
+
   var healthState = {
     data: null, attempted: false, sort: "grade", grade: "ALL", query: "",
     queryMode: false, matched: [], missing: [], pendingQuery: false,
-    repoMap: null
+    page: 1, repoMap: null
   };
 
   /* 数据来源展示名（与 community_report.py 的 SOURCE_LABELS 保持一致） */
@@ -1972,6 +1977,7 @@
       healthState.matched = [];
       healthState.missing = [];
       healthState.pendingQuery = false;
+      healthState.page = 1;
       var copyBtn0 = $("healthCopyMissing");
       if (copyBtn0) copyBtn0.hidden = true;
       var swBox0 = $("softwareHealth");
@@ -1987,6 +1993,7 @@
     var restLines = swHits.length ? stripSoftwareLines(ta.value, swHits) : ta.value;
     if (!swHits.length) clearSoftwareBoxes();
     if (swHits.length && !restLines.trim()) {
+      softwareState.healthPage = 1;
       renderSoftwareHealth(swHits);
       var host = $("healthResults");
       if (host) host.textContent = "";
@@ -2062,6 +2069,7 @@
     healthState.matched = matched;
     healthState.missing = missing;
     healthState.pendingQuery = false;
+    healthState.page = 1;
     renderHealth();
 
     var msg = "输入 " + parsed.entries.length + " 条 · 命中 " + matched.length +
@@ -2104,6 +2112,12 @@
     if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
     if (n >= 1000) return (n / 1000).toFixed(1) + "k";
     return String(n);
+  }
+
+  /* 精确计数（千分位）：Star / Fork / Watch 是供人工核对的原始数据，不缩写 */
+  function fmtNum(n) {
+    if (n == null) return "未知";
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
 
   function gradeClass(g) { return "grade grade-" + g; }
@@ -2222,7 +2236,10 @@
       ["近12月发布", c.releases_12m == null ? "未知" : (c.releases_12m + " 次")],
       ["维护者", c.maintainers == null ? "未知" : (c.maintainers + " 人")],
       ["背后组织", orgLabel(c.org_backing)],
-      ["月下载量", fmtCount(c.monthly_downloads)]
+      ["月下载量", fmtCount(c.monthly_downloads)],
+      ["GitHub Star", fmtNum(c.stars)],
+      ["GitHub Fork", fmtNum(c.forks)],
+      ["GitHub Watch", fmtNum(c.watchers)]
     ];
     rows.forEach(function (kv) {
       var sig = el("div", "signal");
@@ -2277,19 +2294,68 @@
     return list;
   }
 
+  /* 结果翻页控件：总条数 > 每页大小时才出现 */
+  function renderPager(host, total, page, onGo) {
+    var pages = Math.max(1, Math.ceil(total / HEALTH_PAGE_SIZE));
+    if (pages <= 1) return;
+    var bar = el("div", "pager");
+    bar.appendChild(el("span", "pager-info",
+      "第 " + page + " / " + pages + " 页 · 共 " + total + " 条"));
+    var prev = el("button", "pager-btn", "‹ 上一页");
+    prev.type = "button";
+    prev.disabled = page <= 1;
+    prev.addEventListener("click", function () { onGo(page - 1); });
+    var next = el("button", "pager-btn", "下一页 ›");
+    next.type = "button";
+    next.disabled = page >= pages;
+    next.addEventListener("click", function () { onGo(page + 1); });
+    bar.appendChild(prev);
+    bar.appendChild(next);
+    host.appendChild(bar);
+  }
+
+  /* 默认态（未查询）：不铺全量列表，给查询引导 */
+  function healthBrowseGuide(report) {
+    var box = el("div", "health-guide");
+    box.appendChild(el("p", "health-guide-title", "按组件或软件查询社区支持力度与活跃度"));
+    var tips = el("ul", "health-guide-tips");
+    var total = report.component_count != null
+      ? report.component_count : (report.components || []).length;
+    [
+      "每行一条：purl（<code>npm|lodash|4.17.20</code>）、GAV（<code>log4j:log4j:1.2.17</code>）或软件名（<code>nginx</code> / <code>k8s</code>）",
+      "已收录 <b>" + total + "</b> 个开源组件与 <b>" + (softwareState.vulnsDoc ? (softwareState.vulnsDoc.software || []).length : 65) + "</b> 个常用软件的评分卡，查询后按页展示",
+      "点击「查询」后可用下方等级 / 搜索 / 排序做二次筛选，并翻页浏览",
+      "评分卡的数据来源徽章（GitHub / deps.dev / 注册表）均可点击，供人工核对原始数据"
+    ].forEach(function (text) {
+      var li = document.createElement("li");
+      li.innerHTML = text;
+      tips.appendChild(li);
+    });
+    box.appendChild(tips);
+    return box;
+  }
+
   function renderHealth() {
     var report = healthState.data;
     if (!report) return;
     renderHealthKpis(report);
+
+    var host = $("healthResults");
+    host.textContent = "";
+    host.hidden = false;
+
+    if (!healthState.queryMode) {
+      // 默认不展示全量列表：引导查询，避免一次渲染数百张卡片
+      host.appendChild(healthBrowseGuide(report));
+      return;
+    }
 
     var list, missing;
     if (healthState.queryMode) {
       list = healthState.matched.slice();
       missing = healthState.missing.slice();
     } else {
-      list = (report.components || []).map(function (c) {
-        return { component: c, entry: null, exactVersion: true, candidates: 1, duplicates: [] };
-      });
+      list = [];
       missing = [];
     }
 
@@ -2306,17 +2372,26 @@
     }
     sortHealth(list);
 
-    var host = $("healthResults");
-    host.textContent = "";
-    if (!list.length && !missing.length) {
+    var total = list.length;
+    var pages = Math.max(1, Math.ceil(total / HEALTH_PAGE_SIZE));
+    if (healthState.page > pages) healthState.page = pages;
+    if (healthState.page < 1) healthState.page = 1;
+    var start = (healthState.page - 1) * HEALTH_PAGE_SIZE;
+    var pageItems = list.slice(start, start + HEALTH_PAGE_SIZE);
+
+    if (!pageItems.length && !missing.length) {
       var all = (report.components || []).length;
       host.appendChild(el("div", "empty", all
         ? "当前筛选条件下没有组件（已采集 " + all + " 个），试试清空搜索或切回「全部等级」。"
         : "报告中没有组件数据。"));
       return;
     }
-    list.forEach(function (item) { host.appendChild(renderHealthMatchedCard(item)); });
+    pageItems.forEach(function (item) { host.appendChild(renderHealthMatchedCard(item)); });
     missing.forEach(function (item) { host.appendChild(renderHealthMissingCard(item)); });
+    renderPager(host, total, healthState.page, function (p) {
+      healthState.page = p;
+      renderHealth();
+    });
   }
 
   function initHealthControls() {

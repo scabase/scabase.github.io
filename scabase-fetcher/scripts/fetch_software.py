@@ -6,8 +6,12 @@
   1. 漏洞：NVD CVE API 2.0 按 keywordSearch 拉取候选，本地用 CPE
      ``vendor:product`` 前缀精确过滤（一个软件可带多个前缀，如 MySQL 同时收录
      ``oracle:mysql`` 与 ``mysql:mysql``），提取 CVSS、影响版本区间、CWE 与参考链接；
-  2. 健康度：复用 fetch_oss_health 的 GitHub 信号（Star、归档、发布节奏等），
-     评分走 oss_intake.community。
+  2. 健康度：复用 fetch_oss_health.collect_from_github 的全量 GitHub 信号
+     （Star、最近提交、近 12 月发布、维护者/贡献者、PR 合并周期、安全策略、
+     CI、背后组织；键名与 oss_intake.community 评分模块对齐），
+     版本号取最新 GitHub Release，无 Release 的项目回退 tags；
+     评分走 oss_intake.community。GitHub 调用使用 GITHUB_TOKEN
+     （CI 默认注入；匿名限额 60 次/时，全量刷新必限流）。
 
 任一来源失败只降级，不中断整批。产物：
   - scabase-fetcher/data/software-vulns.json   软件 → CVE 列表
@@ -46,6 +50,13 @@ NVD_PAGE = 2000
 NVD_INTERVAL = 6.5
 NVD_INTERVAL_KEYED = 0.8
 GITHUB_RELEASES = "https://api.github.com/repos/%s/releases?per_page=100"
+GITHUB_LATEST_RELEASE = "https://api.github.com/repos/%s/releases/latest"
+GITHUB_TAGS = "https://api.github.com/repos/%s/tags?per_page=100"
+GITHUB_COMMITS_BY_REF = "https://api.github.com/repos/%s/commits?sha=%s&per_page=1"
+# 无 GitHub Releases 时探测提交时间的 tag 数上限（按版本号取最新的若干个）。
+# tags 接口不保证顺序（实测按 tag 名 ASCII 降序，古代 tag 反而在前），
+# 因此先按版本号排序再探测，且只统计形态为纯版本的 tag。
+TAG_PROBE_LIMIT = 12
 
 # 常用软件清单。字段：
 #   name     展示名 / 查询主键
@@ -488,50 +499,125 @@ def fetch_nvd_cves(entry, token=None):
     return records
 
 
-def fetch_software_health(repo, token=None):
-    """GitHub 仓库信息 + releases → 健康度信号 + 最新发布版本。"""
-    if not repo:
-        return {}, None
-    payload = _get_json("%s/%s" % (foh.GITHUB_API, repo), token=token,
-                        auth_style="bearer")
-    if not payload:
-        return {}, None
-    health = {
-        "stars": payload.get("stargazers_count"),
-        "archived": bool(payload.get("archived")),
-        "forks": payload.get("forks_count"),
-        "open_issues": payload.get("open_issues_count"),
-        "pushed_days": foh.days_since(payload.get("pushed_at")),
-        "created_days": foh.days_since(payload.get("created_at")),
-    }
-    license_info = payload.get("license")
-    if isinstance(license_info, dict) and license_info.get("spdx_id"):
-        health["license"] = license_info["spdx_id"]
-    owner_type = (payload.get("owner") or {}).get("type")
-    if owner_type == "Organization":
-        health["org_backing"] = "组织"
-    elif owner_type == "User":
-        health["org_backing"] = "个人"
-    version = None
+def _looks_like_version(text):
+    """严格版本形态：纯数字加点（18.1 / 23.01 / 1.24.0）。
+
+    tag 回退用它过滤 ``master`` / ``REL_18_STABLE`` 之类的分支与里程碑 tag，
+    避免把非版本串当成版本写进卡片。
+    """
+    return bool(re.match(r"^\d+(\.\d+)*$", str(text or "")))
+
+
+def _tag_release_signals(repo, token=None, probe_limit=TAG_PROBE_LIMIT):
+    """tag 回退信号：``{"version": ..., "releases_12m": ...}`` 或 ``{}``。
+
+    未建 GitHub Release 的项目（PostgreSQL 只打 tag、MySQL 部分产品线不走
+    Release）用 tag 当发布记录：
+
+    - 只收形态为纯版本的 tag（``REL_18_1`` → 18.1），过滤 ``master`` /
+      ``REL_18_STABLE`` 之类的分支 tag——它们指向分支顶端，会把发布节奏算虚高；
+    - 版本号按 ``version_tuple`` 取最大（tags 接口不保证顺序，不能取第一条）；
+    - 发布节奏：对版本最高的前 ``probe_limit`` 个 tag 用
+      ``commits?sha=<tag>`` 取被打标签的提交时间（兼容轻量 tag），
+      统计近 12 个月的数量。``commits?sha`` 返回的是该 ref 的祖先，
+      首条即被打标签的提交本身。
+    """
+    tags = _get_json(GITHUB_TAGS % repo, token=token, auth_style="bearer") or []
+    if not isinstance(tags, list):
+        return {}
+    versioned = []
+    for tag in tags:
+        parsed = parse_release_version(tag.get("name"))
+        if parsed and _looks_like_version(parsed):
+            key = version_tuple(parsed)
+            if key:
+                versioned.append((tag.get("name"), parsed, key))
+    if not versioned:
+        return {}
+    versioned.sort(key=lambda item: item[2], reverse=True)
+    signals = {"version": versioned[0][1]}
+    stamps = []
+    for name, _parsed, _key in versioned[:probe_limit]:
+        payload = _get_json(GITHUB_COMMITS_BY_REF % (repo, quote(str(name), safe="")),
+                            token=token, auth_style="bearer") or []
+        if not isinstance(payload, list) or not payload:
+            continue
+        commit = (payload[0].get("commit") or {})
+        stamps.append((commit.get("committer") or {}).get("date")
+                      or (commit.get("author") or {}).get("date"))
+    if stamps:
+        signals["releases_12m"] = foh.count_within(stamps)
+    return signals
+
+
+def _release_version(repo, token=None):
+    """从 GitHub Releases 取最新稳定版本（不含 tags 回退）。"""
     releases = _get_json(GITHUB_RELEASES % repo, token=token,
                          auth_style="bearer") or []
-    if isinstance(releases, list) and releases:
-        published = [r.get("published_at") for r in releases if r.get("published_at")]
-        if published:
-            health["releases_12m"] = foh.count_within(published)
-            health["latest_release_days"] = foh.days_since(max(published))
+    if isinstance(releases, list):
         for release in releases:
             if release.get("draft") or release.get("prerelease"):
                 continue
-            version = parse_release_version(release.get("tag_name"))
-            break
-    if not version:
-        # 列表里全是预发布 / 未建 Release：回退 latest 端点
-        latest = _get_json("https://api.github.com/repos/%s/releases/latest" % repo,
-                           token=token, auth_style="bearer") or {}
-        if isinstance(latest, dict) and latest.get("tag_name"):
-            version = parse_release_version(latest.get("tag_name"))
-    health = {k: v for k, v in health.items() if v is not None}
+            parsed = parse_release_version(release.get("tag_name"))
+            if parsed:
+                return parsed
+    latest = _get_json(GITHUB_LATEST_RELEASE % repo, token=token,
+                       auth_style="bearer") or {}
+    if isinstance(latest, dict):
+        parsed = parse_release_version(latest.get("tag_name"))
+        if parsed:
+            return parsed
+    return None
+
+
+def _latest_release_version(repo, token=None):
+    """最新发布版本：GitHub Releases → /releases/latest → tags 回退。"""
+    version = _release_version(repo, token)
+    if version:
+        return version
+    return (_tag_release_signals(repo, token) or {}).get("version")
+
+
+def _github_token(env=None):
+    """GitHub API token。
+
+    CI 由 software-collect.yml 注入 ``GITHUB_TOKEN``（1000 次/时）；
+    本地未配置时退化为匿名（60 次/时，仅够少量 ``--only`` 刷新）。
+    曾因只读 ``NVD_API_KEY`` 而使 GitHub 调用全匿名：限流后 65 个软件里
+    42 个连仓库信息都没采到（stars / org_backing 全空）。
+    """
+    env = os.environ if env is None else env
+    return env.get("GITHUB_TOKEN") or None
+
+
+def fetch_software_health(repo, token=None):
+    """GitHub 全量信号（复用库维度采集器）+ 最新发布版本。
+
+    信号键名与 ``oss_intake.community`` 评分模块严格对齐：
+    ``last_commit_days`` / ``releases_12m`` / ``maintainers`` /
+    ``contributors`` / ``pr_merge_days`` / ``has_security_policy`` /
+    ``has_ci`` / ``org_backing`` / ``stars`` / ``archived``。
+    历史教训：本函数曾自建信号集并写入 ``pushed_days``（评分模块只认
+    ``last_commit_days``），导致全部软件的「最近提交」被静默丢弃，
+    社区活跃度评分系统性偏低。
+
+    无（近 12 月）GitHub Release 的项目（PostgreSQL 等）用 tag 补发布
+    节奏与版本，避免「卡片显示 18.6 却说 12 个月无发布」的自相矛盾；
+    tags 全流程只探测一次（版本与节奏共用），控制匿名限额下的请求数。
+    """
+    if not repo:
+        return {}, None
+    health = foh.collect_from_github(repo, token)
+    if not health:
+        return {}, None
+    health = dict(health)
+    version = _release_version(repo, token)
+    if not version or not health.get("releases_12m"):
+        tag_signals = _tag_release_signals(repo, token)
+        if not health.get("releases_12m") and tag_signals.get("releases_12m") is not None:
+            health["releases_12m"] = tag_signals["releases_12m"]
+        if not version:
+            version = tag_signals.get("version")
     return health, version
 
 
@@ -555,6 +641,8 @@ def build_support_row(name, entry, health, version):
         "org_backing": (result.get("signals") or {}).get("org_backing"),
         "monthly_downloads": None,
         "stars": health.get("stars"),
+        "forks": health.get("forks"),
+        "watchers": health.get("watchers"),
         "repo": entry.get("repo") or None,
         "sources": ["github"] if entry.get("repo") else [],
         "missing": result.get("missing") or [],
@@ -588,11 +676,12 @@ def _fixture_payload(base, name, kind):
 
 
 def build_document(refresh, token, only=None, fixtures=None, health=True,
-                   existing_vulns=None, existing_support=None):
+                   existing_vulns=None, existing_support=None, gh_token=None):
     """组装两份产物数据。
 
     refresh   ：联网采集；否则沿用 existing_* 里的旧数据（离线转换场景）
     fixtures  ：本地回放目录，文件名为 <slug>-cves.json / <slug>-health.json
+    gh_token  ：GitHub API token（GITHUB_TOKEN）；缺省时匿名调用、限流严格
     """
     existing_vulns = existing_vulns or {}
     existing_support = existing_support or {}
@@ -637,8 +726,8 @@ def build_document(refresh, token, only=None, fixtures=None, health=True,
             cves = fetch_nvd_cves(entry, token=token)
             gh_health, version = ({}, None)
             if health:
-                gh_health, version = fetch_software_health(entry.get("repo"),
-                                                           token=token)
+                gh_health, version = fetch_software_health(
+                    entry.get("repo"), token=gh_token)
             support_row = build_support_row(name, entry, gh_health, version) \
                 if health else None
         else:
@@ -698,11 +787,17 @@ def main():
         print("缺少 requests，无法联网采集", file=sys.stderr)
         return 2
     token = os.getenv("NVD_API_KEY")
+    gh_token = _github_token()
+    if args.refresh and not gh_token:
+        print("未配置 GITHUB_TOKEN：GitHub 匿名限额 60 次/时，"
+              "全量刷新会大面积限流失败（建议本地 --only 单软件验证）",
+              file=sys.stderr)
     vulns_doc, support_doc = build_document(
         args.refresh, token, only=args.only, fixtures=args.fixtures,
         health=not args.no_health,
         existing_vulns=_load_json(args.out_vulns),
-        existing_support=_load_json(args.out_support))
+        existing_support=_load_json(args.out_support),
+        gh_token=gh_token)
     write_json(args.out_vulns, vulns_doc)
     if not args.no_health:
         write_json(args.out_support, support_doc)

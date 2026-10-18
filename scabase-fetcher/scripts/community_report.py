@@ -121,6 +121,10 @@ def build_report(health):
             "maintainers": (result.get("signals") or {}).get("maintainers"),
             "org_backing": (result.get("signals") or {}).get("org_backing"),
             "monthly_downloads": (result.get("signals") or {}).get("monthly_downloads"),
+            # GitHub 活跃度原始计数（供卡片展示与人工核对，不参与评分）
+            "stars": payload.get("stars"),
+            "forks": payload.get("forks"),
+            "watchers": payload.get("watchers"),
             "sources": sources,
             "repo": payload.get("repo"),
             "deps_dev": deps_dev_url(info),

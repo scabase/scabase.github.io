@@ -6,7 +6,9 @@ name: software-collect
 # 数据源：
 #   NVD CVE API 2.0  keywordSearch 拉取候选 + 本地 CPE vendor:product 精确过滤
 #                    （提取 CVSS、影响版本区间、CWE、参考链接）
-#   GitHub API       仓库健康度信号（Star、归档、发布节奏、背后组织）
+#   GitHub API       仓库健康度全量信号（Star、最近提交、近 12 月发布、
+#                    维护者/贡献者、PR 合并周期、安全策略、CI、背后组织），
+#                    版本号取最新 Release，无 Release 回退 tags
 #
 # NVD 无 API key 时限流 5 次 / 30 秒（脚本内置 6.5s 间隔，全量约 8 分钟）；
 # 配置仓库 Secret NVD_API_KEY 后自动提速。GitHub 用默认 GITHUB_TOKEN。

@@ -273,6 +273,10 @@ def collect_from_github(slug, token, releases_limit=100):
         "archived": bool(repo.get("archived")),
         "deprecated": bool(repo.get("disabled")),
         "stars": repo.get("stargazers_count"),
+        # forks_count 为仓库派生（fork）数；subscribers_count 即 watch 数
+        # （GitHub 的 watchers 字段历史遗留等于 star 数，不能用作 watch）
+        "forks": repo.get("forks_count"),
+        "watchers": repo.get("subscribers_count"),
         "open_issues": repo.get("open_issues_count"),
         "last_commit_days": days_since(repo.get("pushed_at")),
         "repo": slug,

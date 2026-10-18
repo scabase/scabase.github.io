@@ -176,6 +176,136 @@ class SoftwareCatalogTest(unittest.TestCase):
         self.assertEqual(len(fs._select_entries([])), len(fs.SOFTWARE))
 
 
+class GithubTokenTest(unittest.TestCase):
+    """GITHUB_TOKEN 必须独立于 NVD_API_KEY 读取。
+
+    历史事故：脚本只读 NVD_API_KEY，CI 注入的 GITHUB_TOKEN 从未被使用，
+    GitHub 调用全匿名（60 次/时），限流后 42/65 软件连仓库信息都没采到。
+    """
+
+    def test_reads_github_token_from_env(self):
+        self.assertEqual(fs._github_token({"GITHUB_TOKEN": "ghs_x"}), "ghs_x")
+        self.assertIsNone(fs._github_token({}))
+        self.assertIsNone(fs._github_token({"GITHUB_TOKEN": ""}))
+        self.assertIsNone(fs._github_token({"NVD_API_KEY": "nvd-only"}))
+
+    def test_real_env_token_is_none_or_nonempty(self):
+        # 本地/CI 沙箱通常无 token：函数应安静返回 None 或非空串，不抛错
+        value = fs._github_token()
+        self.assertTrue(value is None or (isinstance(value, str) and value), value)
+
+
+class LatestReleaseVersionTest(unittest.TestCase):
+    """版本提取：Releases 优先，无 Release 回退 tags 并按版本取最大。"""
+
+    def test_looks_like_version(self):
+        for good in ("18.1", "23.01", "1.24.0", "8"):
+            self.assertTrue(fs._looks_like_version(good), good)
+        for bad in ("master", "18.STABLE", "", "1.2.3-rc1", "v1.2.3"):
+            self.assertFalse(fs._looks_like_version(bad), bad)
+
+    def test_releases_preferred(self):
+        def fake_get(url, **kwargs):
+            if "releases?per_page" in url:
+                return [{"tag_name": "v2.0.0-beta", "prerelease": True},
+                        {"tag_name": "v1.31.7"}]
+            if "releases/latest" in url:
+                return {"tag_name": "v1.31.7"}
+            raise AssertionError("有 Release 时不应回退 tags：%s" % url)
+
+        original = fs._get_json
+        fs._get_json = fake_get
+        try:
+            self.assertEqual(fs._latest_release_version("nginx/nginx"), "1.31.7")
+        finally:
+            fs._get_json = original
+
+    @staticmethod
+    def _install_fake(tags, dates):
+        """tags 名称 → 提交日期 的假 API（日期可为 None 表示请求失败）。"""
+        stamp = {"n": 0}
+
+        def fake_get(url, **kwargs):
+            if "releases?per_page" in url:
+                return []
+            if "releases/latest" in url:
+                return {}
+            if "/tags" in url:
+                return [{"name": name} for name in tags]
+            if "commits?sha=" in url:
+                name = url.split("sha=", 1)[1].split("&", 1)[0]
+                date = dates.get(name)
+                if date is None:
+                    return []
+                return [{"commit": {"committer": {"date": date}}}]
+            raise AssertionError(url)
+
+        original = fs._get_json
+        fs._get_json = fake_get
+        return original
+
+    def test_tags_fallback_for_release_less_repos(self):
+        """PostgreSQL 只打 tag（REL_18_1）不建 GitHub Release。
+
+        tags 接口实测按名称 ASCII 降序返回（古代 tag 反而在前），
+        因此必须按版本号取最大，而不是取第一条。
+        """
+        tags = ["release-6-3", "Release_2_0_0", "master", "REL_18_STABLE",
+                "REL_17_6", "REL_18_1", "REL_19_RC1"]
+        dates = {name: "2025-11-10T21:52:06Z" for name in tags}
+        original = self._install_fake(tags, dates)
+        try:
+            self.assertEqual(fs._latest_release_version("postgres/postgres"), "18.1")
+        finally:
+            fs._get_json = original
+
+    def test_tag_cadence_counts_only_recent(self):
+        """发布节奏只数近 12 个月的版本 tag；分支/RC tag 不计数。"""
+        tags = ["master", "REL_18_STABLE", "REL_18_2", "REL_18_1",
+                "REL_17_9", "REL_17_8", "REL_19_RC1"]
+        import time
+        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        old = time.strftime("%Y-%m-%dT%H:%M:%SZ",
+                            time.gmtime(time.time() - 400 * 86400))
+        dates = {"REL_18_2": now, "REL_18_1": old, "REL_17_9": old,
+                 "REL_17_8": old}
+        original = self._install_fake(tags, dates)
+        try:
+            signals = fs._tag_release_signals("postgres/postgres")
+        finally:
+            fs._get_json = original
+        self.assertEqual(signals["version"], "18.2")
+        self.assertEqual(signals["releases_12m"], 1)
+
+    def test_no_version_anywhere(self):
+        def fake_get(url, **kwargs):
+            return [] if "releases?per_page" in url or "/tags" in url else {}
+
+        original = fs._get_json
+        fs._get_json = fake_get
+        try:
+            self.assertIsNone(fs._latest_release_version("redis/redis"))
+            self.assertEqual(fs._tag_release_signals("redis/redis"), {})
+        finally:
+            fs._get_json = original
+
+
+class ScoringKeyContractTest(unittest.TestCase):
+    """信号键名契约：pushed_days 不是评分键（事故回归）。"""
+
+    def test_pushed_days_is_not_a_scoring_key(self):
+        import oss_intake.community as community
+        result = community.evaluate({"pushed_days": 1})
+        self.assertIn("last_commit_days", result["missing"])
+        self.assertIsNone(result["signals"]["last_commit_days"])
+
+    def test_last_commit_days_is_scored(self):
+        import oss_intake.community as community
+        result = community.evaluate({"last_commit_days": 1})
+        self.assertNotIn("last_commit_days", result["missing"])
+        self.assertEqual(result["signals"]["last_commit_days"], 1.0)
+
+
 class BuildDocumentFixtureTest(unittest.TestCase):
     """用 fixtures 目录离线回放，验证产物结构与字段透传。"""
 
@@ -202,9 +332,31 @@ class BuildDocumentFixtureTest(unittest.TestCase):
                     "sources", "repo", "missing", "advice"):
             self.assertIn(key, row)
         self.assertEqual(row["eco"], "software")
-        self.assertEqual(row["version"], "1.27.3")
+        self.assertEqual(row["version"], "1.31.7")
         self.assertTrue(row["purl"].startswith("pkg:generic/"))
         self.assertEqual(sum(support_doc["grade_counts"].values()), len(rows))
+
+    def test_fixture_signals_reach_the_card(self):
+        """fixture 里的 GitHub 信号必须流入评分卡（键名契约的端到端守卫）。
+
+        fixture 即 collect_from_github 的输出形态；若采集端改写键名
+        （如历史事故里的 pushed_days），这里的断言会先失败。
+        """
+        if not os.path.isdir(self.FIXTURES):
+            self.skipTest("fixtures 目录不存在")
+        _, support_doc = fs.build_document(
+            False, None, fixtures=self.FIXTURES, health=True)
+        row = {r["software"]: r for r in support_doc["components"]}["nginx"]
+        self.assertEqual(row["last_commit_days"], 1)
+        self.assertEqual(row["releases_12m"], 24)
+        self.assertEqual(row["maintainers"], 100)
+        self.assertEqual(row["org_backing"], "organization")
+        self.assertEqual(row["stars"], 31908)
+        # 信号齐全：只剩无数据源的依赖数/下载量与 issue 响应时长
+        self.assertNotIn("last_commit_days", row["missing"])
+        self.assertNotIn("releases_12m", row["missing"])
+        self.assertNotIn("maintainers", row["missing"])
+        self.assertEqual(row["grade"], "A")
 
 
 class OfflineRebuildTest(unittest.TestCase):
