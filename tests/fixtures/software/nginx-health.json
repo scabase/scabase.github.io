@@ -1,0 +1,14 @@
+{
+  "health": {
+    "stars": 24000,
+    "archived": false,
+    "forks": 6800,
+    "pushed_days": 3,
+    "created_days": 6100,
+    "org_backing": "组织",
+    "releases_12m": 4,
+    "latest_release_days": 12,
+    "license": "BSD-2-Clause"
+  },
+  "version": "1.27.3"
+}

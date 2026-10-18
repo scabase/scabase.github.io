@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScaBase · 开源软件成分治理平台 | 功能宣讲</title>
+<style>
+:root{
+  --bg:#070B14;
+  --bg2:#0A1120;
+  --panel:#0F1726;
+  --panel2:#141E31;
+  --line:rgba(255,255,255,.10);
+  --line2:rgba(255,255,255,.06);
+  --text:#E8EEF9;
+  --text2:#B6C3D9;
+  --muted:#8493AE;
+  --accent:#35E6A8;
+  --accent-d:#12B98A;
+  --blue:#5B93FF;
+  --warn:#FFB65C;
+  --danger:#FF7A7A;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(1100px 700px at 12% -10%, rgba(53,230,168,.10), transparent 60%),
+    radial-gradient(900px 600px at 92% 110%, rgba(91,147,255,.10), transparent 60%),
+    var(--bg);
+  color:var(--text);
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",Inter,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+.stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+.deck{
+  position:relative;width:1280px;height:720px;flex:0 0 auto;
+  transform-origin:center center;
+}
+.deck.is-grid{
+  position:static;display:grid;gap:40px;transform-origin:top left;
+  width:auto;height:auto;
+}
+.deck.is-grid .slide{position:relative;inset:auto;opacity:1;transform:none;pointer-events:none}
+.deck.is-grid .slide:hover{outline:2px solid var(--accent);outline-offset:6px;cursor:pointer;pointer-events:auto}
+
+.slide{
+  position:absolute;inset:0;
+  width:1280px;height:720px;
+  background:linear-gradient(160deg,rgba(20,30,49,.92),rgba(10,17,32,.96));
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:64px 72px 76px;
+  overflow:hidden;
+  opacity:0;visibility:hidden;transition:opacity .28s ease;
+  box-shadow:0 40px 120px rgba(0,0,0,.55);
+}
+.slide.active{opacity:1;visibility:visible}
+.slide::before{
+  content:"";position:absolute;left:0;top:0;width:100%;height:3px;
+  background:linear-gradient(90deg,var(--accent) 0%,var(--blue) 55%,transparent 100%);
+  opacity:.85;
+}
+
+/* ---------- typography ---------- */
+.kicker{
+  font-size:13px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--accent);font-weight:600;
+}
+h1.title{
+  font-size:54px;line-height:1.16;letter-spacing:-.5px;font-weight:700;
+  margin-top:14px;
+}
+h2.title{
+  font-size:40px;line-height:1.18;letter-spacing:-.3px;font-weight:700;
+  margin-top:10px;
+}
+.rule{width:64px;height:3px;border-radius:2px;background:var(--accent);margin:20px 0 26px}
+.lead{font-size:19px;line-height:1.7;color:var(--text2);max-width:900px}
+.lead strong{color:var(--text);font-weight:600}
+.muted{color:var(--muted)}
+.tiny{font-size:13px;line-height:1.6}
+.mono{font-family:var(--mono)}
+
+/* ---------- cover ---------- */
+.cover{display:flex;flex-direction:column;justify-content:center}
+.cover .wordmark{
+  font-size:104px;line-height:1;font-weight:800;letter-spacing:-3px;
+  background:linear-gradient(96deg,#FFFFFF 0%,#B9F5DF 45%,#9CC4FF 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.cover .sub{margin-top:18px;font-size:27px;color:var(--text);font-weight:600}
+.cover .desc{margin-top:14px;font-size:18px;color:var(--muted);letter-spacing:.06em}
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:36px}
+.chip{
+  font-size:13px;padding:7px 14px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(255,255,255,.045);color:var(--text2);
+}
+.chip.on{border-color:rgba(53,230,168,.45);background:rgba(53,230,168,.10);color:#BFF3E0}
+.cover-foot{
+  position:absolute;left:72px;right:72px;bottom:52px;
+  display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid var(--line2);padding-top:20px;color:var(--muted);font-size:13px;
+}
+
+/* ---------- layout helpers ---------- */
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.row{display:flex;gap:18px}
+.col{display:flex;flex-direction:column;gap:14px}
+.mt{margin-top:22px}.mt-s{margin-top:12px}
+
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
+  border:1px solid var(--line);border-radius:14px;padding:22px 22px 20px;
+  position:relative;overflow:hidden;
+}
+.card .no{
+  font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;opacity:.9
+}
+.card h3{font-size:19px;margin:8px 0 10px;font-weight:650;letter-spacing:-.2px}
+.card p{font-size:14.5px;line-height:1.68;color:var(--text2)}
+.card.accent{border-color:rgba(53,230,168,.32);background:linear-gradient(180deg,rgba(53,230,168,.10),rgba(53,230,168,.02))}
+.card.blue{border-color:rgba(91,147,255,.30);background:linear-gradient(180deg,rgba(91,147,255,.10),rgba(91,147,255,.02))}
+.card.warn{border-color:rgba(255,182,92,.30);background:linear-gradient(180deg,rgba(255,182,92,.10),rgba(255,182,92,.02))}
+
+.list{display:flex;flex-direction:column;gap:11px}
+.list li{list-style:none;display:flex;gap:12px;font-size:15px;line-height:1.6;color:var(--text2)}
+.list li b{color:var(--text);font-weight:600}
+.dot{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-top:8px}
+.dot.b{background:var(--blue)}
+.dot.w{background:var(--warn)}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line2)}
+th{color:var(--muted);font-weight:600;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase}
+td{color:var(--text2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.k{color:var(--text);font-weight:600}
+.num{font-family:var(--mono);color:var(--text)}
+
+.code{
+  font-family:var(--mono);font-size:12.5px;line-height:1.75;color:#C9D6EA;
+  background:#080E1A;border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+  white-space:pre;overflow:hidden;
+}
+.code .c{color:#4E6483}.code .g{color:var(--accent)}.code .y{color:var(--warn)}
+
+.metric{padding:18px 20px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.035)}
+.metric .v{font-size:40px;font-weight:750;letter-spacing:-1px;line-height:1.1}
+.metric .v small{font-size:18px;font-weight:600;color:var(--muted);margin-left:4px}
+.metric .l{font-size:13px;color:var(--muted);margin-top:6px}
+.metric.a .v{color:var(--accent)}.metric.b .v{color:var(--blue)}.metric.w .v{color:var(--warn)}
+
+.stepbar{display:flex;flex-direction:column;gap:9px}
+.stepbar .row-b{display:flex;align-items:center;gap:14px}
+.stepbar .nm{width:120px;flex:0 0 auto;font-size:14.5px;color:var(--text)}
+.stepbar .bar{flex:1;height:10px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden}
+.stepbar .bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent-d),var(--accent))}
+.stepbar .wt{width:56px;text-align:right;font-family:var(--mono);font-size:13.5px;color:var(--text2)}
+.stepbar .dsc{font-size:12.5px;color:var(--muted);padding-left:134px;margin-top:-4px}
+
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tag{font-size:12px;font-family:var(--mono);padding:5px 10px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text2)}
+.tag.hl{border-color:rgba(53,230,168,.4);color:#BFF3E0;background:rgba(53,230,168,.10)}
+
+.zone{border:1px solid var(--line);border-radius:16px;padding:20px;background:rgba(255,255,255,.03)}
+.zone h4{font-size:15px;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.zone .sub{font-size:12px;color:var(--muted);margin-bottom:16px}
+.zone ol{list-style:none;display:flex;flex-direction:column;gap:10px}
+.zone ol li{font-size:13.5px;color:var(--text2);background:rgba(255,255,255,.04);border:1px solid var(--line2);border-radius:9px;padding:9px 12px}
+.zone ol li b{color:var(--text);font-weight:600;display:block;font-size:13.5px}
+.pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+.pill.a{color:#BFF3E0;border-color:rgba(53,230,168,.45);background:rgba(53,230,168,.10)}
+.pill.b{color:#CFE0FF;border-color:rgba(91,147,255,.45);background:rgba(91,147,255,.10)}
+.ferry{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted)
+}
+.ferry .line{flex:1;width:1px;background:linear-gradient(180deg,transparent,var(--accent),transparent)}
+.ferry .txt{writing-mode:vertical-rl;font-size:12px;letter-spacing:.3em;color:var(--accent)}
+
+.notebox{
+  border-left:3px solid var(--accent);background:linear-gradient(90deg,rgba(53,230,168,.10),transparent 70%);
+  padding:14px 18px;border-radius:0 10px 10px 0;font-size:15px;line-height:1.65;color:var(--text2);
+}
+.notebox strong{color:var(--text)}
+.notebox.blue{border-color:var(--blue);background:linear-gradient(90deg,rgba(91,147,255,.10),transparent 70%)}
+
+.foot{
+  position:absolute;left:72px;right:72px;bottom:26px;height:22px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:11.5px;color:#5F6E88;letter-spacing:.06em;
+}
+.foot .pg{font-family:var(--mono)}
+
+/* ---------- chrome ---------- */
+.hud{
+  position:fixed;left:0;right:0;bottom:0;height:54px;z-index:50;
+  display:flex;align-items:center;justify-content:center;gap:14px;
+  background:linear-gradient(180deg,transparent,rgba(4,8,16,.85));
+  opacity:0;transition:opacity .25s ease;
+}
+body:hover .hud,body.pinned .hud{opacity:1}
+.hud button{
+  width:36px;height:36px;border-radius:10px;border:1px solid var(--line);
+  background:rgba(255,255,255,.05);color:var(--text2);cursor:pointer;font-size:15px;
+  display:flex;align-items:center;justify-content:center;transition:.15s;
+}
+.hud button:hover{border-color:rgba(53,230,168,.5);color:#BFF3E0;background:rgba(53,230,168,.10)}
+.hud .cnt{font-family:var(--mono);font-size:12.5px;color:var(--muted);min-width:62px;text-align:center}
+.hud .hint{font-size:11.5px;color:#5F6E88;margin-left:6px}
+.progress{position:fixed;left:0;top:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--blue));z-index:60;transition:width .25s ease}
+@media print{
+  @page{size:1280px 720px;margin:0}
+  body{overflow:visible;background:#070B14}
+  .hud,.progress{display:none}
+  .stage{position:static;display:block}
+  .deck{transform:none!important;width:1280px;height:auto;display:block}
+  .slide{position:relative;opacity:1!important;visibility:visible!important;page-break-after:always;break-after:page;border-radius:0;box-shadow:none}
+  .deck.is-grid{display:block}
+}
+</style>
+</head>
+<body>
+<div class="progress" id="prog"></div>
+
+<div class="stage">
+<div class="deck" id="deck">
+
+  <!-- 01 COVER -->
+  <section class="slide cover active" data-t="封面">
+    <div class="kicker">Open Source Composition Governance</div>
+    <div class="wordmark">ScaBase</div>
+    <div class="sub">开源软件成分治理平台</div>
+    <div class="desc">从「查得到漏洞」到「管得住引入」</div>
+    <div class="chips">
+      <span class="chip on">Maven · npm · PyPI · Go</span>
+      <span class="chip">OSV + NVD 双源富化</span>
+      <span class="chip">Zone A 采集 → Zone B 管控</span>
+      <span class="chip">单向离线摆渡</span>
+      <span class="chip">MIT License</span>
+    </div>
+    <div class="cover-foot">
+      <span>scabase.roweb.cn　·　github.com/scabase/scabase.github.io</span>
+      <span class="mono">功能宣讲 · 2026</span>
+    </div>
+  </section>
+
+  <!-- 02 WHY -->
+  <section class="slide" data-t="为什么做：三个断层">
+    <div class="kicker">Background</div>
+    <h2 class="title">开源治理的三个断层</h2>
+    <div class="rule"></div>
+    <div class="grid g3">
+      <div class="card">
+        <div class="no">Gap 01</div>
+        <h3>查得到，管不住</h3>
+        <p>扫描出了 CVE 清单，却没有准入决策。高危组件照样进生产，报告在 KB 和 PPT 里躺灰。</p>
+        <div class="mt-s tags"><span class="tag">无门禁</span><span class="tag">无结论</span></div>
+      </div>
+      <div class="card warn">
+        <div class="no">Gap 02</div>
+        <h3>看漏洞，不看活不活</h3>
+        <p>只统计 CVE 数量，不评估维护可持续性。两年后停止维护的组件，出事时无人修。</p>
+        <div class="mt-s tags"><span class="tag">bus factor</span><span class="tag">停维护</span></div>
+      </div>
+      <div class="card blue">
+        <div class="no">Gap 03</div>
+        <h3>外网有数据，内网不可用</h3>
+        <p>情报工具假设「能连公网」。隔离网里只能人工搬运 Excel，数据无法核验、无法保证新鲜。</p>
+        <div class="mt-s tags"><span class="tag">离线</span><span class="tag">不可验签</span></div>
+      </div>
+    </div>
+    <div class="notebox mt">
+      漏洞只是风险的一个切面 —— <strong>「这个组件三年后还有人维护吗」同样是安全问题</strong>。
+    </div>
+  </section>
+
+  <!-- 03 ARCHITECTURE -->
+  <section class="slide" data-t="全景架构">
+    <div class="kicker">Architecture</div>
+    <h2 class="title">互联网采集，内网管控，中间只有数据包</h2>
+    <div class="rule"></div>
+    <div class="row" style="align-items:stretch;height:326px">
+      <div class="zone" style="flex:1">
+        <h4>Zone A · 互联网 <span class="pill a">允许出站</span></h4>
+        <div class="sub">采集与富化</div>
+        <ol>
+          <li><b>采集 OSV / NVD / KEV / EPSS</b>漏洞情报与利用热度</li>
+          <li><b>采集活跃度 / 许可证</b>GitHub、deps.dev、npm / PyPI registry</li>
+          <li><b>归一化到 PURL 事实层</b>按数据集分片存储</li>
+          <li><b>构建 + 签名 Bundle</b>manifest + 逐文件 sha256</li>
+        </ol>
+      </div>
+      <div class="ferry" style="width:64px">
+        <div class="line"></div>
+        <div class="txt">单向摆渡</div>
+        <div style="font-size:18px;color:var(--accent)">▶</div>
+        <div class="line"></div>
+      </div>
+      <div class="zone" style="flex:1">
+        <h4>Zone B · 内网 <span class="pill b">禁止出站</span></h4>
+        <div class="sub">评估与管控</div>
+        <ol>
+          <li><b>验签 + 原子导入</b>失败拒绝，回滚要好于半吊子更新</li>
+          <li><b>摄入应用 SBOM / 资产台账</b>CI 上报，维护应用群组</li>
+          <li><b>引入前门禁 / 群组评估</b>四维评分 + 硬阻断</li>
+          <li><b>脱敏回执 → 反向摆渡</b>仅含 seq、水位、计数</li>
+        </ol>
+      </div>
+    </div>
+    <div class="grid g3 mt">
+      <div class="notebox"><strong>PURL 为主键</strong><br>漏洞 / 活跃度 / 许可证 / 资产挂在同一主键上</div>
+      <div class="notebox blue"><strong>内网零公网请求</strong><br>未知组件显式「数据缺失」，不静默补全</div>
+      <div class="notebox"><strong>信任工程化</strong><br>签名 + seq 链 + 哈希校验，而非口头声明</div>
+    </div>
+  </section>
+
+  <!-- 04 CAPABILITY MAP -->
+  <section class="slide" data-t="能力全景">
+    <div class="kicker">Capability Map</div>
+    <h2 class="title">八项能力，一条主链</h2>
+    <div class="rule"></div>
+    <div class="grid g4" style="gap:16px">
+      <div class="card accent"><div class="no">C1</div><h3>四生态 CVE 检索</h3><p>OSV + NVD 双源，以 CVE 编号为主标识聚合</p></div>
+      <div class="card"><div class="no">C2</div><h3>数据资产公开</h3><p>JSON / TXT 全公开，llms.txt 供 LLM 直接取数</p></div>
+      <div class="card accent"><div class="no">C3</div><h3>社区支持力度</h3><p>0–100 分 + A/B/C/D，多源归因、未知即风险</p></div>
+      <div class="card accent"><div class="no">C4</div><h3>引入前门禁</h3><p>四维评分 + 硬阻断，输出可执行的准入结论</p></div>
+      <div class="card"><div class="no">C5</div><h3>原生依赖解析</h3><p>不产 SBOM 也能扫，自动归一 PURL</p></div>
+      <div class="card blue"><div class="no">C6</div><h3>基线 + AI 脚本</h3><p>32 条基线，生成脚本经 90% 准确率回归</p></div>
+      <div class="card blue"><div class="no">C7</div><h3>影响面巡检</h3><p>按应用聚合，工单定级，增量证明风险收敛</p></div>
+      <div class="card"><div class="no">C8</div><h3>摆渡 + 工具链</h3><p>SARIF / JUnit / MR 评论 / 四档退出码</p></div>
+    </div>
+    <div class="notebox mt">
+      主线不是「又一个扫描器」，而是 <strong>引入前 → 存量 → 收敛</strong> 的闭环；扫描只是其中一环。
+    </div>
+  </section>
+
+  <!-- 05 C1 -->
+  <section class="slide" data-t="能力一 · 四生态 CVE 检索">
+    <div class="kicker">Capability 01</div>
+    <h2 class="title">四生态漏洞检索，以 CVE 为主键</h2>
+    <div class="rule"></div>
+    <div class="row" style="gap:26px">
+      <div class="col" style="flex:1">
+        <ul class="list">
+          <li><span class="dot"></span><span><b>生态覆盖</b>：Maven（groupId:artifactId）、npm、PyPI、Go Module</span></li>
+          <li><span class="dot b"></span><span><b>OSV 主源</b>：无需 Key，含尚无 CVE 编号的 GHSA 漏洞</span></li>
+          <li><span class="dot b"></span><span><b>NVD 富化</b>：补齐标准 CVSS 评分与 CWE 分类</span></li>
+          <li><span class="dot"></span><span><b>CVE 视图</b>：支持按 CVE 过滤、双视图切换、一键复制清单</span></li>
+        </ul>
+        <div class="notebox">
+          把结果主键从「包」换成 <strong>CVE</strong>：同一 CVE 跨语言聚合后，才拿得出一份能发通知的清单。
+        </div>
+      </div>
+      <div class="col" style="flex:1">
+        <div class="code" style="font-size:12px">key = <span class="g">"ecosystem|package|version"</span>
+
+<span class="c"># 查询行示例</span>
+npm|lodash|4.17.20
+maven|com.alibaba:fastjson|1.2.24
+pypi|requests|2.20.0
+go|github.com/gin-gonic/gin|1.6.0
+
+value = { <span class="y">osv_raw</span>, <span class="y">enriched</span>: [{osv, nvd}] }</div>
+        <table class="mt-s">
+          <tr><th>部署形态</th><th>载体</th><th>关键差异</th></tr>
+          <tr><td class="k">公网</td><td>GitHub Pages</td><td>push 即发布，纯静态</td></tr>
+          <tr><td class="k">内网</td><td>Docker · 8080</td><td>SCABASE_OFFLINE 切离线</td></tr>
+          <tr><td class="k">离线</td><td>image tar</td><td>docker load 直接导入</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 C2 -->
+  <section class="slide" data-t="能力二 · 数据资产公开">
+    <div class="kicker">Capability 02</div>
+    <h2 class="title">数据是一等公民：人可读，机器可取</h2>
+    <div class="rule"></div>
+    <div class="row" style="gap:26px">
+      <div class="col" style="flex:1.05">
+        <table>
+          <tr><th>数据集</th><th>内容</th><th style="width:96px">体量</th></tr>
+          <tr><td class="k">vulns.json</td><td>漏洞主库，每日自动更新</td><td class="num">MB 级</td></tr>
+          <tr><td class="k">popular-packages.json</td><td>四生态 Top 1000 及排序依据</td><td class="num">0.7 MB</td></tr>
+          <tr><td class="k">community-support.json</td><td>社区支持力度 A/B/C/D</td><td class="num">0.3 MB</td></tr>
+          <tr><td class="k">pkg_list_popular.txt</td><td>四生态各前 100，共 400 行</td><td class="num">13 KB</td></tr>
+          <tr><td class="k">repo-map.json</td><td>purl → GitHub owner/repo</td><td class="num">1 KB</td></tr>
+        </table>
+        <div class="notebox mt-s">
+          每条记录带 <strong>sha256 与生成时间</strong>，任何结论都能回溯到某一版数据快照。
+        </div>
+      </div>
+      <div class="col" style="flex:.95">
+        <div class="card accent" style="padding:18px 20px">
+          <h3 style="font-size:16px;margin:0 0 8px">LLM 取数入口</h3>
+          <p style="font-size:13.5px">遵循 llmstxt.org 规范，index.json 提供 URL / bytes / sha256 / schema。</p>
+        </div>
+        <div class="code" style="font-size:11.5px">1. GET  /scabase-fetcher/data/index.json
+2. 按 schema 选数据集（上下文小优先 txt）
+3. 查漏洞：vulns.json[<span class="g">"npm|lodash|4.17.20"</span>]
+4. 反查 CVE：遍历 enriched[].osv.aliases
+
+<span class="c">无 API Key · 无跨域限制 · 可直接 WebFetch</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 C3 -->
+  <section class="slide" data-t="能力三 · 社区支持力度">
+    <div class="kicker">Capability 03</div>
+    <h2 class="title">「三年后还有人维护吗」需要被打分</h2>
+    <div class="rule"></div>
+    <div class="row" style="gap:26px">
+      <div class="col" style="flex:1">
+        <ul class="list" style="gap:9px">
+          <li><span class="dot"></span><span><b>超越活跃度</b>：bus factor、贡献者、issue 响应、PR 周期、SECURITY.md、CI、基金会背书、下游依赖、下载量、Star</span></li>
+          <li><span class="dot w"></span><span><b>未知即风险</b>：信号缺失按扣分处理，不按「还好」处理</span></li>
+          <li><span class="dot w"></span><span><b>一票否决</b>：仓库 archived 直接判 D 级</span></li>
+          <li><span class="dot"></span><span><b>白盒可核验</b>：每组分记录 sources，页面徽章可点开原始出处</span></li>
+        </ul>
+        <div class="tags mt-s">
+          <span class="tag hl">GitHub API</span><span class="tag hl">deps.dev</span><span class="tag hl">npm registry</span><span class="tag hl">PyPI JSON</span><span class="tag hl">repo-map</span>
+        </div>
+      </div>
+      <div class="col" style="flex:1">
+        <div class="stepbar">
+          <div class="row-b"><span class="nm">A　健康</span><span class="bar"><i style="width:100%"></i></span><span class="wt">174</span></div>
+          <div class="row-b"><span class="nm">B　良好</span><span class="bar"><i style="width:70%;background:linear-gradient(90deg,#12B98A,#5BE3B4)"></i></span><span class="wt">121</span></div>
+          <div class="row-b"><span class="nm">C　需观察</span><span class="bar"><i style="width:17%;background:linear-gradient(90deg,#B08030,var(--warn))"></i></span><span class="wt">29</span></div>
+          <div class="row-b"><span class="nm">D　高风险</span><span class="bar"><i style="width:48%;background:linear-gradient(90deg,#B33A3A,var(--danger))"></i></span><span class="wt">84</span></div>
+        </div>
+        <div class="notebox mt-s" style="font-size:13.5px">
+          以上为最近一次采集产出：已覆盖 <strong>408</strong> 个组件，等级分布与来源归因均随报告落盘可查。
+        </div>
+        <div class="grid g3 mt-s" style="gap:12px">
+          <div class="metric"><div class="v" style="font-size:26px">396</div><div class="l">deps.dev</div></div>
+          <div class="metric"><div class="v" style="font-size:26px">247</div><div class="l">GitHub</div></div>
+          <div class="metric"><div class="v" style="font-size:26px">98</div><div class="l">PyPI</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 C4 scoring -->
+  <section class="slide" data-t="能力四 · 引入前门禁">
+    <div class="kicker">Capability 04 · Intake Gate</div>
+    <h2 class="title">四维评分 + 硬阻断：把决策做成确定性规则</h2>
+    <div class="rule"></div>
+    <div class="row" style="gap:30px">
+      <div class="col" style="flex:1.25">
+        <div class="stepbar">
+          <div class="row-b"><span class="nm">V 漏洞情报</span><span class="bar"><i style="width:100%"></i></span><span class="wt">35</span></div>
+          <div class="dsc">CVSS 归一 ≤25 · KEV +8 · EPSS ≤5 · 无修复版本 +4 · 暴露 &gt;180 天 +3</div>
+          <div class="row-b" style="margin-top:6px"><span class="nm">M 维护健康度</span><span class="bar"><i style="width:71%"></i></span><span class="wt">25</span></div>
+          <div class="dsc">archived / deprecated 取满 · 最近提交 ≤20 · 发布数 ≤6 · 维护者 ≤5 · 响应 ≤4</div>
+          <div class="row-b" style="margin-top:6px"><span class="nm">L 合规许可</span><span class="bar"><i style="width:57%;background:linear-gradient(90deg,#3C6FD8,var(--blue))"></i></span><span class="wt">20</span></div>
+          <div class="dsc">强传染性 20 · 商业源码 14 · 未知 12 · 弱传染性 10 · 宽松 0</div>
+          <div class="row-b" style="margin-top:6px"><span class="nm">B 业务影响</span><span class="bar"><i style="width:57%;background:linear-gradient(90deg,#3C6FD8,var(--blue))"></i></span><span class="wt">20</span></div>
+          <div class="dsc">重要性 ≤8 · 暴露面 ≤6 · 数据敏感度 ≤6 · 影响半径 ≤5 · 直接依赖 3</div>
+        </div>
+      </div>
+      <div class="col" style="flex:.75">
+        <div class="card" style="border-color:rgba(255,122,122,.35);background:linear-gradient(180deg,rgba(255,122,122,.10),transparent)">
+          <h3 style="font-size:16px">硬阻断（直接 Deny）</h3>
+          <ul class="list" style="gap:7px;font-size:13.5px">
+            <li><span class="dot" style="background:var(--danger)"></span><span>KEV 且无修复版本</span></li>
+            <li><span class="dot" style="background:var(--danger)"></span><span>CVSS ≥ 9.0 且无修复版本</span></li>
+            <li><span class="dot" style="background:var(--danger)"></span><span>许可证与用途冲突</span></li>
+            <li><span class="dot" style="background:var(--danger)"></span><span>已 archived / deprecated</span></li>
+          </ul>
+        </div>
+        <div class="card mt-s">
+          <h3 style="font-size:16px">诚实的不确定性</h3>
+          <p style="font-size:13.5px">数据陈旧时置信度下降 → 分值向保守方向调整，并<b>强制降级为人工复核</b>；策略可配 <span class="mono">staleness_as_deny</span> 直接判 Deny。</p>
+        </div>
+        <div class="tags mt-s">
+          <span class="tag hl">Allow</span><span class="tag">condition</span><span class="tag">Review</span><span class="tag" style="color:#FFB9B9;border-color:rgba(255,122,122,.4)">Deny</span><span class="tag">Exception</span>
+        </div>
+      </div>
+    </div>
+    <div class="notebox mt-s" style="font-size:14px">
+      样例：<span class="mono">pkg:maven/com.alibaba/fastjson@1.2.24</span> → CVSS 10.0 打底 25 分 + 2 条暴露超 180 天 +3 → 漏洞维度 28.0 / 35，
+      health 无信号时不假装健康，按保守值计分、置信度标 0、结论降级为<b>人工复核</b>。
+    </div>
+  </section>
+
+  <!-- 09 C5 -->
+  <section class="slide" data-t="能力五 · 原生依赖解析">
+    <div class="kicker">Capability 05</div>
+    <h2 class="title">不产 SBOM，也能直接扫</h2>
+    <div class="rule"></div>
+    <div class="row" style="gap:26px">
+      <div class="col" style="flex:1">
+        <ul class="list">
+          <li><span class="dot"></span><span><b>读项目本来就有的文件</b>：不要求业务侧先产出 SBOM，降低推行阻力</span></li>
+          <li><span class="dot"></span><span><b>直接 / 传递依赖</b>自动区分，归一为 PURL</span></li>
+          <li><span class="dot"></span><span>保留 <span class="mono">version_req</span> 与 <span class="mono">pinned</span>：<b>没锁版本本身就是风险信号</b></span></li>
+          <li><span class="dot"></span><span><span class="mono">--app</span> 直接生成含 purls / gavs 的资产台账条目</span></li>
+        </ul>
+        <div class="notebox mt-s">
+          解析不出任何组件时<b>以退出码 2 失败</b> —— 门禁绝不静默放行。
+        </div>
+      </div>
+      <div class="col" style="flex:1">
+        <div class="card" style="padding:18px 20px">
+          <h3 style="font-size:15px">支持格式</h3>
+          <div class="tags mt-s">
+            <span class="tag">pom.xml</span><span class="tag">build.gradle(.kts)</span><span class="tag">gradle.lockfile</span>
+            <span class="tag">package.json</span><span class="tag">package-lock.json v1/v2/v3</span><span class="tag">yarn.lock</span><span class="tag">pnpm-lock.yaml</span>
+            <span class="tag">requirements.txt</span><span class="tag">Pipfile.lock</span><span class="tag">poetry.lock</span><span class="tag">pyproject.toml</span>
+            <span class="tag">go.mod / go.sum</span><span class="tag">Cargo</span><span class="tag">composer</span><span class="tag">Gemfile.lock</span>
+          </div>
+        </div>
+        <div class="code mt-s" style="font-size:12px"><span class="c"># 扫描整个仓库的依赖文件</span>
+python -m oss_intake.cli scan \
+  --path ./payment-core \
+  --app <span class="g">支付核心</span> --tier core \
+  --exposure internet --data-sensitivity high
+
+<span class="c"># pom 属性展开 / dependencyManagement 继承 / 多模块</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 C6 -->
+  <section class="slide" data-t="能力六 · 基线 + AI 脚本 + 准确率门禁">
+    <div class="kicker">Capability 06</div>
+    <h2 class="title">AI 可以参与，但必须能被验证</h2>
+    <div class="rule"></div>
+    <div class="grid g3" style="align-items:stretch">
+      <div class="card">
+        <div class="no">Step 1</div>
+        <h3>安全基线目录</h3>
+        <p>内置 <b>32 条</b>，覆盖独立部署型（Redis、Nginx、Tomcat、Kafka、ZooKeeper、Elasticsearch、Nacos、MySQL、MongoDB、RabbitMQ、Docker、Jenkins）与依赖引入型（fastjson、log4j、Shiro、Struts、Spring Boot Actuator、XStream、Jackson）。</p>
+      </div>
+      <div class="card blue">
+        <div class="no">Step 2</div>
+        <h3>AI 脚本生成</h3>
+        <p>按目标平台规范产出：sreops 巡检脚本 / codescan 规则包 / 通用 Python 巡检。<b>LLM 不可用或不通过校验 → 自动回落确定性模板</b>，全程不发起外部请求。</p>
+      </div>
+      <div class="card accent">
+        <div class="no">Step 3</div>
+        <h3>准确率回归</h3>
+        <p>标注样本集回归校验，默认阈值 <b>90%</b>，不达标退出码非 0。产物写入 manifest.json，记录 sha256、生成方式（template / llm）与 review_required。</p>
+      </div>
+    </div>
+    <div class="notebox mt">
+      我们对 AI 的态度：<strong>可以参与生成，但要被静态检查、被标准样本集验收、被人工审核</strong> ——
+      把「扫描准确率 90%」从口号变成流水线上的一道红绿灯。
+    </div>
+  </section>
+
+  <!-- 11 C7 -->
+  <section class="slide" data-t="能力七 · 影响面巡检">
+    <div class="kicker">Capability 07</div>
+    <h2 class="title">从 CVE 到应用、到工单、到收敛证明</h2>
+    <div class="rule"></div>
+    <div class="grid g3" style="gap:16px">
+      <div class="card"><div class="no">按应用聚合</div><h3>影响面</h3><p>受影响组件数、KEV 数、风险分、结论分布、基线待检项；漏洞命中<b>精确到版本</b>，不做粗粒度全包族告警。</p></div>
+      <div class="card warn"><div class="no">工单定级</div><h3>整改期限</h3><p>按 KEV / CVSS 排序并定期限：<b>critical 7 天 / high 15 / medium 30 / low 90</b>，可直接派单到责任人。</p></div>
+      <div class="card accent"><div class="no">增量对比</div><h3>僵尸proof</h3><p>以「应用 + 组件 + CVE」三元组输出<b>新增 / 未修复 / 已闭环</b>；跨 ≥2 个应用的高危组件列入共性风险。</p></div>
+    </div>
+    <div class="row mt" style="gap:16px;align-items:stretch">
+      <div class="card" style="flex:1.4">
+        <h3 style="font-size:16px">群组分值口径</h3>
+        <p style="font-size:14px">群组 = <span class="mono" style="color:var(--accent)">0.6 × 最差组件 + 0.4 × 加权平均</span>，避免平均值掩盖单点高危；同一组件出现在 ≥3 个应用且评分 ≥55 时列入共性风险。</p>
+      </div>
+      <div class="card blue" style="flex:1">
+        <h3 style="font-size:16px">为什么是三元组</h3>
+        <p style="font-size:14px">只有 <span class="mono">应用 × 组件 × CVE</span> 才能证明「某一项风险这次真的闭环了」，而不是被总量平均稀释。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 C8 -->
+  <section class="slide" data-t="能力八 · 离线摆渡与工具链">
+    <div class="kicker">Capability 08</div>
+    <h2 class="title">把「信任」做进协议，而不是写进 PPT</h2>
+    <div class="rule"></div>
+    <div class="row" style="gap:26px">
+      <div class="col" style="flex:1">
+        <div class="card accent">
+          <h3 style="font-size:17px">同步协议保障</h3>
+          <ul class="list" style="gap:8px;font-size:13.5px;margin-top:6px">
+            <li><span class="dot"></span><span><b>manifest 签名</b>：优先 ed25519，回落 HMAC-SHA256</span></li>
+            <li><span class="dot"></span><span><b>逐文件 sha256</b> + <span class="mono">prev_digest</span> 链 + seq 单调 → 防篡改、防回滚</span></li>
+            <li><span class="dot"></span><span><b>临时目录 + rename</b> 原子切换，季度导入 snapshot 校准</span></li>
+            <li><span class="dot"></span><span><b>脱敏回执</b>：仅含 seq、水位、计数，反向摆渡不带走内网应用信息</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="col" style="flex:1">
+        <table>
+          <tr><th>产物 / 能力</th><th>用途</th></tr>
+          <tr><td class="k">SARIF 2.1.0</td><td>代码扫描中心 / GitHub code scanning / GitLab SAST 纳管</td></tr>
+          <tr><td class="k">JUnit</td><td>流水线测试报告展示</td></tr>
+          <tr><td class="k">MR 评论</td><td>结论分布 + 组件明细 + 门禁未通过提示</td></tr>
+          <tr><td class="k">退出码</td><td>never / deny / review / condition 四档阈值</td></tr>
+          <tr><td class="k">DEPINFO 台账</td><td>资产导入与结论回传（默认脱敏）</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="tags mt">
+      <span class="tag hl">钉钉 / 企业微信告警</span><span class="tag">SBOM ↔ pkg_list 双向</span><span class="tag">R2 + NAS 备份</span><span class="tag">漏洞报表导出</span>
+    </div>
+  </section>
+
+  <!-- 13 engineering -->
+  <section class="slide" data-t="工程亮点">
+    <div class="kicker">Engineering</div>
+    <h2 class="title">做开源治理的项目，自己必须干净</h2>
+    <div class="rule"></div>
+    <div class="grid g3" style="gap:16px">
+      <div class="card accent"><div class="no">E1</div><h3>内网零依赖可跑</h3><p><span class="mono">oss_intake/</span> 评分、同步、脚本生成、巡检路径纯 Python 标准库。</p></div>
+      <div class="card"><div class="no">E2</div><h3>自身依赖面最小</h3><p>采集器仅 <span class="mono">requests</span>（固定 2.32.4）；前端纯 ES5 IIFE，无构建步骤。</p></div>
+      <div class="card blue"><div class="no">E3</div><h3>规范先行</h3><p>全部能力用 OpenSpec 管理：基线 specs + changes 提案，每个 Requirement 至少一个 Scenario。</p></div>
+      <div class="card warn"><div class="no">E4</div><h3>自查不护短</h3><p>self-scan 用本项目门禁引擎扫自身依赖，命中 Deny 即阻断；盲区以 warning 显式暴露。</p></div>
+      <div class="card"><div class="no">E5</div><h3>教学样本不污染</h3><p>故意留下的漏洞样本加 <span class="mono">.sample</span> 后缀，避免被依赖图误认（曾因此多出 60 条假告警）。</p></div>
+      <div class="card"><div class="no">E6</div><h3>机器可读优先</h3><p>llms.txt + index.json，WebFetch 直接取数，无需 Key、无跨域限制。</p></div>
+    </div>
+  </section>
+
+  <!-- 14 metrics -->
+  <section class="slide" data-t="数据看板">
+    <div class="kicker">Verifiable Numbers</div>
+    <h2 class="title">可核验的产出物</h2>
+    <div class="rule"></div>
+    <div class="grid g3" style="gap:16px">
+      <div class="metric a"><div class="v">4,000</div><div class="l">常用依赖 Top 清单（四生态各 1,000）</div></div>
+      <div class="metric b"><div class="v">408</div><div class="l">社区支持力度已覆盖组件</div></div>
+      <div class="metric"><div class="v">A 174<span style="color:#54657F">/</span>B 121<span style="color:#54657F">/</span>C 29<span style="color:#54657F">/</span>D 84</div><div class="l">等级分布</div></div>
+      <div class="metric"><div class="v">396<span style="color:#54657F">·</span>247<span style="color:#54657F">·</span>98</div><div class="l">deps.dev · GitHub · PyPI 信号覆盖</div></div>
+      <div class="metric"><div class="v">400 <small>行</small></div><div class="l">首批热门采集清单</div></div>
+      <div class="metric w"><div class="v">32 <small>条</small>　90<small>%</small></div><div class="l">内置安全基线 / 准确率门禁阈值</div></div>
+    </div>
+    <div class="notebox mt">
+      这组数字的重点不是「我们算出了什么」，而是<b>每个数字都能点回原始出处</b> —— 每条社区信号、每条漏洞记录都保留来源链接与哈希。
+    </div>
+  </section>
+
+  <!-- 15 rollout -->
+  <section class="slide" data-t="落地路径与 Roadmap">
+    <div class="kicker">Rollout</div>
+    <h2 class="title">三步落地，逐步加严</h2>
+    <div class="rule"></div>
+    <div class="grid g3" style="gap:18px">
+      <div class="card accent">
+        <div class="no">Step 1 · 看得见</div>
+        <h3>先把现状摊开</h3>
+        <p>Pages 或 <span class="mono">docker compose up -d</span>，把已有组件清单灌进去，先出一张 CVE 清单。不改造任何业务代码。</p>
+      </div>
+      <div class="card blue">
+        <div class="no">Step 2 · 管得住</div>
+        <h3>把结论变成闸门</h3>
+        <p>CI 里挂 <span class="mono">gate</span>，<span class="mono">--fail-on deny</span> 成为流水线的一道闸；同时产出 SARIF / JUnit / MR 评论。</p>
+      </div>
+      <div class="card accent">
+        <div class="no">Step 3 · 持续收敛</div>
+        <h3>用增量证明</h3>
+        <p><span class="mono">patrol</span> 周期巡检 + 工单闭环，月度复盘看新增 / 未修复 / 已闭环三元组在朝哪边走。</p>
+      </div>
+    </div>
+    <div class="mt">
+      <div class="kicker" style="font-size:12px">Roadmap</div>
+      <div class="tags mt-s">
+        <span class="tag hl">漏洞告警推送 钉钉 / 企业微信</span>
+        <span class="tag">SBOM 双向自动生成与回写</span>
+        <span class="tag">漏洞报表导出与趋势视图</span>
+        <span class="tag">R2 + NAS 备份流水线标准化</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16 close -->
+  <section class="slide cover" data-t="结语">
+    <div class="kicker">Conclusion</div>
+    <h1 class="title" style="font-size:46px;max-width:940px">开源治理的难点从来不是缺一个扫描器</h1>
+    <div class="lead mt" style="font-size:21px">
+      而是 <strong>决策不可解释</strong>、<strong>数据不可核验</strong>、<strong>内网不可用</strong>。<br>
+      ScaBase 把这三件事做成了默认能力。
+    </div>
+    <div class="grid g3 mt" style="gap:16px;max-width:1000px">
+      <div class="card" style="padding:16px 18px"><h3 style="font-size:15px">决策可解释</h3><p style="font-size:13px">白盒扣分制，每项都能追溯到依据</p></div>
+      <div class="card" style="padding:16px 18px"><h3 style="font-size:15px">数据可核验</h3><p style="font-size:13px">sha256 + 生成时间 + 来源链接</p></div>
+      <div class="card" style="padding:16px 18px"><h3 style="font-size:15px">内网可用</h3><p style="font-size:13px">零第三方依赖，单向摆渡</p></div>
+    </div>
+    <div class="cover-foot">
+      <span>谢谢 · 欢迎提问与批评</span>
+      <span class="mono">scabase.roweb.cn</span>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<div class="hud">
+  <button id="btnFirst" title="首页 (Home)">⏮</button>
+  <button id="btnPrev" title="上一页 (←)">◀</button>
+  <span class="cnt" id="cnt">01 / 16</span>
+  <button id="btnNext" title="下一页 (→ / 空格)">▶</button>
+  <button id="btnLast" title="末页 (End)">⏭</button>
+  <button id="btnGrid" title="总览 (O)">▦</button>
+  <button id="btnFull" title="全屏 (F)">⤢</button>
+  <button id="btnPrint" title="导出 PDF (P)">⎙</button>
+  <span class="hint">← → 翻页 · O 总览 · F 全屏 · P 打印</span>
+</div>
+
+<script>
+(function(){
+  var deck=document.getElementById('deck');
+  var slides=[].slice.call(deck.querySelectorAll('.slide'));
+  var total=slides.length,cur=0,gridMode=false;
+
+  // build footers
+  slides.forEach(function(s,i){
+    var f=document.createElement('div');
+    f.className='foot';
+    f.innerHTML='<span>'+(s.getAttribute('data-t')||'')+'</span>'+
+                '<span class="pg">'+pad(i+1)+' / '+pad(total)+'</span>';
+    s.appendChild(f);
+  });
+  function pad(n){return (n<10?'0':'')+n}
+
+  function layout(){
+    if(gridMode) return layoutGrid();
+    deck.style.width='';deck.style.height='';
+    var s=Math.min(window.innerWidth/1296,(window.innerHeight-56)/736);
+    deck.style.transform='scale('+s+')';
+  }
+  function layoutGrid(){
+    var cols = window.innerWidth>1700?5:(window.innerWidth>1180?4:(window.innerWidth>820?3:2));
+    var gap=40, rows=Math.ceil(total/cols);
+    var tw=cols*1280+(cols-1)*gap, th=rows*720+(rows-1)*gap;
+    var s=Math.min((window.innerWidth-80)/tw,(window.innerHeight-90)/th);
+    deck.style.gridTemplateColumns='repeat('+cols+',1280px)';
+    deck.style.width=tw+'px';deck.style.height=th+'px';
+    deck.style.transform='scale('+s+')';
+    deck.style.marginLeft=(-(tw*(1-s))/2)+'px';
+    deck.style.marginTop=(-(th*(1-s))/2)+'px';
+  }
+
+  function show(i){
+    cur=Math.max(0,Math.min(total-1,i));
+    slides.forEach(function(s,n){ s.classList.toggle('active',n===cur); });
+    document.getElementById('cnt').textContent=pad(cur+1)+' / '+pad(total);
+    document.getElementById('prog').style.width=((cur+1)/total*100)+'%';
+    layout();
+  }
+  function toggleGrid(){
+    gridMode=!gridMode;
+    deck.classList.toggle('is-grid',gridMode);
+    document.body.classList.add('pinned');
+    if(gridMode){
+      slides.forEach(function(s){s.classList.add('active')});
+      deck.style.marginLeft='';deck.style.marginTop='';
+      layoutGrid();
+    }else{
+      deck.style.marginLeft='';deck.style.marginTop='';
+      show(cur);
+    }
+  }
+
+  document.getElementById('btnNext').onclick=function(){show(cur+1)};
+  document.getElementById('btnPrev').onclick=function(){show(cur-1)};
+  document.getElementById('btnFirst').onclick=function(){show(0)};
+  document.getElementById('btnLast').onclick=function(){show(total-1)};
+  document.getElementById('btnGrid').onclick=toggleGrid;
+  document.getElementById('btnPrint').onclick=function(){if(gridMode)toggleGrid();setTimeout(function(){window.print()},120)};
+  document.getElementById('btnFull').onclick=function(){
+    if(!document.fullscreenElement){document.documentElement.requestFullscreen();}
+    else{document.exitFullscreen();}
+  };
+
+  document.addEventListener('keydown',function(e){
+    var k=e.key;
+    if(k==='ArrowRight'||k==='ArrowDown'||k==='PageDown'||k===' '){e.preventDefault();if(!gridMode)show(cur+1);}
+    else if(k==='ArrowLeft'||k==='ArrowUp'||k==='PageUp'){e.preventDefault();if(!gridMode)show(cur-1);}
+    else if(k==='Home'){show(0)}
+    else if(k==='End'){show(total-1)}
+    else if(k==='o'||k==='O'){toggleGrid()}
+    else if(k==='f'||k==='F'){document.getElementById('btnFull').click()}
+    else if(k==='p'||k==='P'){document.getElementById('btnPrint').click()}
+    else if(k==='Escape'&&gridMode){toggleGrid()}
+  });
+
+  deck.addEventListener('click',function(e){
+    if(!gridMode) return;
+    var s=e.target.closest ? e.target.closest('.slide') : null;
+    if(s){ toggleGrid(); show(slides.indexOf(s)); }
+  });
+
+  window.addEventListener('resize',layout);
+  show(0);
+})();
+</script>
+</body>
+</html>

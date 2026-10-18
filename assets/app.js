@@ -30,6 +30,9 @@
    * pages.yml / Dockerfile 再随站点一同发布（reports/ 为 gitignore 产物，不入库）。 */
   var HEALTH_URL = CONFIG.healthUrl || "scabase-fetcher/data/community-support.json";
   var POPULAR_URL = CONFIG.popularUrl || "scabase-fetcher/data/popular-packages.json";
+  /* 应用 / 基础设施软件维度（nginx / 7-Zip / Kubernetes 等，按产品而非包管理） */
+  var SOFTWARE_VULNS_URL = CONFIG.softwareVulnsUrl || "scabase-fetcher/data/software-vulns.json";
+  var SOFTWARE_SUPPORT_URL = CONFIG.softwareSupportUrl || "scabase-fetcher/data/software-support.json";
   var OSV_API = CONFIG.osvApi || "https://api.osv.dev/v1/query";
   var OSV_VULN = CONFIG.osvWeb || "https://osv.dev/vulnerability/";
   var OSV_VULN_API = CONFIG.osvVulnApi || "https://api.osv.dev/v1/vulns/";
@@ -908,12 +911,35 @@
 
   function run() {
     if (running) return;
-    var parsed = parseInput($("query").value);
+    // 软件维度（nginx / 7-Zip / Kubernetes 等）：命中别名表时走本地 NVD 数据渲染
+    var swHits = detectSoftwareLines($("query").value);
+    var effective = swHits.length ? stripSoftwareLines($("query").value, swHits) : $("query").value;
+    var parsed = parseInput(effective);
     var errors = parsed.errors.slice();
     if (!parsed.entries.length && !errors.length) {
-      setStatus("请输入至少一个组件（pkg_list 或 GAV）或 CVE 编号。", true);
+      if (swHits.length) {
+        if (!softwareState.loaded) loadSoftware();
+        renderSoftwareResults(swHits);
+        $("results").textContent = "";
+        state.results = [];
+        $("toolbar").hidden = true;
+        var swTotal = swHits.reduce(function (n, h) {
+          var sw = softwareState.index[h.name.toLowerCase()] || { cves: [] };
+          return n + (sw.cves || []).filter(function (c) {
+            if (!h.version) return true;
+            return (c.affected || []).some(function (r) {
+              return swVersionAffected(r, h.version);
+            });
+          }).length;
+        }, 0);
+        setStatus("完成：" + swHits.length + " 个软件，" + swTotal +
+          " 条漏洞记录（NVD 数据，点击 CVE 编号可跳转核对）", false);
+        return;
+      }
+      setStatus("请输入至少一个组件（pkg_list 或 GAV）、CVE 编号或软件名（如 nginx 1.24.0）。", true);
       return;
     }
+    if (swHits.length) renderSoftwareResults(swHits);
 
     running = true;
     $("run").disabled = true;
@@ -1293,6 +1319,283 @@
     wrap.appendChild(chipAll);
   }
 
+  /* --------------------------- 应用 / 基础设施软件维度 --------------------------- */
+  var softwareState = {
+    vulnsDoc: null, supportDoc: null, loaded: false,
+    index: {}, aliasKeys: [], supportIndex: {}
+  };
+
+  function loadSoftware() {
+    if (softwareState.loaded) return;
+    softwareState.loaded = true;
+    fetch(SOFTWARE_VULNS_URL, { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (json) {
+        softwareState.vulnsDoc = json;
+        buildSoftwareIndex(json);
+        renderSoftwareChips();
+      })
+      .catch(function () { /* 软件数据缺失时静默：查询走原有库维度逻辑 */ });
+    fetch(SOFTWARE_SUPPORT_URL, { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (json) {
+        softwareState.supportDoc = json;
+        softwareState.supportIndex = {};
+        (json.components || []).forEach(function (c) {
+          if (c.software) softwareState.supportIndex[String(c.software).toLowerCase()] = c;
+        });
+      })
+      .catch(function () { /* 同上 */ });
+  }
+
+  function buildSoftwareIndex(doc) {
+    softwareState.index = {};
+    (doc.software || []).forEach(function (sw) {
+      var keys = [sw.name].concat(sw.aliases || []);
+      keys.forEach(function (k) {
+        var lk = String(k).toLowerCase();
+        if (lk && !softwareState.index[lk]) softwareState.index[lk] = sw;
+      });
+    });
+    // 别名按长度降序，保证最长匹配（"linux kernel" 优先于 "linux"）
+    softwareState.aliasKeys = Object.keys(softwareState).length ? [] : [];
+    softwareState.aliasKeys = Object.keys(softwareState.index)
+      .sort(function (a, b) { return b.length - a.length; });
+  }
+
+  /* 识别一行是否为软件查询：name / name@ver / name:ver / name ver */
+  function parseSoftwareLine(raw) {
+    var line = String(raw || "").trim();
+    if (!line || line.charAt(0) === "#") return null;
+    var m = line.match(/^([^\s@:]+)(?:[@:]\s*([^\s]+)|\s+(\S+))?$/);
+    if (!m) return null;
+    var sw = softwareState.index[m[1].toLowerCase()];
+    if (!sw) return null;
+    return { line: raw, name: sw.name, version: (m[2] || m[3] || "").trim() };
+  }
+
+  function detectSoftwareLines(text) {
+    var hits = [];
+    String(text || "").split(/\n/).forEach(function (raw) {
+      var hit = parseSoftwareLine(raw);
+      if (hit) hits.push(hit);
+    });
+    return hits;
+  }
+
+  function stripSoftwareLines(text, hits) {
+    var taken = {};
+    hits.forEach(function (h) { taken[h.line] = true; });
+    return String(text || "").split(/\n/)
+      .filter(function (l) { return !taken[l]; }).join("\n");
+  }
+
+  /* 版本比较与 NVD 区间判断（与 fetch_software.py 的 version_affected 对齐） */
+  function swVersionTuple(value) {
+    var text = String(value || "").replace(/^[vV](?=\d)/, "").trim();
+    if (!text) return [];
+    var core = text.split(/[-+]/)[0];
+    return core.split(".").map(function (seg) {
+      var m = seg.match(/^\d+/);
+      return m ? parseInt(m[0], 10) : 0;
+    });
+  }
+
+  function swCmp(a, b) {
+    var x = swVersionTuple(a), y = swVersionTuple(b);
+    var n = Math.max(x.length, y.length);
+    for (var i = 0; i < n; i++) {
+      var xi = x[i] || 0, yi = y[i] || 0;
+      if (xi !== yi) return xi < yi ? -1 : 1;
+    }
+    return 0;
+  }
+
+  function swVersionAffected(range, version) {
+    var given = String(version || "").replace(/^[vV](?=\d)/, "").trim();
+    if (!given) return true;
+    if (range.start_including && swCmp(given, range.start_including) < 0) return false;
+    if (range.start_excluding && swCmp(given, range.start_excluding) <= 0) return false;
+    if (range.end_including && swCmp(given, range.end_including) > 0) return false;
+    if (range.end_excluding && swCmp(given, range.end_excluding) >= 0) return false;
+    return true;
+  }
+
+  function swRangeText(range) {
+    if (!range) return "所有版本";
+    var parts = [];
+    if (range.start_including) parts.push("≥ " + range.start_including);
+    if (range.start_excluding) parts.push("> " + range.start_excluding);
+    if (range.end_including) parts.push("≤ " + range.end_including);
+    if (range.end_excluding) parts.push("< " + range.end_excluding);
+    return parts.length ? parts.join(" 且 ") : "所有版本";
+  }
+
+  function swSevClass(severity) {
+    var s = String(severity || "").toUpperCase();
+    if (s === "CRITICAL") return "sev sev-CRITICAL";
+    if (s === "HIGH") return "sev sev-HIGH";
+    if (s === "MEDIUM" || s === "MODERATE") return "sev sev-MEDIUM";
+    if (s === "LOW") return "sev sev-LOW";
+    return "sev sev-UNKNOWN";
+  }
+
+  /* 软件漏洞结果（渲染到 #softwareResults，与库维度结果区相互独立） */
+  function renderSoftwareResults(hits) {
+    var box = $("softwareResults");
+    if (!box) return;
+    box.textContent = "";
+    if (!hits.length) { box.hidden = true; return; }
+    if (!softwareState.vulnsDoc) {
+      box.hidden = false;
+      box.appendChild(el("div", "empty", "软件漏洞数据加载中，请稍后再次点击「查询」。"));
+      return;
+    }
+    box.hidden = false;
+    var total = 0, totalCve = {};
+    hits.forEach(function (hit) {
+      var sw = softwareState.index[hit.name.toLowerCase()] || { cves: [] };
+      var cves = (sw.cves || []).filter(function (c) {
+        if (!hit.version) return true;
+        return (c.affected || []).some(function (r) {
+          return swVersionAffected(r, hit.version);
+        });
+      });
+      cves.forEach(function (c) { totalCve[c.id] = true; });
+      total += cves.length;
+      box.appendChild(softwareCard(hit, sw, cves));
+    });
+    var stamp = el("p", "software-summary",
+      hits.length + " 个软件 · " + total + " 条漏洞记录 · " +
+      Object.keys(totalCve).length + " 个 CVE");
+    box.insertBefore(stamp, box.firstChild);
+  }
+
+  function softwareCard(hit, sw, cves) {
+    var card = el("article", "card software-card");
+    var head = el("div", "card-head");
+    var pkg = el("div", "pkg");
+    pkg.appendChild(el("span", "eco", "软件"));
+    pkg.appendChild(el("span", "name",
+      sw.name + (hit.version ? " " + hit.version : "")));
+    head.appendChild(pkg);
+    var badges = el("div", "badges");
+    badges.appendChild(el("span", "count", cves.length + " 条 CVE"));
+    if (sw.cpe && sw.cpe.length) {
+      badges.appendChild(el("span", "stamp", "CPE " + sw.cpe.join(" / ")));
+    }
+    head.appendChild(badges);
+    card.appendChild(head);
+
+    var body = el("div", "software-body");
+    if (!cves.length) {
+      body.appendChild(el("p", "empty", !sw.cve_count
+        ? "该软件的漏洞数据尚未采集（software-collect.yml 每日更新），可先查看其健康度信号。"
+        : (hit.version
+          ? "未发现影响 " + hit.version + " 的已收录漏洞。"
+          : "暂无已收录漏洞。")));
+    }
+    cves.forEach(function (c) {
+      var row = el("div", "sw-cve");
+      var line = el("div", "sw-cve-head");
+      var link = el("a", "sw-cve-id", c.id || "—");
+      link.href = NVD_VULN + (c.id || "");
+      link.target = "_blank";
+      link.rel = "noopener";
+      line.appendChild(link);
+      if (c.cvss != null) {
+        line.appendChild(el("span", swSevClass(c.severity),
+          (c.severity || "UNKNOWN") + " " + c.cvss));
+      } else {
+        line.appendChild(el("span", swSevClass(c.severity), c.severity || "UNKNOWN"));
+      }
+      if (c.published) line.appendChild(el("span", "sw-date", c.published));
+      row.appendChild(line);
+      var meta = el("p", "sw-cve-meta");
+      var ranges = (c.affected || []).map(swRangeText).join("；");
+      meta.textContent = "影响版本：" + (ranges || "所有版本");
+      if (c.weaknesses && c.weaknesses.length) {
+        meta.textContent += " · " + c.weaknesses.join("、");
+      }
+      row.appendChild(meta);
+      if (c.description) row.appendChild(el("p", "sw-desc", c.description));
+      if (c.references && c.references.length) {
+        var refs = el("p", "sw-refs");
+        c.references.slice(0, 3).forEach(function (url) {
+          var a = el("a", "sw-ref", url.replace(/^https?:\/\//, "").slice(0, 48));
+          a.href = url;
+          a.target = "_blank";
+          a.rel = "noopener";
+          refs.appendChild(a);
+        });
+        row.appendChild(refs);
+      }
+      body.appendChild(row);
+    });
+    card.appendChild(body);
+    return card;
+  }
+
+  /* 软件健康度结果（渲染到 #softwareHealth，复用 renderHealthCard） */
+  function renderSoftwareHealth(hits) {
+    var box = $("softwareHealth");
+    if (!box) return;
+    box.textContent = "";
+    if (!hits.length) { box.hidden = true; return; }
+    if (!softwareState.supportDoc) {
+      box.hidden = false;
+      box.appendChild(el("div", "empty", "软件健康度数据加载中，请稍后再次点击「查询」。"));
+      return;
+    }
+    box.hidden = false;
+    var matched = [], missing = [];
+    hits.forEach(function (hit) {
+      var comp = softwareState.supportIndex[hit.name.toLowerCase()];
+      if (!comp) {
+        missing.push({ entry: { ecosystem: "软件", name: hit.name, version: hit.version || null },
+                       reason: "软件健康度数据未收录" });
+        return;
+      }
+      matched.push({
+        component: comp,
+        entry: { ecosystem: "软件", name: hit.name, version: hit.version || null },
+        exactVersion: !hit.version || !comp.version || hit.version === comp.version,
+        candidates: 1, duplicates: []
+      });
+    });
+    matched.forEach(function (item) { box.appendChild(renderHealthMatchedCard(item)); });
+    missing.forEach(function (item) { box.appendChild(renderHealthMissingCard(item)); });
+    if (matched.length) {
+      var stamp = el("p", "software-summary",
+        "软件维度 · 命中 " + matched.length + " 个 · 未收录 " + missing.length + " 条");
+      box.insertBefore(stamp, box.firstChild);
+    }
+  }
+
+  /* 软件快速填入 chips（漏洞 tab 与健康度 tab 各一个容器；只列已采集到 CVE 的软件） */
+  function renderSoftwareChips() {
+    if (!softwareState.vulnsDoc) return;
+    var names = (softwareState.vulnsDoc.software || [])
+      .filter(function (s) { return s.cve_count > 0; })
+      .map(function (s) { return s.name; });
+    ["softwareChips", "softwareHealthChips"].forEach(function (id) {
+      var box = $(id);
+      if (!box) return;
+      box.textContent = "";
+      names.slice(0, 14).forEach(function (name) {
+        var chip = el("button", "chip", name);
+        chip.type = "button";
+        chip.addEventListener("click", function () {
+          var ta = $(id === "softwareChips" ? "query" : "healthQuery");
+          if (ta) { ta.value = name; ta.focus(); }
+        });
+        box.appendChild(chip);
+      });
+      var wrap = box.parentNode;
+      if (wrap) wrap.hidden = false;
+    });
+  }
+
   function loadPopular() {
     if (popularState.attempted) return;
     popularState.attempted = true;
@@ -1313,7 +1616,8 @@
   /* --------------------------- 开源软件支持力度与活跃度 --------------------------- */
   var healthState = {
     data: null, attempted: false, sort: "grade", grade: "ALL", query: "",
-    queryMode: false, matched: [], missing: [], pendingQuery: false
+    queryMode: false, matched: [], missing: [], pendingQuery: false,
+    repoMap: null
   };
 
   /* 数据来源展示名（与 community_report.py 的 SOURCE_LABELS 保持一致） */
@@ -1325,13 +1629,55 @@
     "repo-map": "repo-map"
   };
 
-  /* 来源徽章跳转链接：让人工能点击核对该信号来自哪个出处 */
+  /* purl type → 生态名（与 oss_intake.purl 的 TYPE_TO_ECO 对齐） */
+  var PURL_TYPE_TO_ECO = { maven: "maven", npm: "npm", pypi: "pypi", golang: "go", cargo: "cargo" };
+
+  function healthEco(c) {
+    return c.eco || PURL_TYPE_TO_ECO[parseHealthPurl(c.purl || "").type] || "";
+  }
+
+  /* 前端兜底推导：报告数据未带链接字段时（如 CI 尚未用新版
+     community_report.py 刷新），从 purl 直接推出出处 URL，
+     保证来源徽章对旧数据同样可点击，供人工核对。 */
+  function depsDevHref(c) {
+    if (c.deps_dev) return c.deps_dev;
+    var info = parseHealthPurl(c.purl || "");
+    var name = info.name;
+    if (!name) return null;
+    var ns = (info.ns || "").replace(/^@+/, "");
+    var eco = healthEco(c);
+    if (eco === "maven") return ns ? "https://deps.dev/maven/" + ns + ":" + name : null;
+    if (eco === "npm") return "https://deps.dev/npm/" + (ns ? "@" + ns + "/" + name : name);
+    if (eco === "go") return "https://deps.dev/go/" + (ns ? ns + "/" + name : name);
+    if (eco === "pypi") return "https://deps.dev/pypi/" + name;
+    return null;
+  }
+
+  function registryHref(c) {
+    if (c.registry) return c.registry;
+    var info = parseHealthPurl(c.purl || "");
+    var name = info.name;
+    if (!name) return null;
+    var ns = (info.ns || "").replace(/^@+/, "");
+    var eco = healthEco(c);
+    if (eco === "npm") return "https://www.npmjs.com/package/" + (ns ? "@" + ns + "/" + name : name);
+    if (eco === "pypi") return "https://pypi.org/project/" + name + "/";
+    if (eco === "maven") {
+      return ns ? "https://central.sonatype.com/artifact/" + ns + "/" + name : null;
+    }
+    if (eco === "go") return "https://pkg.go.dev/" + (ns ? ns + "/" + name : name);
+    return null;
+  }
+
+  /* 来源徽章跳转链接：让人工能点击核对该信号来自哪个出处。
+     优先用报告数据里的显式字段，缺失时前端从 purl / repo-map 推导。 */
   function sourceHref(src, c) {
     if (src === "github" || src === "repo-map") {
-      return c.repo ? "https://github.com/" + c.repo : null;
+      var repo = c.repo || (healthState.repoMap || {})[c.purl || ""];
+      return repo ? "https://github.com/" + repo : null;
     }
-    if (src === "deps.dev") return c.deps_dev || null;
-    if (src === "npm-registry" || src === "pypi") return c.registry || null;
+    if (src === "deps.dev") return depsDevHref(c);
+    if (src === "npm-registry" || src === "pypi") return registryHref(c);
     return null;
   }
 
@@ -1496,11 +1842,32 @@
       healthState.matched = [];
       healthState.missing = [];
       healthState.pendingQuery = false;
-      var copyBtn = $("healthCopyMissing");
-      if (copyBtn) copyBtn.hidden = true;
+      var copyBtn0 = $("healthCopyMissing");
+      if (copyBtn0) copyBtn0.hidden = true;
+      var swBox0 = $("softwareHealth");
+      if (swBox0) { swBox0.textContent = ""; swBox0.hidden = true; }
       if (!healthState.data) return;
       healthStatus("");
       renderHealth();
+      return;
+    }
+
+    // 软件维度：命中别名表的行走 software-support.json 渲染
+    var swHits = detectSoftwareLines(ta.value);
+    var restLines = swHits.length ? stripSoftwareLines(ta.value, swHits) : ta.value;
+    if (swHits.length && !restLines.trim()) {
+      if (!softwareState.loaded) loadSoftware();
+      renderSoftwareHealth(swHits);
+      var host = $("healthResults");
+      if (host) host.textContent = "";
+      healthState.queryMode = false;
+      var hitCount = swHits.filter(function (h) {
+        return softwareState.supportIndex[h.name.toLowerCase()];
+      }).length;
+      healthStatus("软件维度：输入 " + swHits.length + " 条 · 命中 " + hitCount +
+        " 个 · 未收录 " + (swHits.length - hitCount) + " 条", false);
+      var swBtn = $("healthCopyMissing");
+      if (swBtn) swBtn.hidden = true;
       return;
     }
 
@@ -1514,7 +1881,8 @@
       return;
     }
 
-    var parsed = parseInput(ta.value);
+    if (swHits.length) renderSoftwareHealth(swHits);
+    var parsed = parseInput(restLines);
     if (!parsed.entries.length) {
       healthStatus(parsed.errors.length ? parsed.errors.join("；") : "没有可查询的条目。", true);
       return;
@@ -1599,6 +1967,19 @@
     node.textContent = "";
     if (spinner) node.appendChild(el("span", "spin"));
     node.appendChild(el("span", null, text));
+  }
+
+  function loadRepoMap() {
+    // 与健康报告同目录；失败时静默（GitHub 徽章降级为纯文本，其余来源仍可点）
+    var base = HEALTH_URL.replace(/[^/]*$/, "");
+    fetch(base + "repo-map.json", { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (json) {
+        healthState.repoMap = json || {};
+        // 映射到位后重渲染，让 GitHub 徽章立刻可点
+        if (healthState.data) renderHealth();
+      })
+      .catch(function () { healthState.repoMap = {}; });
   }
 
   function loadHealth() {
@@ -1823,6 +2204,8 @@
       if ($("healthSearch")) $("healthSearch").value = "";
       var btn = $("healthCopyMissing");
       if (btn) btn.hidden = true;
+      var swBox = $("softwareHealth");
+      if (swBox) { swBox.textContent = ""; swBox.hidden = true; }
       healthStatus("");
       renderHealth();
     });
@@ -1945,6 +2328,8 @@
 
     loadChips();
     loadPopular();
+    loadSoftware();
+    loadRepoMap();
 
     loadLocal().then(function (res) {
       if (res) {

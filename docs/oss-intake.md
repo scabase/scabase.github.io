@@ -55,8 +55,10 @@ scabase-fetcher/scripts/
   community_report.py  社区支持力度汇总报告（0-100 分 + A/B/C/D）
   gen_popular_packages.py  常用依赖 Top 清单生成（四生态各 1000）
   gen_data_index.py    机器可读数据索引 index.json 生成（LLM WebFetch 入口）
+  fetch_software.py    应用 / 基础设施软件漏洞与健康度采集（NVD CPE + GitHub）
 .github/workflows/
   community-health.yml 每日采集社区支持力度与活跃度信号
+  software-collect.yml 每日采集软件维度漏洞与健康度（nginx / 7-Zip / Kubernetes 等）
   self-scan.yml        仓库自身依赖面自查（用本项目门禁引擎扫 requirements.txt）
 examples/
   deps/                原生依赖文件样本（*.sample 为教学样本，同名文件为零依赖空壳）
@@ -373,6 +375,10 @@ python scabase-fetcher/scripts/build_facts.py \
   三个链接字段（GitHub 仓库、deps.dev 包页面、生态注册表页面）。前端健康度卡片的
   「数据来源」徽章据此渲染为可点击链接（无链接信息时降级为纯文本徽章），
   Markdown 报告的「数据来源」列同样带链接，点击即可跳转原始出处核对。
+- **旧数据兜底**：报告数据尚未带上述字段时（如 CI 还用旧版脚本生成），前端会从
+  组件 `purl` 直接推导 deps.dev / 注册表链接，并从 `repo-map.json` 补 GitHub 链接，
+  保证来源徽章在任何数据版本下都可点击；`repo-map.json` 体积很小（KB 级），
+  随健康报告同目录加载，失败时静默降级。
 
 ## 16. 常用依赖 Top 清单（站点示例）
 
@@ -449,3 +455,39 @@ python scabase-fetcher/scripts/gen_data_index.py \
 | `/scabase-fetcher/data/community-support.json` | 社区支持力度报告 |
 | `/scabase-fetcher/data/pkg_list.txt` / `pkg_list_popular.txt` | 组件清单（`ecosystem\|package\|version`） |
 | `/scabase-fetcher/data/repo-map.json` | purl → GitHub 仓库映射 |
+| `/scabase-fetcher/data/software-vulns.json` | 软件漏洞库（nginx / 7-Zip / Kubernetes 等） |
+| `/scabase-fetcher/data/software-support.json` | 软件健康度报告 |
+
+## 18. 应用 / 基础设施软件维度（nginx / 7-Zip / Kubernetes 等）
+
+与「库」维度（purl 生态）平行，站点新增按产品管理的服务器软件维度，由
+`scabase-fetcher/scripts/fetch_software.py` 采集（工作流 `software-collect.yml`，
+每日 03:43 UTC，与 community-health 错开）：
+
+- **漏洞**：NVD CVE API 2.0 按 `keywordSearch` 拉取候选，本地用 CPE
+  `vendor:product` 前缀精确过滤——注意 nginx 的 CPE vendor 已是 `f5`
+  （F5 收购后迁移），MySQL 需同时收录 `oracle:mysql` 与 `mysql:mysql`；
+  每个 CVE 提取 CVSS、影响版本区间（`versionStart/EndIncluding/Excluding`）、
+  CWE 与参考链接。
+- **健康度**：复用 GitHub 信号（Star、归档、发布节奏、背后组织），
+  评分走 `oss_intake.community`；版本号取最新 GitHub release tag
+  （兼容 `v1.24.0` / `release-1.24.0` / `openssl-4.0.3` / `curl-8_23_0` 等形态）。
+- **查询语法**：输入框直接写 `nginx 1.24.0` / `nginx@1.24.0` / `k8s` / `7zip`，
+  别名表见 `SOFTWARE`（含 k8s、zk、7zip、httpd、pg 等常见缩写）；
+  带版本时按 CPE 区间过滤受影响 CVE，不带版本展示全部。
+- **前端**：软件结果渲染在独立区域（漏洞 `#softwareResults`、健康度
+  `#softwareHealth`），CVE 编号链接 NVD 详情页，健康度卡片复用库维度渲染
+  （含可点击的来源徽章）；与库维度输入可混合（同一行一个条目）。
+- **NVD 限流**：无 `NVD_API_KEY` 时 5 次/30 秒（脚本内置 6.5s 间隔，
+  全量约 8 分钟）；配置仓库 Secret `NVD_API_KEY` 后自动提速。
+
+```bash
+# 全量采集
+python scabase-fetcher/scripts/fetch_software.py --refresh
+
+# 只刷新指定软件（未选中的软件沿用旧数据，不会从产物中丢失）
+python scabase-fetcher/scripts/fetch_software.py --refresh --only nginx --only redis
+```
+
+产物：`software-vulns.json`（软件 → CVE 列表）与 `software-support.json`
+（健康度评分卡，结构与 community-support.json 对齐，前端复用同一套渲染）。

@@ -1,0 +1,66 @@
+name: software-collect
+
+# 互联网侧：采集常用应用 / 基础设施软件（nginx / 7-Zip / Kubernetes 等）的
+# 漏洞与健康度信号，提交回 data/ 目录，由 pages.yml 随站点发布。
+#
+# 数据源：
+#   NVD CVE API 2.0  keywordSearch 拉取候选 + 本地 CPE vendor:product 精确过滤
+#                    （提取 CVSS、影响版本区间、CWE、参考链接）
+#   GitHub API       仓库健康度信号（Star、归档、发布节奏、背后组织）
+#
+# NVD 无 API key 时限流 5 次 / 30 秒（脚本内置 6.5s 间隔，全量约 8 分钟）；
+# 配置仓库 Secret NVD_API_KEY 后自动提速。GitHub 用默认 GITHUB_TOKEN。
+# 任一来源失败只降级，不中断整批。
+on:
+  schedule:
+    # 每日 03:43（UTC）执行，与 community-health（03:17）错开
+    - cron: "43 3 * * *"
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "只采集指定软件（空格分隔，按名称或别名），留空为全量"
+        required: false
+        default: ""
+
+permissions:
+  # 采集结果需要提交回仓库，pages.yml 才能随站点发布
+  contents: write
+
+jobs:
+  collect-software:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 采集软件漏洞与健康度
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -- --refresh
+          if [ -n "${{ github.event.inputs.only }}" ]; then
+            for name in ${{ github.event.inputs.only }}; do
+              set -- "$@" --only "$name"
+            done
+          fi
+          python scabase-fetcher/scripts/fetch_software.py "$@"
+
+      - name: 提交数据更新
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scabase-fetcher/data/software-vulns.json \
+                  scabase-fetcher/data/software-support.json
+          if [ -z "$(git status --porcelain scabase-fetcher/data/software-vulns.json scabase-fetcher/data/software-support.json)" ]; then
+            echo "数据无变化"
+            exit 0
+          fi
+          git commit -m "chore(data): update software vulns & support"
+          git push

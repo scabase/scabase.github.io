@@ -3,6 +3,10 @@
 > ScaBase 是开源软件成分分析（SCA）漏洞与社区支持查询站，覆盖 Maven / npm / PyPI / Go 四个生态，
 > 漏洞数据源自 OSV 与 NVD，结果以 CVE 编号为主标识聚合。本站为纯静态站点，
 > 全部数据以 JSON / 文本文件公开，可通过 WebFetch 直接获取，无需 API Key、无跨域限制。
+>
+> 除编程语言生态的依赖库外，另覆盖**应用 / 基础设施软件维度**（nginx、7-Zip、ZooKeeper、
+> Kubernetes、Redis、MySQL 等约 70 个常用服务器软件）：漏洞按 NVD CPE 精确匹配，
+> 健康度按 GitHub 仓库信号评分，查询方式见下方「软件维度」说明。
 
 站点：https://scabase.roweb.cn
 源码：https://github.com/scabase/scabase.github.io
@@ -16,6 +20,8 @@
 3. 查某个组件是否有漏洞：以 `ecosystem|package|version` 为 key 直接查 vulns.json，
    例：`npm|lodash|4.17.20`、`maven|com.alibaba:fastjson|1.2.24`。
 4. 查某个 CVE 影响哪些组件：遍历 vulns.json 的 key，在 enriched[].osv.id / aliases 中匹配 CVE 编号。
+5. 查服务器软件（nginx / k8s / 7zip 等）的漏洞：直接查 software-vulns.json，
+   以软件名（或别名）为键，例：`software["nginx"]["cves"]`；可按 `affected` 版本区间过滤。
 
 ## 数据集
 
@@ -35,6 +41,22 @@
   `meta` 按生态不同：npm 为 `weekly_downloads`、pypi 为 `monthly_downloads`、
   maven 为 `dependents`（deps.dev 公开依赖项目数）、go 为 `stars`。
   `rank_basis` 字段说明该生态的排序依据。
+
+- [软件漏洞库 software-vulns.json](https://scabase.roweb.cn/scabase-fetcher/data/software-vulns.json):
+  应用 / 基础设施软件维度的漏洞库。`{ generated_at, source, software_count, software: [...] }`，
+  software 元素为 `{ name, aliases, cpe, repo, cve_count, cves }`：
+  `aliases` 为查询别名（如 k8s → Kubernetes、7zip → 7-Zip）；`cpe` 为 NVD CPE
+  `vendor:product` 前缀（nginx 为 `f5:nginx`，MySQL 同时收录 `oracle:mysql` 与 `mysql:mysql`）；
+  `cves` 元素为 `{ id, description, cvss, severity, published, weaknesses, affected, references }`，
+  其中 `affected` 为版本区间列表（`start_including` / `start_excluding` / `end_including` /
+  `end_excluding`，NVD 用 null 表示未设置），用于判断给定版本是否受影响。
+  数据源自 NVD CVE API 2.0（keywordSearch + 本地 CPE 过滤），每日由 GitHub Action 更新。
+
+- [软件健康度报告 software-support.json](https://scabase.roweb.cn/scabase-fetcher/data/software-support.json):
+  软件维度的社区支持力度报告，结构与 community-support.json 对齐（`components` 列表、
+  `grade_counts` 等级分布）。component 增加 `software`（软件名）与 `version`（最新发布版）字段，
+  `purl` 为 `pkg:generic/<name>@<version>`，`repo` 为 GitHub 仓库（可点击核对）。
+  评分遵循「未知即风险」，archived 直接判 D。
 
 - [社区支持力度报告 community-support.json](https://scabase.roweb.cn/scabase-fetcher/data/community-support.json):
   `{ generated_at, component_count, grade_counts, missing_signal_counts, source_counts, components: [...] }`。

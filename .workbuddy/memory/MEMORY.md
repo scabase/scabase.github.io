@@ -5,6 +5,12 @@
 数据源 OSV + NVD，漏洞库由 `scabase-fetcher` 的 GitHub Action 每日采集生成
 `scabase-fetcher/data/vulns.json`（结构：`{"eco|pkg|ver": {osv_raw, enriched:[{osv,nvd}]}}`）。
 前端结果**以 CVE 编号为主键**展示（见 2026-10-13 日志）。
+**双维度**（2026-10-18 起）：除 purl 生态库（maven/npm/pypi/go）外，另有
+「应用/基础设施软件」维度（nginx / 7-Zip / ZooKeeper / Kubernetes 等 69 个），
+由 `fetch_software.py` 采集（NVD keywordSearch + CPE 前缀过滤 + GitHub 健康度），
+产物 `data/software-vulns.json` + `data/software-support.json`，
+CI 为 `.github/workflows/software-collect.yml`（每日 03:43 UTC）。
+输入语法：`nginx 1.24.0` / `k8s` / `7zip`（别名最长匹配，可与库输入混合）。
 
 ## 部署约定
 - GitHub Pages：`.github/workflows/pages.yml`（push main 时组装 `_site` 发布）；`CNAME` 为 scabase.roweb.cn。
@@ -47,6 +53,10 @@
 - 来源徽章可点击（2026-10-17）：community_report 行带 `repo`/`deps_dev`/`registry`
   链接字段，前端徽章渲染为 <a target=_blank rel=noopener>，缺字段降级 span；
   community-support.json 由 CI 每日 commit 回 data/，字段随下次采集生效。
+- **前端链接兜底**（2026-10-17，修「徽章点不开」）：数据旧快照缺链接字段时，
+  app.js 从 purl 推导 deps.dev/注册表 URL（depsDevHref/registryHref），
+  并 loadRepoMap() 拉 repo-map.json（与健康报告同目录，~700B）补 GitHub 链接。
+  教训：CI 数据提交可能早于代码提交，数据驱动展示必须前端可推导。
 - 坑：deps.dev 包名必须按生态拼（MAVEN `g:a`、NPM `@s/n`，再 `quote(safe="")`），
   用 `/` 连接会对 Maven 与 npm scope 包静默 404；UTC 时间戳解析用 calendar.timegm
   （mktime 受本机时区影响）。

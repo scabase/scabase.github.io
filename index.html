@@ -34,9 +34,9 @@
 
   <div id="pane-vuln" class="pane" role="tabpanel" aria-labelledby="tab-vuln">
   <section class="panel">
-      <label class="field-label" for="query">查询清单（每行一条，兼容 <code>pkg_list.txt</code> 格式）</label>
+      <label class="field-label" for="query">查询清单（每行一条，兼容 <code>pkg_list.txt</code> 格式；也支持直接输入软件名，如 <code>nginx 1.24.0</code>）</label>
       <textarea id="query" spellcheck="false" rows="7"
-        placeholder="maven|org.springframework.boot:spring-boot-starter-web|2.7.0&#10;npm|lodash|4.17.20&#10;pypi|requests|2.20.0&#10;go|github.com/gin-gonic/gin|1.6.0"></textarea>
+        placeholder="maven|org.springframework.boot:spring-boot-starter-web|2.7.0&#10;npm|lodash|4.17.20&#10;pypi|requests|2.20.0&#10;go|github.com/gin-gonic/gin|1.6.0&#10;nginx 1.24.0&#10;7-Zip 23.01&#10;k8s 1.31.1"></textarea>
 
       <div class="controls">
         <button id="run" class="primary" type="button">查询</button>
@@ -51,6 +51,11 @@
       <div class="examples">
         <span class="examples-label">快速填入：</span>
         <div id="exampleChips" class="chips"></div>
+      </div>
+
+      <div class="examples" id="softwareExamples" hidden>
+        <span class="examples-label">常用软件（漏洞查询）：</span>
+        <div id="softwareChips" class="chips"></div>
       </div>
 
       <details class="popular-panel" id="popularPanel" hidden>
@@ -123,16 +128,18 @@
       <div id="cveStats" class="cve-stats"></div>
     </section>
 
+    <section id="softwareResults" class="results" hidden></section>
+
     <section id="results" class="results"></section>
   </div><!-- /pane-vuln -->
 
   <div id="pane-health" class="pane" role="tabpanel" aria-labelledby="tab-health" hidden>
     <section class="panel">
       <label class="field-label" for="healthQuery">
-        按组件查询（每行一条，格式与漏洞查询一致；留空则展示全部已收录组件）
+        按组件查询（每行一条，格式与漏洞查询一致；也支持直接输入软件名，如 <code>nginx</code> / <code>k8s</code>；留空则展示全部已收录组件）
       </label>
       <textarea id="healthQuery" spellcheck="false" rows="5"
-        placeholder="maven|org.springframework.boot:spring-boot-starter-web|2.7.0&#10;npm|lodash|4.17.20&#10;pypi|requests|2.20.0&#10;log4j:log4j:1.2.17"></textarea>
+        placeholder="maven|org.springframework.boot:spring-boot-starter-web|2.7.0&#10;npm|lodash|4.17.20&#10;pypi|requests|2.20.0&#10;log4j:log4j:1.2.17&#10;nginx&#10;7-Zip&#10;zookeeper"></textarea>
 
       <div class="controls">
         <button id="healthRun" class="primary" type="button">查询</button>
@@ -144,6 +151,11 @@
       <div class="examples" id="healthExamples" hidden>
         <span class="examples-label">快速填入：</span>
         <div id="healthExampleChips" class="chips"></div>
+      </div>
+
+      <div class="examples" id="softwareHealthExamples" hidden>
+        <span class="examples-label">常用软件（健康度查询）：</span>
+        <div id="softwareHealthChips" class="chips"></div>
       </div>
 
       <p class="field-label field-label-gap">开源软件支持力度与活跃度</p>
@@ -194,6 +206,8 @@
     </section>
 
     <section id="healthStatus" class="status" hidden></section>
+
+    <section id="softwareHealth" class="results" hidden></section>
 
     <section id="healthResults" class="results"></section>
   </div><!-- /pane-health -->
