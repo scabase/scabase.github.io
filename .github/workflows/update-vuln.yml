@@ -47,12 +47,20 @@ jobs:
 
       - name: Commit and push changes
         run: |
+          # 同步刷新机器可读索引（LLM WebFetch 入口）：字节数与 sha256 随数据落地
+          python3 scabase-fetcher/scripts/gen_data_index.py \
+            --data scabase-fetcher/data \
+            --out scabase-fetcher/data/index.json \
+            --base-url "https://scabase.roweb.cn"
           if [ -z "$(git status --porcelain scabase-fetcher/data/vulns.json)" ]; then
+            # 数据无变化：撤销索引的时间戳刷新，避免每日空提交
+            git checkout -- scabase-fetcher/data/index.json
             echo "漏洞数据无变化，跳过提交"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add scabase-fetcher/data/vulns.json
+          git add scabase-fetcher/data/vulns.json \
+                  scabase-fetcher/data/index.json
           git commit -m "chore(data): update vulns.json"
           git push

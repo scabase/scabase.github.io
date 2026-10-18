@@ -183,12 +183,20 @@ jobs:
         # JSON 报告随仓库发布，pages.yml 把它复制进 _site，健康度 tab 才有数据；
         # data/** 变更会自动触发 pages.yml 重新部署。
         run: |
+          # 同步刷新机器可读索引（LLM WebFetch 入口）：字节数与 sha256 随数据落地
+          python3 scabase-fetcher/scripts/gen_data_index.py \
+            --data scabase-fetcher/data \
+            --out scabase-fetcher/data/index.json \
+            --base-url "https://scabase.roweb.cn"
           if [ -z "$(git status --porcelain scabase-fetcher/data/community-support.json)" ]; then
+            # 报告无变化：撤销索引的时间戳刷新，避免每日空提交
+            git checkout -- scabase-fetcher/data/index.json
             echo "报告无变化，跳过提交"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add scabase-fetcher/data/community-support.json
+          git add scabase-fetcher/data/community-support.json \
+                  scabase-fetcher/data/index.json
           git commit -m "chore(data): update community-support.json"
           git push

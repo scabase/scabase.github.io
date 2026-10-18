@@ -37,7 +37,8 @@ class DatasetTableTest(unittest.TestCase):
                 self.assertIn(field, entry, "%s 缺少 %s" % (entry.get("id"), field))
 
     def test_real_data_dir_has_all_datasets(self):
-        # 仓库内的数据目录应覆盖索引清单中的每个文件（pages.yml 同步发布）
+        # 仓库内的数据目录应覆盖索引清单中的每个文件（pages.yml 同步发布，
+        # 数据采集工作流提交数据时同步刷新索引）
         data_dir = os.path.join(ROOT, "scabase-fetcher", "data")
         for entry in idx.DATASETS:
             self.assertTrue(os.path.exists(os.path.join(data_dir, entry["file"])),

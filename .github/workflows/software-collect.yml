@@ -56,11 +56,19 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scabase-fetcher/data/software-vulns.json \
-                  scabase-fetcher/data/software-support.json
+          # 同步刷新机器可读索引（LLM WebFetch 入口）：字节数与 sha256 随数据落地
+          python3 scabase-fetcher/scripts/gen_data_index.py \
+            --data scabase-fetcher/data \
+            --out scabase-fetcher/data/index.json \
+            --base-url "https://scabase.roweb.cn"
           if [ -z "$(git status --porcelain scabase-fetcher/data/software-vulns.json scabase-fetcher/data/software-support.json)" ]; then
+            # 数据无变化：撤销索引的时间戳刷新，避免每日空提交
+            git checkout -- scabase-fetcher/data/index.json
             echo "数据无变化"
             exit 0
           fi
+          git add scabase-fetcher/data/software-vulns.json \
+                  scabase-fetcher/data/software-support.json \
+                  scabase-fetcher/data/index.json
           git commit -m "chore(data): update software vulns & support"
           git push

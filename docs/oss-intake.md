@@ -433,8 +433,10 @@ python scabase-fetcher/scripts/gen_popular_packages.py \
 - **入口**：`https://scabase.roweb.cn/llms.txt`（llmstxt.org 规范）：站点说明、
   取数步骤、各数据集 schema 与示例；
 - **数据索引**：`scabase-fetcher/data/index.json`：每个数据集的 URL、字节数、
-  sha256、内嵌 `generated_at` 与 `llm_hint`，由 `gen_data_index.py` 在构建时重新生成
-  （pages.yml 每次部署刷新，字节数与哈希始终与实际产物一致）；
+  sha256、内嵌 `generated_at` 与 `llm_hint`，由 `gen_data_index.py` 重新生成
+  （pages.yml 每次部署刷新；三个数据采集工作流 update-vuln / community-health /
+  software-collect 提交数据时同步刷新仓库副本，数据无变化时撤销时间戳刷新，
+  字节数与哈希始终与实际产物一致）；
 - **漏洞主库**：`vulns.json` 以 `ecosystem|package|version` 为 key 精确查找；
   反查 CVE 需遍历 key 并匹配 `enriched[].osv.id` / `aliases`。
 

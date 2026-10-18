@@ -4,7 +4,8 @@
 
 LLM / 外部工具通过 WebFetch 取数时，先读 index.json 即可获知每个已发布数据集的
 URL、字节数、sha256、schema 与内嵌 ``generated_at``，无需猜测路径或反复试探。
-本文件由构建流程（pages.yml / 镜像构建）重新生成，字节数与哈希始终与实际产物一致。
+本文件由构建流程（pages.yml / 镜像构建）与三个数据采集工作流（update-vuln /
+community-health / software-collect）重新生成，字节数与哈希始终与实际产物一致。
 
 用法::
 
