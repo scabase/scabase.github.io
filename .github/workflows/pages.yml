@@ -81,7 +81,7 @@ jobs:
       # environment 会互相抢占，被打断的那个记为 failure（重试即可成功）
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         continue-on-error: true
 
       # 上一次部署刚触发的 Pages 构建可能仍在进行，立刻重试同样会撞上
@@ -93,7 +93,7 @@ jobs:
       - name: Retry deploy（并发抢占时重试一次）
         id: retry
         if: steps.deployment.outcome == 'failure'
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         continue-on-error: true
 
       # 部署动作本身争的是 Pages 环境，失败时站点往往已被另一个实例更新；
