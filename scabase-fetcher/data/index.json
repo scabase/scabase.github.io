@@ -3,7 +3,7 @@
   "description": "开源组件漏洞与社区支持查询站的机器可读数据索引；字段 llm_hint 面向通过 WebFetch 取数的智能体",
   "base_url": "https://scabase.roweb.cn",
   "llms_txt": "https://scabase.roweb.cn/llms.txt",
-  "generated_at": "2026-10-19T09:13:08Z",
+  "generated_at": "2026-10-19T11:48:34Z",
   "datasets": [
     {
       "id": "vulns",
@@ -109,9 +109,9 @@
       "llm_hint": "服务器软件漏洞；software 覆盖全量采集清单（未采集的软件 cve_count 为 0），以软件名或别名为键（software['nginx']['cves']），可按 affected 版本区间判断给定版本是否受影响",
       "path": "/scabase-fetcher/data/software-vulns.json",
       "url": "https://scabase.roweb.cn/scabase-fetcher/data/software-vulns.json",
-      "bytes": 13026513,
-      "sha256": "e6eb73d8ab862dda82cc2119486ac1e8b1af6f459edf7ea73c8bc4b8093cff42",
-      "generated_at": "2026-10-19T01:05:11Z"
+      "bytes": 7368448,
+      "sha256": "e413f8371e5253333609350796fdb9a187acff073a86518c1b6aecc7116f460a",
+      "generated_at": "2026-10-19T11:48:33Z"
     },
     {
       "id": "software-support",
@@ -147,9 +147,9 @@
       "llm_hint": "软件级健康度；评分遵循「未知即风险」，archived 直接判 D；仅含已采集软件，未采集软件在 software-vulns.json 中为 cve_count 0 的占位",
       "path": "/scabase-fetcher/data/software-support.json",
       "url": "https://scabase.roweb.cn/scabase-fetcher/data/software-support.json",
-      "bytes": 36102,
-      "sha256": "bce981a9604a726112121b7ad018447c8b3af8f51cfee20d9605e931888cff5d",
-      "generated_at": "2026-10-18T23:37:23Z"
+      "bytes": 36128,
+      "sha256": "32448ca3e1152f62e2767955a61358aada7177e71a4719db6829c7712cb44c9f",
+      "generated_at": "2026-10-19T11:48:33Z"
     },
     {
       "id": "community-support",
