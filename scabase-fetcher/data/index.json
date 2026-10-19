@@ -3,7 +3,7 @@
   "description": "开源组件漏洞与社区支持查询站的机器可读数据索引；字段 llm_hint 面向通过 WebFetch 取数的智能体",
   "base_url": "https://scabase.roweb.cn",
   "llms_txt": "https://scabase.roweb.cn/llms.txt",
-  "generated_at": "2026-10-18T23:37:23Z",
+  "generated_at": "2026-10-19T07:43:34Z",
   "datasets": [
     {
       "id": "vulns",
@@ -30,7 +30,7 @@
       "path": "/scabase-fetcher/data/vulns.json",
       "url": "https://scabase.roweb.cn/scabase-fetcher/data/vulns.json",
       "bytes": 2845408,
-      "sha256": "906453cf2ecc4f9d445e8ed584feaad0afbb2f2dc94c36ffaacc286cdfe88d08"
+      "sha256": "1c9d8eab6baed6cce076297c1cfa8b1dd38a6540e551e56805454b79e5259c1f"
     },
     {
       "id": "popular-packages",
@@ -109,9 +109,9 @@
       "llm_hint": "服务器软件漏洞；software 覆盖全量采集清单（未采集的软件 cve_count 为 0），以软件名或别名为键（software['nginx']['cves']），可按 affected 版本区间判断给定版本是否受影响",
       "path": "/scabase-fetcher/data/software-vulns.json",
       "url": "https://scabase.roweb.cn/scabase-fetcher/data/software-vulns.json",
-      "bytes": 7239987,
-      "sha256": "681c65537a085694b8197219db7e0a86cb8b0c66ba7a55acc4092c52edae270c",
-      "generated_at": "2026-10-18T09:37:05Z"
+      "bytes": 13026513,
+      "sha256": "e6eb73d8ab862dda82cc2119486ac1e8b1af6f459edf7ea73c8bc4b8093cff42",
+      "generated_at": "2026-10-19T01:05:11Z"
     },
     {
       "id": "software-support",
