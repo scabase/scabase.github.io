@@ -84,7 +84,26 @@ jobs:
         uses: actions/deploy-pages@v4
         continue-on-error: true
 
+      # 上一次部署刚触发的 Pages 构建可能仍在进行，立刻重试同样会撞上
+      # 「Concurrent requests limit exceeded / deployment already in progress」
+      - name: 等待 Pages 环境空闲
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 45
+
       - name: Retry deploy（并发抢占时重试一次）
         id: retry
         if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      # 部署动作本身争的是 Pages 环境，失败时站点往往已被另一个实例更新；
+      # 这里只在两次都失败时才判负，避免「站点是新的、徽章是红的」。
+      - name: 汇总部署结论
+        if: always()
+        run: |
+          if [ "${{ steps.deployment.outcome }}" = "failure" ] \
+             && [ "${{ steps.retry.outcome }}" = "failure" ]; then
+            echo "两次部署均失败，请查看 Actions 运行记录" >&2
+            exit 1
+          fi
+          echo "站点地址：${{ steps.deployment.outputs.page_url || steps.retry.outputs.page_url }}"

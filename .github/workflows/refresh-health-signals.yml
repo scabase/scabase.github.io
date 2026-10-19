@@ -87,21 +87,18 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add scabase-fetcher/data/software-support.json \
-                  scabase-fetcher/data/index.json
-          git commit -m "chore(data): refresh 软件健康度 GitHub 信号"
-          # 与每日数据工作流并存，push 可能撞车：先 rebase，冲突重算索引后 continue
+          # 与每日数据工作流并存，push 可能撞车：不用 rebase（data 文件整体重算，
+          # 必然冲突），改为把本地数据落到远端最新提交之上（reset --mixed）。
           for attempt in 1 2 3; do
             git fetch origin main
-            if ! git rebase FETCH_HEAD; then
-              git checkout FETCH_HEAD -- scabase-fetcher/data/index.json
-              python3 scabase-fetcher/scripts/gen_data_index.py \
-                --data scabase-fetcher/data \
-                --out scabase-fetcher/data/index.json \
-                --base-url "https://scabase.roweb.cn"
-              git add scabase-fetcher/data/index.json
-              GIT_EDITOR=true git rebase --continue
+            git reset --mixed FETCH_HEAD
+            git add scabase-fetcher/data/software-support.json \
+                    scabase-fetcher/data/index.json
+            if git diff --cached --quiet; then
+              echo "远端已是同样数据，跳过提交"
+              exit 0
             fi
+            git commit -m "chore(data): refresh 软件健康度 GitHub 信号"
             if git push origin main; then exit 0; fi
             echo "push 被拒（第 $attempt 次），20 秒后重试…"
             sleep 20

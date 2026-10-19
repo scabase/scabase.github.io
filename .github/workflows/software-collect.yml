@@ -104,23 +104,20 @@ jobs:
             echo "数据无变化"
             exit 0
           fi
-          git add scabase-fetcher/data/software-vulns.json \
-                  scabase-fetcher/data/software-support.json \
-                  scabase-fetcher/data/index.json
-          git commit -m "chore(data): update software vulns & support"
-          # 曾在与 community-health 并发时 push 被拒（non-fast-forward），
-          # 整轮采集结果未能落盘；改为先 rebase、冲突重算索引、失败重试
+          # 并发提交时不用 rebase：data 文件每轮整体重算，与远端同一文件必然冲突。
+          # 改为把本地数据直接落到远端最新提交之上（reset --mixed 只动 HEAD 与暂存区），
+          # 这样 push 一定是 fast-forward，不会丢掉整轮采集结果。
           for attempt in 1 2 3; do
             git fetch origin main
-            if ! git rebase FETCH_HEAD; then
-              git checkout FETCH_HEAD -- scabase-fetcher/data/index.json
-              python3 scabase-fetcher/scripts/gen_data_index.py \
-                --data scabase-fetcher/data \
-                --out scabase-fetcher/data/index.json \
-                --base-url "https://scabase.roweb.cn"
-              git add scabase-fetcher/data/index.json
-              GIT_EDITOR=true git rebase --continue
+            git reset --mixed FETCH_HEAD
+            git add scabase-fetcher/data/software-vulns.json \
+                    scabase-fetcher/data/software-support.json \
+                    scabase-fetcher/data/index.json
+            if git diff --cached --quiet; then
+              echo "远端已是同样数据，跳过提交"
+              exit 0
             fi
+            git commit -m "chore(data): update software vulns & support"
             if git push origin main; then exit 0; fi
             echo "push 被拒（第 $attempt 次），20 秒后重试…"
             sleep 20

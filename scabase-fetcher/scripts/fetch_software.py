@@ -49,6 +49,12 @@ NVD_PAGE = 2000
 # 无 API key 时限流 5 次 / 30 秒；配置 NVD_API_KEY 后放宽到 50 次 / 30 秒
 NVD_INTERVAL = 6.5
 NVD_INTERVAL_KEYED = 0.8
+# 每个软件保留「描述 + 参考链接」完整字段的 CVE 条数（按发布时间倒序）。
+# 超出部分的条目仍然保留，只去掉长文本，用于版本判定与计数。
+FULL_RECORD_LIMIT = 200
+# 单个软件最多保留的 CVE 条数（按发布时间倒序）。
+# 按 10-19 实测：Linux Kernel 14711 条，全量会让 data 文件从 6.9 MB 涨到 23 MB。
+MAX_CVES_PER_SOFTWARE = 3000
 GITHUB_RELEASES = "https://api.github.com/repos/%s/releases?per_page=100"
 GITHUB_LATEST_RELEASE = "https://api.github.com/repos/%s/releases/latest"
 GITHUB_TAGS = "https://api.github.com/repos/%s/tags?per_page=100"
@@ -67,7 +73,9 @@ TAG_PROBE_LIMIT = 12
 #   repo     GitHub owner/repo（健康度信号来源，无则留空）
 SOFTWARE = [
     {"name": "nginx", "category": "Web 服务器与代理", "aliases": ["nginx", "engine x", "enginex"],
-     "keywords": ["nginx"], "cpe": ["f5:nginx", "nginx:nginx"],
+     # nginx_open_source 是 NVD 给「NGINX 开源版」单列的 CPE，与 f5:nginx 并存：
+     # 只看 f5:nginx 会漏掉 26 条（10-19 实测）
+     "keywords": ["nginx"], "cpe": ["f5:nginx", "nginx:nginx", "f5:nginx_open_source"],
      "repo": "nginx/nginx"},
     {"name": "7-Zip", "category": "压缩工具", "aliases": ["7zip", "7-zip", "7z", "p7zip"],
      "keywords": ["7-Zip"], "cpe": ["7-zip:7-zip", "igor_pavlov:7-zip"],
@@ -82,7 +90,10 @@ SOFTWARE = [
      "keywords": ["Redis"], "cpe": ["redis:redis", "redislabs:redis"],
      "repo": "redis/redis"},
     {"name": "MySQL", "category": "数据库与缓存", "aliases": ["mysql"],
-     "keywords": ["MySQL"], "cpe": ["oracle:mysql", "mysql:mysql"],
+     # NVD 现在把 MySQL Server 记为 oracle:mysql_server（旧名 oracle:mysql），
+     # 漏掉它会少收 195 条近期 CVE
+     "keywords": ["MySQL"],
+     "cpe": ["oracle:mysql", "mysql:mysql", "oracle:mysql_server"],
      "repo": "mysql/mysql-server"},
     {"name": "PostgreSQL", "category": "数据库与缓存", "aliases": ["postgresql", "postgres", "pg"],
      "keywords": ["PostgreSQL"], "cpe": ["postgresql:postgresql"],
@@ -101,19 +112,23 @@ SOFTWARE = [
      "keywords": ["OpenSSL"], "cpe": ["openssl:openssl"],
      "repo": "openssl/openssl"},
     {"name": "Docker Engine", "category": "容器与编排", "aliases": ["docker", "docker engine", "moby"],
-     "keywords": ["Docker"], "cpe": ["docker:docker", "moby:moby"],
+     # Moby 在 NVD 里的 vendor 是 mobyproject（不是 moby）
+     "keywords": ["Docker"], "cpe": ["docker:docker", "moby:moby", "mobyproject:moby"],
      "repo": "moby/moby"},
     {"name": "containerd", "category": "容器与编排", "aliases": ["containerd"],
-     "keywords": ["containerd"], "cpe": ["containerd:containerd"],
+     # containerd 在 NVD 归在 linuxfoundation 名下（原写法收录 0 条）
+     "keywords": ["containerd"],
+     "cpe": ["containerd:containerd", "linuxfoundation:containerd"],
      "repo": "containerd/containerd"},
     {"name": "runc", "category": "容器与编排", "aliases": ["runc"],
      "keywords": ["runc"], "cpe": ["opencontainers:runc", "linuxfoundation:runc"],
      "repo": "opencontainers/runc"},
     {"name": "etcd", "category": "协调与服务发现", "aliases": ["etcd"],
-     "keywords": ["etcd"], "cpe": ["etcd-io:etcd", "redhat:etcd"],
+     "keywords": ["etcd"], "cpe": ["etcd-io:etcd", "etcd:etcd", "redhat:etcd"],
      "repo": "etcd-io/etcd"},
     {"name": "CoreDNS", "category": "协调与服务发现", "aliases": ["coredns"],
-     "keywords": ["CoreDNS"], "cpe": ["coredns:coredns"],
+     # NVD 用的是 coredns.io:coredns（原写法收录 0 条）
+     "keywords": ["CoreDNS"], "cpe": ["coredns:coredns", "coredns.io:coredns"],
      "repo": "coredns/coredns"},
     {"name": "Helm", "category": "容器与编排", "aliases": ["helm"],
      "keywords": ["Helm"], "cpe": ["helm:helm"],
@@ -128,7 +143,8 @@ SOFTWARE = [
      "keywords": ["Envoy"], "cpe": ["envoyproxy:envoy"],
      "repo": "envoyproxy/envoy"},
     {"name": "Traefik", "category": "Web 服务器与代理", "aliases": ["traefik"],
-     "keywords": ["Traefik"], "cpe": ["traefik:traefik"],
+     # containous 是 Traefik 早期厂商名
+     "keywords": ["Traefik"], "cpe": ["traefik:traefik", "containous:traefik"],
      "repo": "traefik/traefik"},
     {"name": "HAProxy", "category": "Web 服务器与代理", "aliases": ["haproxy"],
      "keywords": ["HAProxy"], "cpe": ["haproxy:haproxy"],
@@ -140,13 +156,14 @@ SOFTWARE = [
      "keywords": ["Tomcat"], "cpe": ["apache:tomcat"],
      "repo": "apache/tomcat"},
     {"name": "Elasticsearch", "category": "消息与日志", "aliases": ["elasticsearch", "es"],
-     "keywords": ["Elasticsearch"], "cpe": ["elastic:elasticsearch"],
+     "keywords": ["Elasticsearch"],
+     "cpe": ["elastic:elasticsearch", "elasticsearch:elasticsearch"],
      "repo": "elastic/elasticsearch"},
     {"name": "Kibana", "category": "消息与日志", "aliases": ["kibana"],
-     "keywords": ["Kibana"], "cpe": ["elastic:kibana"],
+     "keywords": ["Kibana"], "cpe": ["elastic:kibana", "elasticsearch:kibana"],
      "repo": "elastic/kibana"},
     {"name": "Logstash", "category": "消息与日志", "aliases": ["logstash"],
-     "keywords": ["Logstash"], "cpe": ["elastic:logstash"],
+     "keywords": ["Logstash"], "cpe": ["elastic:logstash", "elasticsearch:logstash"],
      "repo": "elastic/logstash"},
     {"name": "Grafana", "category": "运维与可观测", "aliases": ["grafana"],
      "keywords": ["Grafana"], "cpe": ["grafana:grafana"],
@@ -164,7 +181,11 @@ SOFTWARE = [
      "keywords": ["SonarQube"], "cpe": ["sonarsource:sonarqube"],
      "repo": "SonarSource/sonarqube"},
     {"name": "Harbor", "category": "容器与编排", "aliases": ["harbor"],
-     "keywords": ["Harbor"], "cpe": ["goharbor:harbor"],
+     # Harbor 的 CVE 记在 CNCF（linuxfoundation）与 VMware 名下（原写法收录 0 条）
+     "keywords": ["Harbor"], "cpe": ["goharbor:harbor",
+                                     "linuxfoundation:harbor",
+                                     "vmware:harbor_container_registry",
+                                     "pivotal:vmware_harbor_registry"],
      "repo": "goharbor/harbor"},
     {"name": "WordPress", "category": "内容管理与应用", "aliases": ["wordpress", "wp"],
      "keywords": ["WordPress"], "cpe": ["wordpress:wordpress"],
@@ -194,17 +215,22 @@ SOFTWARE = [
      "keywords": ["Airflow"], "cpe": ["apache:airflow"],
      "repo": "apache/airflow"},
     {"name": "Apache ActiveMQ", "category": "消息与日志", "aliases": ["activemq"],
-     "keywords": ["ActiveMQ"], "cpe": ["apache:activemq"],
+     # NVD 把 broker / web 控制台单列 CPE，同属 ActiveMQ 本体
+     "keywords": ["ActiveMQ"],
+     "cpe": ["apache:activemq", "apache:activemq_broker", "apache:activemq_web"],
      "repo": "apache/activemq"},
     {"name": "RabbitMQ", "category": "消息与日志", "aliases": ["rabbitmq"],
+     # VMware 被 Broadcom 收购后，新 CVE 记在 broadcom:rabbitmq_server 下（47 条）
      "keywords": ["RabbitMQ"], "cpe": ["vmware:rabbitmq",
-                                       "pivotal_software:rabbitmq"],
+                                       "pivotal_software:rabbitmq",
+                                       "broadcom:rabbitmq_server"],
      "repo": "rabbitmq/rabbitmq-server"},
     {"name": "Memcached", "category": "数据库与缓存", "aliases": ["memcached"],
      "keywords": ["Memcached"], "cpe": ["memcached:memcached"],
      "repo": "memcached/memcached"},
     {"name": "curl", "category": "网络与安全基础", "aliases": ["curl"],
-     "keywords": ["curl"], "cpe": ["haxx:curl", "haxx:libcurl"],
+     "keywords": ["curl"],
+     "cpe": ["haxx:curl", "haxx:libcurl", "curl:curl", "daniel_stenberg:curl"],
      "repo": "curl/curl"},
     {"name": "OpenSSH", "category": "网络与安全基础", "aliases": ["openssh"],
      "keywords": ["OpenSSH"], "cpe": ["openbsd:openssh"],
@@ -213,7 +239,8 @@ SOFTWARE = [
      "keywords": ["BIND"], "cpe": ["isc:bind"],
      "repo": "isc-projects/bind9"},
     {"name": "Node.js", "category": "运行时与语言", "aliases": ["node.js", "nodejs", "node"],
-     "keywords": ["Node.js"], "cpe": ["nodejs:node.js"],
+     # joyent 是 Node.js 早期厂商名
+     "keywords": ["Node.js"], "cpe": ["nodejs:node.js", "joyent:node.js"],
      "repo": "nodejs/node"},
     {"name": "PHP", "category": "运行时与语言", "aliases": ["php"],
      "keywords": ["PHP"], "cpe": ["php:php"],
@@ -222,7 +249,7 @@ SOFTWARE = [
      "keywords": ["CPython"], "cpe": ["python:python"],
      "repo": "python/cpython"},
     {"name": "OpenJDK", "category": "运行时与语言", "aliases": ["openjdk", "jdk", "java"],
-     "keywords": ["OpenJDK"], "cpe": ["oracle:openjdk"],
+     "keywords": ["OpenJDK"], "cpe": ["oracle:openjdk", "sun:openjdk"],
      "repo": "openjdk/jdk"},
     {"name": "Apache Maven", "category": "开发与构建", "aliases": ["maven"],
      "keywords": ["Maven"], "cpe": ["apache:maven"],
@@ -258,7 +285,7 @@ SOFTWARE = [
      "keywords": ["Seata"], "cpe": ["apache:seata", "seata:seata"],
      "repo": "apache/incubator-seata"},
     {"name": "Squid", "category": "Web 服务器与代理", "aliases": ["squid"],
-     "keywords": ["Squid"], "cpe": ["squid-cache:squid"],
+     "keywords": ["Squid"], "cpe": ["squid-cache:squid", "squid:squid"],
      "repo": "squid-cache/squid"},
     {"name": "vsftpd", "category": "Web 服务器与代理", "aliases": ["vsftpd"],
      "keywords": ["vsftpd"], "cpe": ["vsftpd_project:vsftpd",
@@ -337,9 +364,15 @@ def version_affected(match, version):
 
 
 def cpe_vendor_product(criteria):
-    """从 CPE criteria 提取 vendor:product（非 application 类型返回 None）。"""
+    """从 CPE criteria 提取 vendor:product（只认 application / operating-system）。
+
+    早期版本只认 ``cpe:2.3:a``，结果 Linux Kernel 这类登记为
+    ``cpe:2.3:o:linux:linux_kernel`` 的条目一条都匹配不上（65 个软件里它只
+    存了 2 条 CVE）。操作系统形态的 CPE 是 NVD 对内核/基础软件的正规记法，
+    必须与 application 同等对待。硬件形态（h）不属于本清单范畴，继续排除。
+    """
     parts = str(criteria or "").split(":")
-    if len(parts) < 5 or parts[2] != "a":
+    if len(parts) < 5 or parts[2] not in ("a", "o"):
         return None
     vendor, product = parts[3], parts[4]
     if not vendor or not product:
@@ -497,6 +530,38 @@ def fetch_nvd_cves(entry, token=None):
                 break
     records.sort(key=lambda r: r.get("published") or "", reverse=True)
     return records
+
+
+def trim_cve_records(records, keep_full=FULL_RECORD_LIMIT,
+                     keep_recent=MAX_CVES_PER_SOFTWARE):
+    """裁剪长尾：返回 ``(保留的记录, NVD 命中总数)``。
+
+    Linux Kernel 在 NVD 里有一万多条 CVE，全量带描述会产出 23 MB 的 JSON，
+    前端一次下载会直接卡住页面。两步裁剪：
+
+    1. 描述与参考链接只留给最近 ``keep_full`` 条（卡片最多也就渲染 60 行），
+       更早的条目保留 id / CVSS / 发布时间 / 影响区间 / CWE——这些是
+       「某版本是否受影响」判定与统计所必需的，才是不可丢的部分；
+    2. 再超出的更古老条目才真正丢弃，并在 ``cve_total`` 里留真实总数，
+       前端据此提示「NVD 共 X 条」，避免把截断当成漏采。
+    """
+    total = len(records)
+    if not records:
+        return [], total
+    trimmed = []
+    for index, record in enumerate(records[:keep_recent]):
+        if index < keep_full:
+            trimmed.append(record)
+            continue
+        trimmed.append({
+            "id": record.get("id"),
+            "cvss": record.get("cvss"),
+            "severity": record.get("severity"),
+            "published": record.get("published"),
+            "affected": record.get("affected") or [],
+            "weaknesses": record.get("weaknesses") or [],
+        })
+    return trimmed, total
 
 
 def _looks_like_version(text):
@@ -717,6 +782,7 @@ def build_document(refresh, token, only=None, fixtures=None, health=True,
                 "cpe": entry.get("cpe") or [],
                 "repo": entry.get("repo") or None,
                 "cve_count": len(cves),
+                "cve_total": prior.get("cve_total") or len(cves),
                 "cves": cves,
             })
             row = prior_rows.get(name)
@@ -726,6 +792,7 @@ def build_document(refresh, token, only=None, fixtures=None, health=True,
         print("采集 %s …" % name, file=sys.stderr)
         if fixtures:
             cves = _fixture_payload(fixtures, name, "cves") or []
+            cve_total = len(cves)
             fixture_health = _fixture_payload(fixtures, name, "health") or {}
             gh_health = fixture_health.get("health") or {}
             version = fixture_health.get("version")
@@ -733,8 +800,10 @@ def build_document(refresh, token, only=None, fixtures=None, health=True,
             if support_row is None:
                 support_row = build_support_row(name, entry, gh_health, version)
         elif refresh:
-            cves = fetch_nvd_cves(entry, token=token) if include_vulns \
-                else (prior_cves.get(name) or {}).get("cves") or []
+            if include_vulns:
+                cves, cve_total = trim_cve_records(fetch_nvd_cves(entry, token=token))
+            else:
+                cves, cve_total = (prior_cves.get(name) or {}).get("cves") or [], 0
             gh_health, version = ({}, None)
             if health:
                 gh_health, version = fetch_software_health(

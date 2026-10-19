@@ -55,11 +55,14 @@ class WorkflowFilesTest(unittest.TestCase):
                         % (name, key, line))
 
     def test_data_push_is_conflict_safe(self):
-        """提交数据的工作流不得裸 `git push`。
+        """提交数据的工作流不得裸 `git push`，且不能用 rebase 同步。
 
         software-collect 曾在与 community-health 并发时被拒（non-fast-forward），
-        整轮采集结果没能落盘，外部只看到「数据一直是旧的」。因此凡涉及把
-        data/ 推回仓库的 workflow，push 前必须 fetch + rebase 并能重试。
+        整轮采集结果没能落盘，外部只看到「数据一直是旧的」。改用 rebase 后
+        又踩了第二个坑：data 文件每轮整体重算，两个工作流改同一个文件时
+        rebase 必然冲突，10-18 连续两轮 community-health 卡死在 rebase 上，
+        采集结果同样没落盘。现在统一为「把本地数据落到远端最新提交之上」
+        （fetch + reset --mixed），push 一定是 fast-forward。
         """
         for path in sorted(glob.glob(os.path.join(WORKFLOW_DIR, "*.yml"))):
             name = os.path.basename(path)
@@ -67,11 +70,14 @@ class WorkflowFilesTest(unittest.TestCase):
                 text = handle.read()
             if "git push" not in text:
                 continue
-            for token in ("git fetch origin main", "git rebase FETCH_HEAD"):
+            for token in ("git fetch origin main", "git reset --mixed FETCH_HEAD"):
                 self.assertIn(
                     token, text,
                     "%s 存在 git push 但没有 %s：并发提交时会被拒"
                     "（数据工作流之间互相覆盖或丢数据）" % (name, token))
+            self.assertNotIn(
+                "git rebase FETCH_HEAD", text,
+                "%s 用了 rebase 同步：data 文件整体重算必然冲突" % name)
             # 裸 push（行首只有这两个词）应已被重试逻辑取代
             for line in text.splitlines():
                 stripped = line.strip()
@@ -79,6 +85,21 @@ class WorkflowFilesTest(unittest.TestCase):
                     self.assertTrue(
                         stripped.startswith("git push origin main;"),
                         "%s 仍有不带冲突处理的裸命令: %r" % (name, stripped))
+
+    def test_pages_deploy_tolerates_environment_contention(self):
+        """pages.yml 部署失败必须能重试，且两次都失败才判负。
+
+        数据工作流连续提交时，多个部署同时抢 github-pages environment，
+        被打断的那个记为 failure，而站点其实已被另一个实例更新——红徽章
+        会让人误判部署坏了。
+        """
+        path = os.path.join(WORKFLOW_DIR, "pages.yml")
+        with open(path, "r", encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertIn("continue-on-error: true", text,
+                      "pages.yml 首次部署未容错，一次抢占即判失败")
+        self.assertIn("steps.retry.outcome", text,
+                      "pages.yml 缺少重试后的结论汇总（两次都失败才应判负）")
 
 
 if __name__ == "__main__":

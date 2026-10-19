@@ -38,6 +38,8 @@
   var OSV_VULN_API = CONFIG.osvVulnApi || "https://api.osv.dev/v1/vulns/";
   var NVD_VULN = CONFIG.nvdWeb || "https://nvd.nist.gov/vuln/detail/";
   var CONCURRENCY = 4;
+  // 单个软件卡片最多铺开的 CVE 行数：内核类软件收录上千条，全量渲染会卡住页面
+  var SW_CVE_LIMIT = 60;
 
   /* OSV 生态名 + 常用别名 */
   var ECOSYSTEMS = [
@@ -1566,7 +1568,9 @@
           ? "未发现影响 " + hit.version + " 的已收录漏洞。"
           : "暂无已收录漏洞。")));
     }
-    cves.forEach(function (c) {
+    // 内核类软件收录上千条 CVE，全部铺开会卡住页面：只渲染最近若干条
+    var shown = cves.length > SW_CVE_LIMIT ? cves.slice(0, SW_CVE_LIMIT) : cves;
+    shown.forEach(function (c) {
       var row = el("div", "sw-cve");
       var line = el("div", "sw-cve-head");
       var link = el("a", "sw-cve-id", c.id || "—");
@@ -1603,6 +1607,11 @@
       }
       body.appendChild(row);
     });
+    if (shown.length < cves.length) {
+      body.appendChild(el("p", "sw-more",
+        "仅显示最近 " + shown.length + " 条（共 " + cves.length +
+        " 条，按发布时间倒序），完整清单见下方数据来源 NVD。"));
+    }
     // 数据来源：NVD（keywordSearch + CPE 过滤）+ GitHub 仓库，均可点击人工核对
     var srcBox = el("div", "health-sources");
     srcBox.appendChild(el("span", "health-sources-label", "数据来源"));

@@ -78,8 +78,20 @@ class CpeFilterTest(unittest.TestCase):
         self.assertEqual(
             fs.cpe_vendor_product("cpe:2.3:a:f5:nginx:1.24.0:*:*:*:*:*:*:*"),
             "f5:nginx")
-        self.assertIsNone(fs.cpe_vendor_product("cpe:2.3:o:linux:linux_kernel:*"))
+        # 内核类软件在 NVD 登记为操作系统形态，必须与 application 同等对待
+        self.assertEqual(
+            fs.cpe_vendor_product("cpe:2.3:o:linux:linux_kernel:6.1:*:*:*:*:*:*"),
+            "linux:linux_kernel")
+        # 硬件形态不属于本清单范畴
+        self.assertIsNone(fs.cpe_vendor_product("cpe:2.3:h:cisco:switch:*:*"))
         self.assertIsNone(fs.cpe_vendor_product("garbage"))
+
+    def test_touches_software_os_type(self):
+        """Linux Kernel 走 cpe:2.3:o——早期只认 a，65 个软件里它只采到 2 条。"""
+        cve = _cve("CVE-2024-0008",
+                   "cpe:2.3:o:linux:linux_kernel:6.1:*:*:*:*:*:*:*")
+        self.assertEqual(len(fs.cve_touches_software(cve, ["linux:linux_kernel"])), 1)
+        self.assertFalse(fs.cve_touches_software(cve, ["nginx:nginx"]))
 
     def test_touches_software_multi_prefix(self):
         cve = _cve("CVE-2024-0001", "cpe:2.3:a:oracle:mysql:8.0.0:*:*:*:*:*:*:*")
@@ -174,6 +186,37 @@ class SoftwareCatalogTest(unittest.TestCase):
         self.assertEqual({e["name"] for e in picked},
                          {"Kubernetes", "7-Zip"})
         self.assertEqual(len(fs._select_entries([])), len(fs.SOFTWARE))
+
+
+class CpeAliasCoverageTest(unittest.TestCase):
+    """NVD 里同一产品常有并列 / 改过名的 CPE，漏登记一个就成片少收。
+
+    10-19 用 NVD 原始数据逐条核对 65 个软件发现的缺口：containerd（0 条）、
+    CoreDNS（0 条）、Harbor（0 条）是 CPE 名与 NVD 不一致；nginx 少 26 条、
+    MySQL 少 195 条、RabbitMQ 少 47 条是厂商改名 / 收购后另起 CPE。
+    """
+
+    ALIASES = {
+        "nginx": "f5:nginx_open_source",
+        "MySQL": "oracle:mysql_server",
+        "Docker Engine": "mobyproject:moby",
+        "RabbitMQ": "broadcom:rabbitmq_server",
+        "containerd": "linuxfoundation:containerd",
+        "CoreDNS": "coredns.io:coredns",
+        "Harbor": "linuxfoundation:harbor",
+        "etcd": "etcd:etcd",
+        "Squid": "squid:squid",
+        "OpenJDK": "sun:openjdk",
+        "Elasticsearch": "elasticsearch:elasticsearch",
+        "Node.js": "joyent:node.js",
+    }
+
+    def test_vendor_rename_prefixes_registered(self):
+        by_name = {e["name"]: e for e in fs.SOFTWARE}
+        for name, prefix in self.ALIASES.items():
+            self.assertIn(name, by_name, "清单里没有 %s" % name)
+            self.assertIn(prefix, by_name[name]["cpe"],
+                          "%s 缺 CPE 别名前缀 %s" % (name, prefix))
 
 
 class GithubTokenTest(unittest.TestCase):
