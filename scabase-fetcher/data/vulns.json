@@ -2599,13 +2599,13 @@
           "modified": "2026-06-08T23:39:52Z",
           "published": "2022-01-21T23:26:47Z",
           "database_specific": {
+            "github_reviewed_at": "2022-01-19T22:31:49Z",
+            "nvd_published_at": "2022-01-18T16:15:00Z",
             "cwe_ids": [
               "CWE-89"
             ],
             "severity": "CRITICAL",
-            "github_reviewed": true,
-            "github_reviewed_at": "2022-01-19T22:31:49Z",
-            "nvd_published_at": "2022-01-18T16:15:00Z"
+            "github_reviewed": true
           },
           "references": [
             {
@@ -2999,14 +2999,14 @@
           "modified": "2025-09-02T22:25:25Z",
           "published": "2023-03-10T15:30:43Z",
           "database_specific": {
-            "severity": "HIGH",
-            "github_reviewed": true,
-            "github_reviewed_at": "2023-03-10T23:48:32Z",
             "nvd_published_at": "2023-03-10T14:15:00Z",
             "cwe_ids": [
               "CWE-400",
               "CWE-502"
-            ]
+            ],
+            "severity": "HIGH",
+            "github_reviewed": true,
+            "github_reviewed_at": "2023-03-10T23:48:32Z"
           },
           "references": [
             {
@@ -3123,13 +3123,13 @@
           "modified": "2025-07-09T14:59:08Z",
           "published": "2022-01-21T23:27:14Z",
           "database_specific": {
-            "nvd_published_at": "2022-01-18T16:15:00Z",
             "cwe_ids": [
               "CWE-502"
             ],
             "severity": "HIGH",
             "github_reviewed": true,
-            "github_reviewed_at": "2022-01-19T22:31:40Z"
+            "github_reviewed_at": "2022-01-19T22:31:40Z",
+            "nvd_published_at": "2022-01-18T16:15:00Z"
           },
           "references": [
             {
@@ -5576,13 +5576,13 @@
           "modified": "2026-06-08T23:39:52Z",
           "published": "2022-01-21T23:26:47Z",
           "database_specific": {
+            "github_reviewed_at": "2022-01-19T22:31:49Z",
+            "nvd_published_at": "2022-01-18T16:15:00Z",
             "cwe_ids": [
               "CWE-89"
             ],
             "severity": "CRITICAL",
-            "github_reviewed": true,
-            "github_reviewed_at": "2022-01-19T22:31:49Z",
-            "nvd_published_at": "2022-01-18T16:15:00Z"
+            "github_reviewed": true
           },
           "references": [
             {
@@ -7630,14 +7630,14 @@
           "modified": "2025-09-02T22:25:25Z",
           "published": "2023-03-10T15:30:43Z",
           "database_specific": {
-            "severity": "HIGH",
-            "github_reviewed": true,
-            "github_reviewed_at": "2023-03-10T23:48:32Z",
             "nvd_published_at": "2023-03-10T14:15:00Z",
             "cwe_ids": [
               "CWE-400",
               "CWE-502"
-            ]
+            ],
+            "severity": "HIGH",
+            "github_reviewed": true,
+            "github_reviewed_at": "2023-03-10T23:48:32Z"
           },
           "references": [
             {
@@ -7948,13 +7948,13 @@
           "modified": "2025-07-09T14:59:08Z",
           "published": "2022-01-21T23:27:14Z",
           "database_specific": {
-            "nvd_published_at": "2022-01-18T16:15:00Z",
             "cwe_ids": [
               "CWE-502"
             ],
             "severity": "HIGH",
             "github_reviewed": true,
-            "github_reviewed_at": "2022-01-19T22:31:40Z"
+            "github_reviewed_at": "2022-01-19T22:31:40Z",
+            "nvd_published_at": "2022-01-18T16:15:00Z"
           },
           "references": [
             {
@@ -8609,14 +8609,14 @@
           "modified": "2025-09-29T21:12:31.102523Z",
           "published": "2022-01-06T20:30:46Z",
           "database_specific": {
-            "github_reviewed_at": "2021-03-19T22:45:28Z",
             "nvd_published_at": "2021-02-15T11:15:00Z",
             "cwe_ids": [
               "CWE-1333",
               "CWE-400"
             ],
             "severity": "MODERATE",
-            "github_reviewed": true
+            "github_reviewed": true,
+            "github_reviewed_at": "2021-03-19T22:45:28Z"
           },
           "references": [
             {
@@ -8857,14 +8857,14 @@
           "modified": "2026-10-17T02:55:38.085813876Z",
           "published": "2021-05-06T16:05:51Z",
           "database_specific": {
+            "github_reviewed": true,
             "github_reviewed_at": "2021-03-31T23:59:26Z",
             "nvd_published_at": "2021-02-15T13:15:00Z",
             "cwe_ids": [
               "CWE-77",
               "CWE-94"
             ],
-            "severity": "HIGH",
-            "github_reviewed": true
+            "severity": "HIGH"
           },
           "references": [
             {
@@ -9175,8 +9175,8 @@
                 }
               ],
               "database_specific": {
-                "last_known_affected_version_range": "<= 4.17.23",
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-f23m-r3pf-42rh/GHSA-f23m-r3pf-42rh.json"
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-f23m-r3pf-42rh/GHSA-f23m-r3pf-42rh.json",
+                "last_known_affected_version_range": "<= 4.17.23"
               }
             },
             {
@@ -9324,8 +9324,8 @@
                 }
               ],
               "database_specific": {
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-r5fr-rjxr-66jc/GHSA-r5fr-rjxr-66jc.json",
-                "last_known_affected_version_range": "<= 4.17.23"
+                "last_known_affected_version_range": "<= 4.17.23",
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-r5fr-rjxr-66jc/GHSA-r5fr-rjxr-66jc.json"
               }
             },
             {
@@ -9372,8 +9372,8 @@
                 }
               ],
               "database_specific": {
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-r5fr-rjxr-66jc/GHSA-r5fr-rjxr-66jc.json",
-                "last_known_affected_version_range": "<= 4.17.23"
+                "last_known_affected_version_range": "<= 4.17.23",
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-r5fr-rjxr-66jc/GHSA-r5fr-rjxr-66jc.json"
               }
             },
             {
@@ -9418,13 +9418,13 @@
           "modified": "2026-10-17T02:55:54.229635593Z",
           "published": "2026-01-21T23:01:22Z",
           "database_specific": {
-            "github_reviewed_at": "2026-01-21T23:01:22Z",
-            "nvd_published_at": "2026-01-21T20:16:05Z",
             "cwe_ids": [
               "CWE-1321"
             ],
             "severity": "MODERATE",
-            "github_reviewed": true
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-01-21T23:01:22Z",
+            "nvd_published_at": "2026-01-21T20:16:05Z"
           },
           "references": [
             {
@@ -9540,8 +9540,8 @@
                 }
               ],
               "database_specific": {
-                "last_known_affected_version_range": "<= 4.17.22",
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-xxjr-mmjv-4gpg/GHSA-xxjr-mmjv-4gpg.json"
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-xxjr-mmjv-4gpg/GHSA-xxjr-mmjv-4gpg.json",
+                "last_known_affected_version_range": "<= 4.17.22"
               }
             }
           ],
@@ -9571,14 +9571,14 @@
           "modified": "2025-09-29T21:12:31.102523Z",
           "published": "2022-01-06T20:30:46Z",
           "database_specific": {
-            "github_reviewed_at": "2021-03-19T22:45:28Z",
             "nvd_published_at": "2021-02-15T11:15:00Z",
             "cwe_ids": [
               "CWE-1333",
               "CWE-400"
             ],
             "severity": "MODERATE",
-            "github_reviewed": true
+            "github_reviewed": true,
+            "github_reviewed_at": "2021-03-19T22:45:28Z"
           },
           "references": [
             {
@@ -10436,14 +10436,14 @@
           "modified": "2026-10-17T02:55:38.085813876Z",
           "published": "2021-05-06T16:05:51Z",
           "database_specific": {
+            "github_reviewed": true,
             "github_reviewed_at": "2021-03-31T23:59:26Z",
             "nvd_published_at": "2021-02-15T13:15:00Z",
             "cwe_ids": [
               "CWE-77",
               "CWE-94"
             ],
-            "severity": "HIGH",
-            "github_reviewed": true
+            "severity": "HIGH"
           },
           "references": [
             {
@@ -11395,8 +11395,8 @@
                 }
               ],
               "database_specific": {
-                "last_known_affected_version_range": "<= 4.17.23",
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-f23m-r3pf-42rh/GHSA-f23m-r3pf-42rh.json"
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-f23m-r3pf-42rh/GHSA-f23m-r3pf-42rh.json",
+                "last_known_affected_version_range": "<= 4.17.23"
               }
             },
             {
@@ -11793,8 +11793,8 @@
                 }
               ],
               "database_specific": {
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-r5fr-rjxr-66jc/GHSA-r5fr-rjxr-66jc.json",
-                "last_known_affected_version_range": "<= 4.17.23"
+                "last_known_affected_version_range": "<= 4.17.23",
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-r5fr-rjxr-66jc/GHSA-r5fr-rjxr-66jc.json"
               }
             },
             {
@@ -11841,8 +11841,8 @@
                 }
               ],
               "database_specific": {
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-r5fr-rjxr-66jc/GHSA-r5fr-rjxr-66jc.json",
-                "last_known_affected_version_range": "<= 4.17.23"
+                "last_known_affected_version_range": "<= 4.17.23",
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-r5fr-rjxr-66jc/GHSA-r5fr-rjxr-66jc.json"
               }
             },
             {
@@ -17826,13 +17826,13 @@
           "modified": "2026-10-17T02:55:54.229635593Z",
           "published": "2026-01-21T23:01:22Z",
           "database_specific": {
-            "github_reviewed_at": "2026-01-21T23:01:22Z",
-            "nvd_published_at": "2026-01-21T20:16:05Z",
             "cwe_ids": [
               "CWE-1321"
             ],
             "severity": "MODERATE",
-            "github_reviewed": true
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-01-21T23:01:22Z",
+            "nvd_published_at": "2026-01-21T20:16:05Z"
           },
           "references": [
             {
@@ -17948,8 +17948,8 @@
                 }
               ],
               "database_specific": {
-                "last_known_affected_version_range": "<= 4.17.22",
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-xxjr-mmjv-4gpg/GHSA-xxjr-mmjv-4gpg.json"
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-xxjr-mmjv-4gpg/GHSA-xxjr-mmjv-4gpg.json",
+                "last_known_affected_version_range": "<= 4.17.22"
               }
             }
           ],
@@ -23494,14 +23494,14 @@
           "modified": "2026-09-10T03:51:04.440180855Z",
           "published": "2026-05-29T16:07:31Z",
           "database_specific": {
+            "github_reviewed_at": "2026-05-29T16:07:31Z",
+            "nvd_published_at": "2026-06-11T17:16:33Z",
             "cwe_ids": [
               "CWE-1321",
               "CWE-94"
             ],
             "severity": "HIGH",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-05-29T16:07:31Z",
-            "nvd_published_at": "2026-06-11T17:16:33Z"
+            "github_reviewed": true
           },
           "references": [
             {
@@ -23912,13 +23912,13 @@
           "modified": "2026-09-10T03:50:45.703789635Z",
           "published": "2026-05-05T00:34:32Z",
           "database_specific": {
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-05-05T00:34:32Z",
+            "nvd_published_at": "2026-04-24T18:16:30Z",
             "cwe_ids": [
               "CWE-674"
             ],
-            "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-05-05T00:34:32Z",
-            "nvd_published_at": "2026-04-24T18:16:30Z"
+            "severity": "MODERATE"
           },
           "references": [
             {
@@ -24013,14 +24013,14 @@
           "modified": "2026-09-10T03:51:04.772235088Z",
           "published": "2026-05-05T00:25:47Z",
           "database_specific": {
+            "severity": "HIGH",
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-05-05T00:25:47Z",
             "nvd_published_at": "2026-04-24T18:16:30Z",
             "cwe_ids": [
               "CWE-113",
               "CWE-1321"
-            ],
-            "severity": "HIGH",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-05-05T00:25:47Z"
+            ]
           },
           "references": [
             {
@@ -24293,8 +24293,8 @@
                 }
               ],
               "database_specific": {
-                "last_known_affected_version_range": "<= 0.31.1",
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-898c-q2cr-xwhg/GHSA-898c-q2cr-xwhg.json"
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-898c-q2cr-xwhg/GHSA-898c-q2cr-xwhg.json",
+                "last_known_affected_version_range": "<= 0.31.1"
               }
             }
           ],
@@ -24316,14 +24316,14 @@
           "modified": "2026-09-10T03:49:08.788547249Z",
           "published": "2021-09-01T18:23:02Z",
           "database_specific": {
-            "github_reviewed": true,
-            "github_reviewed_at": "2021-09-01T18:14:02Z",
             "nvd_published_at": "2021-08-31T11:15:00Z",
             "cwe_ids": [
               "CWE-1333",
               "CWE-400"
             ],
-            "severity": "HIGH"
+            "severity": "HIGH",
+            "github_reviewed": true,
+            "github_reviewed_at": "2021-09-01T18:14:02Z"
           },
           "references": [
             {
@@ -24438,15 +24438,15 @@
           "modified": "2026-09-10T03:50:44.273401032Z",
           "published": "2026-04-10T19:47:16Z",
           "database_specific": {
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-04-10T19:47:16Z",
+            "nvd_published_at": "2026-04-10T20:16:22Z",
             "cwe_ids": [
               "CWE-113",
               "CWE-444",
               "CWE-918"
             ],
-            "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-04-10T19:47:16Z",
-            "nvd_published_at": "2026-04-10T20:16:22Z"
+            "severity": "MODERATE"
           },
           "references": [
             {
@@ -24560,14 +24560,14 @@
           "modified": "2026-09-10T03:50:49.732285826Z",
           "published": "2026-06-04T14:24:06Z",
           "database_specific": {
-            "severity": "HIGH",
             "github_reviewed": true,
             "github_reviewed_at": "2026-06-04T14:24:06Z",
             "nvd_published_at": null,
             "cwe_ids": [
               "CWE-1333",
               "CWE-400"
-            ]
+            ],
+            "severity": "HIGH"
           },
           "references": [
             {
@@ -24654,13 +24654,13 @@
           "modified": "2026-09-10T03:50:50.017253448Z",
           "published": "2026-06-04T14:15:01Z",
           "database_specific": {
-            "github_reviewed_at": "2026-06-04T14:15:01Z",
-            "nvd_published_at": "2026-06-11T17:16:32Z",
             "cwe_ids": [
               "CWE-200"
             ],
             "severity": "HIGH",
-            "github_reviewed": true
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-06-04T14:15:01Z",
+            "nvd_published_at": "2026-06-11T17:16:32Z"
           },
           "references": [
             {
@@ -24759,13 +24759,13 @@
           "modified": "2026-09-10T03:50:56.787685282Z",
           "published": "2025-03-07T15:16:00Z",
           "database_specific": {
+            "cwe_ids": [
+              "CWE-918"
+            ],
             "severity": "HIGH",
             "github_reviewed": true,
             "github_reviewed_at": "2025-03-07T15:16:00Z",
-            "nvd_published_at": "2025-03-07T16:15:38Z",
-            "cwe_ids": [
-              "CWE-918"
-            ]
+            "nvd_published_at": "2025-03-07T16:15:38Z"
           },
           "references": [
             {
@@ -24867,13 +24867,13 @@
           "modified": "2026-09-10T03:51:06.293033204Z",
           "published": "2026-05-05T00:40:17Z",
           "database_specific": {
+            "severity": "MODERATE",
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-05-05T00:40:17Z",
             "nvd_published_at": "2026-04-24T18:16:30Z",
             "cwe_ids": [
               "CWE-918"
-            ],
-            "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-05-05T00:40:17Z"
+            ]
           },
           "references": [
             {
@@ -24956,13 +24956,13 @@
           "modified": "2026-09-10T03:50:52.753640421Z",
           "published": "2026-07-20T22:25:07Z",
           "database_specific": {
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-07-20T22:25:07Z",
             "nvd_published_at": "2026-08-06T22:18:25Z",
             "cwe_ids": [
               "CWE-1321"
             ],
-            "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-07-20T22:25:07Z"
+            "severity": "MODERATE"
           },
           "references": [
             {
@@ -25076,13 +25076,13 @@
           "modified": "2026-09-10T03:51:09.218790313Z",
           "published": "2026-06-04T14:19:53Z",
           "database_specific": {
+            "severity": "HIGH",
             "github_reviewed": true,
             "github_reviewed_at": "2026-06-04T14:19:53Z",
             "nvd_published_at": "2026-06-11T17:16:32Z",
             "cwe_ids": [
               "CWE-201"
-            ],
-            "severity": "HIGH"
+            ]
           },
           "references": [
             {
@@ -25150,8 +25150,8 @@
                 }
               ],
               "database_specific": {
-                "last_known_affected_version_range": "<= 0.31.1",
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/06/GHSA-p92q-9vqr-4j8v/GHSA-p92q-9vqr-4j8v.json"
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/06/GHSA-p92q-9vqr-4j8v/GHSA-p92q-9vqr-4j8v.json",
+                "last_known_affected_version_range": "<= 0.31.1"
               }
             }
           ],
@@ -25173,13 +25173,13 @@
           "modified": "2026-09-10T03:51:06.658921258Z",
           "published": "2026-05-05T00:26:29Z",
           "database_specific": {
+            "github_reviewed": true,
             "github_reviewed_at": "2026-05-05T00:26:29Z",
             "nvd_published_at": "2026-04-24T18:16:29Z",
             "cwe_ids": [
               "CWE-1321"
             ],
-            "severity": "HIGH",
-            "github_reviewed": true
+            "severity": "HIGH"
           },
           "references": [
             {
@@ -25262,14 +25262,14 @@
           "modified": "2026-09-10T03:51:06.693575938Z",
           "published": "2026-05-29T15:59:30Z",
           "database_specific": {
-            "github_reviewed_at": "2026-05-29T15:59:30Z",
-            "nvd_published_at": "2026-06-11T17:16:33Z",
             "cwe_ids": [
               "CWE-289",
               "CWE-918"
             ],
             "severity": "HIGH",
-            "github_reviewed": true
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-05-29T15:59:30Z",
+            "nvd_published_at": "2026-06-11T17:16:33Z"
           },
           "references": [
             {
@@ -25492,15 +25492,15 @@
           "modified": "2026-09-10T03:51:06.691311805Z",
           "published": "2026-05-05T00:20:58Z",
           "database_specific": {
+            "severity": "HIGH",
+            "github_reviewed": true,
             "github_reviewed_at": "2026-05-05T00:20:58Z",
             "nvd_published_at": "2026-04-24T18:16:31Z",
             "cwe_ids": [
               "CWE-183",
               "CWE-441",
               "CWE-918"
-            ],
-            "severity": "HIGH",
-            "github_reviewed": true
+            ]
           },
           "references": [
             {
@@ -25560,8 +25560,8 @@
                 }
               ],
               "database_specific": {
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-pmwg-cvhr-8vh7/GHSA-pmwg-cvhr-8vh7.json",
-                "last_known_affected_version_range": "<= 0.31.0"
+                "last_known_affected_version_range": "<= 0.31.0",
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-pmwg-cvhr-8vh7/GHSA-pmwg-cvhr-8vh7.json"
               }
             }
           ],
@@ -25672,14 +25672,14 @@
           "modified": "2026-09-10T03:50:47.772907977Z",
           "published": "2026-05-05T00:21:39Z",
           "database_specific": {
-            "github_reviewed_at": "2026-05-05T00:21:39Z",
-            "nvd_published_at": "2026-04-24T18:16:31Z",
             "cwe_ids": [
               "CWE-1321",
               "CWE-287"
             ],
             "severity": "MODERATE",
-            "github_reviewed": true
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-05-05T00:21:39Z",
+            "nvd_published_at": "2026-04-24T18:16:31Z"
           },
           "references": [
             {
@@ -25739,8 +25739,8 @@
                 }
               ],
               "database_specific": {
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-w9j2-pvgh-6h63/GHSA-w9j2-pvgh-6h63.json",
-                "last_known_affected_version_range": "<= 0.31.0"
+                "last_known_affected_version_range": "<= 0.31.0",
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-w9j2-pvgh-6h63/GHSA-w9j2-pvgh-6h63.json"
               }
             }
           ],
@@ -25762,13 +25762,13 @@
           "modified": "2026-09-10T03:49:47.742398623Z",
           "published": "2023-11-08T21:30:37Z",
           "database_specific": {
+            "github_reviewed": true,
+            "github_reviewed_at": "2023-11-10T00:35:37Z",
+            "nvd_published_at": "2023-11-08T21:15:08Z",
             "cwe_ids": [
               "CWE-352"
             ],
-            "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2023-11-10T00:35:37Z",
-            "nvd_published_at": "2023-11-08T21:15:08Z"
+            "severity": "MODERATE"
           },
           "references": [
             {
@@ -25976,14 +25976,14 @@
           "modified": "2026-09-10T03:51:07.425895085Z",
           "published": "2026-05-05T00:25:22Z",
           "database_specific": {
-            "nvd_published_at": "2026-04-24T18:16:31Z",
             "cwe_ids": [
               "CWE-183",
               "CWE-201"
             ],
             "severity": "MODERATE",
             "github_reviewed": true,
-            "github_reviewed_at": "2026-05-05T00:25:22Z"
+            "github_reviewed_at": "2026-05-05T00:25:22Z",
+            "nvd_published_at": "2026-04-24T18:16:31Z"
           },
           "references": [
             {
@@ -26070,14 +26070,14 @@
           "modified": "2026-09-10T03:51:04.440180855Z",
           "published": "2026-05-29T16:07:31Z",
           "database_specific": {
+            "github_reviewed_at": "2026-05-29T16:07:31Z",
+            "nvd_published_at": "2026-06-11T17:16:33Z",
             "cwe_ids": [
               "CWE-1321",
               "CWE-94"
             ],
             "severity": "HIGH",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-05-29T16:07:31Z",
-            "nvd_published_at": "2026-06-11T17:16:33Z"
+            "github_reviewed": true
           },
           "references": [
             {
@@ -32824,13 +32824,13 @@
           "modified": "2026-09-10T03:50:45.703789635Z",
           "published": "2026-05-05T00:34:32Z",
           "database_specific": {
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-05-05T00:34:32Z",
+            "nvd_published_at": "2026-04-24T18:16:30Z",
             "cwe_ids": [
               "CWE-674"
             ],
-            "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-05-05T00:34:32Z",
-            "nvd_published_at": "2026-04-24T18:16:30Z"
+            "severity": "MODERATE"
           },
           "references": [
             {
@@ -34612,14 +34612,14 @@
           "modified": "2026-09-10T03:51:04.772235088Z",
           "published": "2026-05-05T00:25:47Z",
           "database_specific": {
+            "severity": "HIGH",
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-05-05T00:25:47Z",
             "nvd_published_at": "2026-04-24T18:16:30Z",
             "cwe_ids": [
               "CWE-113",
               "CWE-1321"
-            ],
-            "severity": "HIGH",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-05-05T00:25:47Z"
+            ]
           },
           "references": [
             {
@@ -35251,8 +35251,8 @@
                 }
               ],
               "database_specific": {
-                "last_known_affected_version_range": "<= 0.31.1",
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-898c-q2cr-xwhg/GHSA-898c-q2cr-xwhg.json"
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-898c-q2cr-xwhg/GHSA-898c-q2cr-xwhg.json",
+                "last_known_affected_version_range": "<= 0.31.1"
               }
             }
           ],
@@ -35432,14 +35432,14 @@
           "modified": "2026-09-10T03:49:08.788547249Z",
           "published": "2021-09-01T18:23:02Z",
           "database_specific": {
-            "github_reviewed": true,
-            "github_reviewed_at": "2021-09-01T18:14:02Z",
             "nvd_published_at": "2021-08-31T11:15:00Z",
             "cwe_ids": [
               "CWE-1333",
               "CWE-400"
             ],
-            "severity": "HIGH"
+            "severity": "HIGH",
+            "github_reviewed": true,
+            "github_reviewed_at": "2021-09-01T18:14:02Z"
           },
           "references": [
             {
@@ -35891,15 +35891,15 @@
           "modified": "2026-09-10T03:50:44.273401032Z",
           "published": "2026-04-10T19:47:16Z",
           "database_specific": {
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-04-10T19:47:16Z",
+            "nvd_published_at": "2026-04-10T20:16:22Z",
             "cwe_ids": [
               "CWE-113",
               "CWE-444",
               "CWE-918"
             ],
-            "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-04-10T19:47:16Z",
-            "nvd_published_at": "2026-04-10T20:16:22Z"
+            "severity": "MODERATE"
           },
           "references": [
             {
@@ -38023,14 +38023,14 @@
           "modified": "2026-09-10T03:50:49.732285826Z",
           "published": "2026-06-04T14:24:06Z",
           "database_specific": {
-            "severity": "HIGH",
             "github_reviewed": true,
             "github_reviewed_at": "2026-06-04T14:24:06Z",
             "nvd_published_at": null,
             "cwe_ids": [
               "CWE-1333",
               "CWE-400"
-            ]
+            ],
+            "severity": "HIGH"
           },
           "references": [
             {
@@ -39912,13 +39912,13 @@
           "modified": "2026-09-10T03:50:50.017253448Z",
           "published": "2026-06-04T14:15:01Z",
           "database_specific": {
-            "github_reviewed_at": "2026-06-04T14:15:01Z",
-            "nvd_published_at": "2026-06-11T17:16:32Z",
             "cwe_ids": [
               "CWE-200"
             ],
             "severity": "HIGH",
-            "github_reviewed": true
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-06-04T14:15:01Z",
+            "nvd_published_at": "2026-06-11T17:16:32Z"
           },
           "references": [
             {
@@ -41832,13 +41832,13 @@
           "modified": "2026-09-10T03:50:56.787685282Z",
           "published": "2025-03-07T15:16:00Z",
           "database_specific": {
+            "cwe_ids": [
+              "CWE-918"
+            ],
             "severity": "HIGH",
             "github_reviewed": true,
             "github_reviewed_at": "2025-03-07T15:16:00Z",
-            "nvd_published_at": "2025-03-07T16:15:38Z",
-            "cwe_ids": [
-              "CWE-918"
-            ]
+            "nvd_published_at": "2025-03-07T16:15:38Z"
           },
           "references": [
             {
@@ -42129,13 +42129,13 @@
           "modified": "2026-09-10T03:51:06.293033204Z",
           "published": "2026-05-05T00:40:17Z",
           "database_specific": {
+            "severity": "MODERATE",
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-05-05T00:40:17Z",
             "nvd_published_at": "2026-04-24T18:16:30Z",
             "cwe_ids": [
               "CWE-918"
-            ],
-            "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-05-05T00:40:17Z"
+            ]
           },
           "references": [
             {
@@ -42378,13 +42378,13 @@
           "modified": "2026-09-10T03:50:52.753640421Z",
           "published": "2026-07-20T22:25:07Z",
           "database_specific": {
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-07-20T22:25:07Z",
             "nvd_published_at": "2026-08-06T22:18:25Z",
             "cwe_ids": [
               "CWE-1321"
             ],
-            "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2026-07-20T22:25:07Z"
+            "severity": "MODERATE"
           },
           "references": [
             {
@@ -42713,13 +42713,13 @@
           "modified": "2026-09-10T03:51:09.218790313Z",
           "published": "2026-06-04T14:19:53Z",
           "database_specific": {
+            "severity": "HIGH",
             "github_reviewed": true,
             "github_reviewed_at": "2026-06-04T14:19:53Z",
             "nvd_published_at": "2026-06-11T17:16:32Z",
             "cwe_ids": [
               "CWE-201"
-            ],
-            "severity": "HIGH"
+            ]
           },
           "references": [
             {
@@ -42787,8 +42787,8 @@
                 }
               ],
               "database_specific": {
-                "last_known_affected_version_range": "<= 0.31.1",
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/06/GHSA-p92q-9vqr-4j8v/GHSA-p92q-9vqr-4j8v.json"
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/06/GHSA-p92q-9vqr-4j8v/GHSA-p92q-9vqr-4j8v.json",
+                "last_known_affected_version_range": "<= 0.31.1"
               }
             }
           ],
@@ -44783,13 +44783,13 @@
           "modified": "2026-09-10T03:51:06.658921258Z",
           "published": "2026-05-05T00:26:29Z",
           "database_specific": {
+            "github_reviewed": true,
             "github_reviewed_at": "2026-05-05T00:26:29Z",
             "nvd_published_at": "2026-04-24T18:16:29Z",
             "cwe_ids": [
               "CWE-1321"
             ],
-            "severity": "HIGH",
-            "github_reviewed": true
+            "severity": "HIGH"
           },
           "references": [
             {
@@ -46491,14 +46491,14 @@
           "modified": "2026-09-10T03:51:06.693575938Z",
           "published": "2026-05-29T15:59:30Z",
           "database_specific": {
-            "github_reviewed_at": "2026-05-29T15:59:30Z",
-            "nvd_published_at": "2026-06-11T17:16:33Z",
             "cwe_ids": [
               "CWE-289",
               "CWE-918"
             ],
             "severity": "HIGH",
-            "github_reviewed": true
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-05-29T15:59:30Z",
+            "nvd_published_at": "2026-06-11T17:16:33Z"
           },
           "references": [
             {
@@ -48560,15 +48560,15 @@
           "modified": "2026-09-10T03:51:06.691311805Z",
           "published": "2026-05-05T00:20:58Z",
           "database_specific": {
+            "severity": "HIGH",
+            "github_reviewed": true,
             "github_reviewed_at": "2026-05-05T00:20:58Z",
             "nvd_published_at": "2026-04-24T18:16:31Z",
             "cwe_ids": [
               "CWE-183",
               "CWE-441",
               "CWE-918"
-            ],
-            "severity": "HIGH",
-            "github_reviewed": true
+            ]
           },
           "references": [
             {
@@ -48628,8 +48628,8 @@
                 }
               ],
               "database_specific": {
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-pmwg-cvhr-8vh7/GHSA-pmwg-cvhr-8vh7.json",
-                "last_known_affected_version_range": "<= 0.31.0"
+                "last_known_affected_version_range": "<= 0.31.0",
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-pmwg-cvhr-8vh7/GHSA-pmwg-cvhr-8vh7.json"
               }
             }
           ],
@@ -50515,14 +50515,14 @@
           "modified": "2026-09-10T03:50:47.772907977Z",
           "published": "2026-05-05T00:21:39Z",
           "database_specific": {
-            "github_reviewed_at": "2026-05-05T00:21:39Z",
-            "nvd_published_at": "2026-04-24T18:16:31Z",
             "cwe_ids": [
               "CWE-1321",
               "CWE-287"
             ],
             "severity": "MODERATE",
-            "github_reviewed": true
+            "github_reviewed": true,
+            "github_reviewed_at": "2026-05-05T00:21:39Z",
+            "nvd_published_at": "2026-04-24T18:16:31Z"
           },
           "references": [
             {
@@ -50582,8 +50582,8 @@
                 }
               ],
               "database_specific": {
-                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-w9j2-pvgh-6h63/GHSA-w9j2-pvgh-6h63.json",
-                "last_known_affected_version_range": "<= 0.31.0"
+                "last_known_affected_version_range": "<= 0.31.0",
+                "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/05/GHSA-w9j2-pvgh-6h63/GHSA-w9j2-pvgh-6h63.json"
               }
             }
           ],
@@ -52238,13 +52238,13 @@
           "modified": "2026-09-10T03:49:47.742398623Z",
           "published": "2023-11-08T21:30:37Z",
           "database_specific": {
+            "github_reviewed": true,
+            "github_reviewed_at": "2023-11-10T00:35:37Z",
+            "nvd_published_at": "2023-11-08T21:15:08Z",
             "cwe_ids": [
               "CWE-352"
             ],
-            "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2023-11-10T00:35:37Z",
-            "nvd_published_at": "2023-11-08T21:15:08Z"
+            "severity": "MODERATE"
           },
           "references": [
             {
@@ -52734,14 +52734,14 @@
           "modified": "2026-09-10T03:51:07.425895085Z",
           "published": "2026-05-05T00:25:22Z",
           "database_specific": {
-            "nvd_published_at": "2026-04-24T18:16:31Z",
             "cwe_ids": [
               "CWE-183",
               "CWE-201"
             ],
             "severity": "MODERATE",
             "github_reviewed": true,
-            "github_reviewed_at": "2026-05-05T00:25:22Z"
+            "github_reviewed_at": "2026-05-05T00:25:22Z",
+            "nvd_published_at": "2026-04-24T18:16:31Z"
           },
           "references": [
             {
@@ -52970,16 +52970,16 @@
             "CVE-2024-47081",
             "PYSEC-2026-1872"
           ],
-          "modified": "2026-09-10T03:50:25.139398550Z",
+          "modified": "2026-10-19T20:00:04.716114530Z",
           "published": "2025-06-09T19:06:08Z",
           "database_specific": {
-            "github_reviewed": true,
-            "github_reviewed_at": "2025-06-09T19:06:08Z",
-            "nvd_published_at": "2025-06-09T18:15:24Z",
             "cwe_ids": [
               "CWE-522"
             ],
-            "severity": "MODERATE"
+            "severity": "MODERATE",
+            "github_reviewed": true,
+            "github_reviewed_at": "2025-06-09T19:06:08Z",
+            "nvd_published_at": "2025-06-09T18:15:24Z"
           },
           "references": [
             {
@@ -52999,8 +52999,24 @@
               "url": "https://github.com/psf/requests/commit/96ba401c1296ab1dda74a2365ef36d88f7d144ef"
             },
             {
+              "type": "ADVISORY",
+              "url": "https://github.com/advisories/GHSA-9hjg-9r4m-mvj7"
+            },
+            {
               "type": "PACKAGE",
               "url": "https://github.com/psf/requests"
+            },
+            {
+              "type": "WEB",
+              "url": "https://github.com/psf/requests/releases/tag/v2.32.4"
+            },
+            {
+              "type": "WEB",
+              "url": "https://github.com/pypa/advisory-database/tree/main/vulns/requests/PYSEC-2026-1872.yaml"
+            },
+            {
+              "type": "WEB",
+              "url": "https://pypi.org/project/requests"
             },
             {
               "type": "WEB",
@@ -53009,10 +53025,6 @@
             {
               "type": "WEB",
               "url": "https://seclists.org/fulldisclosure/2025/Jun/2"
-            },
-            {
-              "type": "WEB",
-              "url": "http://seclists.org/fulldisclosure/2025/Jun/2"
             },
             {
               "type": "WEB",
@@ -53467,13 +53479,13 @@
           "modified": "2026-09-10T03:50:39.207922076Z",
           "published": "2026-03-25T16:56:28Z",
           "database_specific": {
+            "severity": "MODERATE",
+            "github_reviewed": true,
             "github_reviewed_at": "2026-03-25T16:56:28Z",
             "nvd_published_at": "2026-03-25T17:16:52Z",
             "cwe_ids": [
               "CWE-377"
-            ],
-            "severity": "MODERATE",
-            "github_reviewed": true
+            ]
           },
           "references": [
             {
@@ -54705,16 +54717,16 @@
             "CVE-2024-47081",
             "PYSEC-2026-1872"
           ],
-          "modified": "2026-09-10T03:50:25.139398550Z",
+          "modified": "2026-10-19T20:00:04.716114530Z",
           "published": "2025-06-09T19:06:08Z",
           "database_specific": {
-            "github_reviewed": true,
-            "github_reviewed_at": "2025-06-09T19:06:08Z",
-            "nvd_published_at": "2025-06-09T18:15:24Z",
             "cwe_ids": [
               "CWE-522"
             ],
-            "severity": "MODERATE"
+            "severity": "MODERATE",
+            "github_reviewed": true,
+            "github_reviewed_at": "2025-06-09T19:06:08Z",
+            "nvd_published_at": "2025-06-09T18:15:24Z"
           },
           "references": [
             {
@@ -54734,8 +54746,24 @@
               "url": "https://github.com/psf/requests/commit/96ba401c1296ab1dda74a2365ef36d88f7d144ef"
             },
             {
+              "type": "ADVISORY",
+              "url": "https://github.com/advisories/GHSA-9hjg-9r4m-mvj7"
+            },
+            {
               "type": "PACKAGE",
               "url": "https://github.com/psf/requests"
+            },
+            {
+              "type": "WEB",
+              "url": "https://github.com/psf/requests/releases/tag/v2.32.4"
+            },
+            {
+              "type": "WEB",
+              "url": "https://github.com/pypa/advisory-database/tree/main/vulns/requests/PYSEC-2026-1872.yaml"
+            },
+            {
+              "type": "WEB",
+              "url": "https://pypi.org/project/requests"
             },
             {
               "type": "WEB",
@@ -54744,10 +54772,6 @@
             {
               "type": "WEB",
               "url": "https://seclists.org/fulldisclosure/2025/Jun/2"
-            },
-            {
-              "type": "WEB",
-              "url": "http://seclists.org/fulldisclosure/2025/Jun/2"
             },
             {
               "type": "WEB",
@@ -55497,13 +55521,13 @@
           "modified": "2026-09-10T03:50:39.207922076Z",
           "published": "2026-03-25T16:56:28Z",
           "database_specific": {
+            "severity": "MODERATE",
+            "github_reviewed": true,
             "github_reviewed_at": "2026-03-25T16:56:28Z",
             "nvd_published_at": "2026-03-25T17:16:52Z",
             "cwe_ids": [
               "CWE-377"
-            ],
-            "severity": "MODERATE",
-            "github_reviewed": true
+            ]
           },
           "references": [
             {
@@ -57831,13 +57855,13 @@
           "modified": "2026-09-10T03:49:54.354981590Z",
           "published": "2026-02-19T20:45:41Z",
           "database_specific": {
-            "severity": "LOW",
-            "github_reviewed": true,
             "github_reviewed_at": "2026-02-19T20:45:41Z",
             "nvd_published_at": "2026-02-21T06:17:00Z",
             "cwe_ids": [
               "CWE-524"
-            ]
+            ],
+            "severity": "LOW",
+            "github_reviewed": true
           },
           "references": [
             {
@@ -57970,13 +57994,13 @@
           "modified": "2026-09-10T03:50:01.763387498Z",
           "published": "2023-05-01T19:22:20Z",
           "database_specific": {
+            "severity": "HIGH",
+            "github_reviewed": true,
             "github_reviewed_at": "2023-05-01T19:22:20Z",
             "nvd_published_at": "2023-05-02T18:15:52Z",
             "cwe_ids": [
               "CWE-539"
-            ],
-            "severity": "HIGH",
-            "github_reviewed": true
+            ]
           },
           "references": [
             {
@@ -58412,13 +58436,13 @@
           "modified": "2026-09-10T03:49:54.354981590Z",
           "published": "2026-02-19T20:45:41Z",
           "database_specific": {
-            "severity": "LOW",
-            "github_reviewed": true,
             "github_reviewed_at": "2026-02-19T20:45:41Z",
             "nvd_published_at": "2026-02-21T06:17:00Z",
             "cwe_ids": [
               "CWE-524"
-            ]
+            ],
+            "severity": "LOW",
+            "github_reviewed": true
           },
           "references": [
             {
@@ -58732,13 +58756,13 @@
           "modified": "2026-09-10T03:50:01.763387498Z",
           "published": "2023-05-01T19:22:20Z",
           "database_specific": {
+            "severity": "HIGH",
+            "github_reviewed": true,
             "github_reviewed_at": "2023-05-01T19:22:20Z",
             "nvd_published_at": "2023-05-02T18:15:52Z",
             "cwe_ids": [
               "CWE-539"
-            ],
-            "severity": "HIGH",
-            "github_reviewed": true
+            ]
           },
           "references": [
             {
@@ -59827,13 +59851,13 @@
           "modified": "2023-11-08T04:12:18.674169Z",
           "published": "2023-05-12T20:19:25Z",
           "database_specific": {
+            "severity": "MODERATE",
             "github_reviewed": true,
             "github_reviewed_at": "2023-05-12T20:19:25Z",
             "nvd_published_at": "2023-06-08T21:15:16Z",
             "cwe_ids": [
               "CWE-494"
-            ],
-            "severity": "MODERATE"
+            ]
           },
           "references": [
             {
@@ -59904,14 +59928,14 @@
           "modified": "2023-11-08T04:11:58.943766Z",
           "published": "2023-05-04T06:30:12Z",
           "database_specific": {
+            "github_reviewed_at": "2023-05-05T02:20:00Z",
+            "nvd_published_at": "2023-05-04T05:15:09Z",
             "cwe_ids": [
               "CWE-20",
               "CWE-77"
             ],
             "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2023-05-05T02:20:00Z",
-            "nvd_published_at": "2023-05-04T05:15:09Z"
+            "github_reviewed": true
           },
           "references": [
             {
@@ -59988,14 +60012,14 @@
           "modified": "2026-09-10T03:49:05.801847827Z",
           "published": "2021-06-23T17:53:21Z",
           "database_specific": {
-            "cwe_ids": [
-              "CWE-113",
-              "CWE-444"
-            ],
             "severity": "HIGH",
             "github_reviewed": true,
             "github_reviewed_at": "2021-05-12T21:46:50Z",
-            "nvd_published_at": "2021-01-20T18:15:00Z"
+            "nvd_published_at": "2021-01-20T18:15:00Z",
+            "cwe_ids": [
+              "CWE-113",
+              "CWE-444"
+            ]
           },
           "references": [
             {
@@ -60116,8 +60140,8 @@
           "modified": "2026-07-08T05:56:36.895132392Z",
           "published": "2021-04-14T20:04:52Z",
           "database_specific": {
-            "url": "https://pkg.go.dev/vuln/GO-2021-0052",
-            "review_status": "REVIEWED"
+            "review_status": "REVIEWED",
+            "url": "https://pkg.go.dev/vuln/GO-2021-0052"
           },
           "references": [
             {
@@ -60263,10 +60287,10 @@
               "ecosystem_specific": {
                 "imports": [
                   {
+                    "path": "github.com/gin-gonic/gin",
                     "symbols": [
                       "Context.FileAttachment"
-                    ],
-                    "path": "github.com/gin-gonic/gin"
+                    ]
                   }
                 ]
               },
@@ -60297,13 +60321,13 @@
           "modified": "2023-11-08T04:12:18.674169Z",
           "published": "2023-05-12T20:19:25Z",
           "database_specific": {
+            "severity": "MODERATE",
             "github_reviewed": true,
             "github_reviewed_at": "2023-05-12T20:19:25Z",
             "nvd_published_at": "2023-06-08T21:15:16Z",
             "cwe_ids": [
               "CWE-494"
-            ],
-            "severity": "MODERATE"
+            ]
           },
           "references": [
             {
@@ -60576,14 +60600,14 @@
           "modified": "2023-11-08T04:11:58.943766Z",
           "published": "2023-05-04T06:30:12Z",
           "database_specific": {
+            "github_reviewed_at": "2023-05-05T02:20:00Z",
+            "nvd_published_at": "2023-05-04T05:15:09Z",
             "cwe_ids": [
               "CWE-20",
               "CWE-77"
             ],
             "severity": "MODERATE",
-            "github_reviewed": true,
-            "github_reviewed_at": "2023-05-05T02:20:00Z",
-            "nvd_published_at": "2023-05-04T05:15:09Z"
+            "github_reviewed": true
           },
           "references": [
             {
@@ -60911,14 +60935,14 @@
           "modified": "2026-09-10T03:49:05.801847827Z",
           "published": "2021-06-23T17:53:21Z",
           "database_specific": {
-            "cwe_ids": [
-              "CWE-113",
-              "CWE-444"
-            ],
             "severity": "HIGH",
             "github_reviewed": true,
             "github_reviewed_at": "2021-05-12T21:46:50Z",
-            "nvd_published_at": "2021-01-20T18:15:00Z"
+            "nvd_published_at": "2021-01-20T18:15:00Z",
+            "cwe_ids": [
+              "CWE-113",
+              "CWE-444"
+            ]
           },
           "references": [
             {
@@ -61189,8 +61213,8 @@
           "modified": "2026-07-08T05:56:36.895132392Z",
           "published": "2021-04-14T20:04:52Z",
           "database_specific": {
-            "url": "https://pkg.go.dev/vuln/GO-2021-0052",
-            "review_status": "REVIEWED"
+            "review_status": "REVIEWED",
+            "url": "https://pkg.go.dev/vuln/GO-2021-0052"
           },
           "references": [
             {
@@ -61486,10 +61510,10 @@
               "ecosystem_specific": {
                 "imports": [
                   {
+                    "path": "github.com/gin-gonic/gin",
                     "symbols": [
                       "Context.FileAttachment"
-                    ],
-                    "path": "github.com/gin-gonic/gin"
+                    ]
                   }
                 ]
               },
