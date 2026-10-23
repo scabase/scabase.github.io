@@ -3,7 +3,7 @@
   "description": "开源组件漏洞与社区支持查询站的机器可读数据索引；字段 llm_hint 面向通过 WebFetch 取数的智能体",
   "base_url": "https://scabase.roweb.cn",
   "llms_txt": "https://scabase.roweb.cn/llms.txt",
-  "generated_at": "2026-10-22T11:46:59Z",
+  "generated_at": "2026-10-23T07:26:24Z",
   "datasets": [
     {
       "id": "vulns",
@@ -30,7 +30,7 @@
       "path": "/scabase-fetcher/data/vulns.json",
       "url": "https://scabase.roweb.cn/scabase-fetcher/data/vulns.json",
       "bytes": 2846262,
-      "sha256": "035bcccf3fd43b4701ea250d7df526d43327d5ac56d29603fd113f45ecf74874"
+      "sha256": "6ac590576df33c278bb72c64c19ae35a68e93977e9f3e0317f1693ec97f3cc24"
     },
     {
       "id": "popular-packages",
